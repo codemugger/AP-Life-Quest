@@ -4,6 +4,7 @@ import { prettyDate } from "../../shared/dates";
 import type { Achievement } from "../../shared/types";
 import { useGame } from "../store";
 import { Editor } from "../components/Editor";
+import { IconOrEmoji } from "../components/Media";
 import { Bar, Panel } from "../components/ui";
 import { fmt } from "../util";
 
@@ -51,7 +52,7 @@ export default function Trophies() {
           const [cur, target] = a.progress ?? [1, 1];
           return (
             <div key={a.id} className={`panel tight trophy tier-${a.tier} ${a.unlocked_at ? "" : "locked"}`} style={{ margin: 4 }}>
-              <div className="t-emoji">{secret ? "❓" : a.emoji}</div>
+              <div className="t-emoji">{secret ? "❓" : <IconOrEmoji images={a.images} emoji={a.emoji} size={40} />}</div>
               <div className="t-name">{secret ? "Secret" : a.name}</div>
               <div className="tiny ink2">{secret ? "Keep playing…" : a.description}</div>
               <div className="tier-bar" title={a.tier} />

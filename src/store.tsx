@@ -1,7 +1,7 @@
 // Game state store: loads/refreshes state, runs actions and hands their effects to the FX layer.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Fx, GameState } from "../shared/types";
-import { api, ApiError } from "./api";
+import { api, ApiError, g } from "./api";
 import { useFx } from "./fx";
 import { setSoundEnabled } from "./sound";
 
@@ -51,7 +51,7 @@ export function GameProvider({ children, onLoggedOut }: { children: (loading: bo
       const reports: Fx[] = [];
       try {
         for (let i = 0; i < 20; i++) {
-          const r = await api<{ fx: Fx[]; remaining: number }>("process", { body: {} });
+          const r = await api<{ fx: Fx[]; remaining: number }>(g("process"), { body: {} });
           reports.push(...r.fx);
           if (!(r.remaining > 0)) break;
         }
@@ -60,7 +60,7 @@ export function GameProvider({ children, onLoggedOut }: { children: (loading: bo
         // Never block the game because a day couldn't be closed; it retries on the next open.
         fx.error(`Couldn't close finished days yet (${e instanceof Error ? e.message : e}). Will retry.`);
       }
-      const s = await api<GameState>("state");
+      const s = await api<GameState>(g("state"));
       setState(s);
       setSoundEnabled(s.settings.sound);
       setError(null);
@@ -87,7 +87,7 @@ export function GameProvider({ children, onLoggedOut }: { children: (loading: bo
 
   const refresh = useCallback(async () => {
     try {
-      const s = await api<GameState>("state");
+      const s = await api<GameState>(g("state"));
       setState(s);
       setSoundEnabled(s.settings.sound);
     } catch (e) {
@@ -99,8 +99,8 @@ export function GameProvider({ children, onLoggedOut }: { children: (loading: bo
     async (path: string, body?: unknown, method?: string) => {
       setBusy(true);
       try {
-        const r = await api<{ fx?: Fx[]; data?: unknown }>(path, { method: method ?? "POST", body: body ?? {} });
-        const s = await api<GameState>("state");
+        const r = await api<{ fx?: Fx[]; data?: unknown }>(g(path), { method: method ?? "POST", body: body ?? {} });
+        const s = await api<GameState>(g("state"));
         setState(s);
         setSoundEnabled(s.settings.sound);
         if (r.fx?.length) fx.play(r.fx, s);

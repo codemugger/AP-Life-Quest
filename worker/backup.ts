@@ -6,7 +6,8 @@ import { addDays } from "../shared/dates";
 import { levelInfo } from "../shared/levels";
 import { all, bad, first, HttpError, notFound, stmt } from "./db";
 import { savePlayer, settingStmt, totals, type Ctx } from "./game";
-import { seedAll } from "./seeding";
+
+import { ownerTemplatesAllowed, seedAll } from "./seeding";
 
 /** Every table that holds game data (sessions/login attempts/snapshots are deliberately excluded). */
 export const DATA_TABLES = [
@@ -38,6 +39,10 @@ export const DATA_TABLES = [
 const isDataTable = (t: string) => (DATA_TABLES as readonly string[]).includes(t);
 const IDENT = /^[a-z_][a-z0-9_]*$/;
 const PART = 500;
+const MAX_IMPORT_ROWS = 60_000;
+const MAX_MANUAL_SNAPSHOTS = 12;
+/** Newest snapshots kept per automatic kind. */
+const KEEP: Record<string, number> = { auto: 8, "pre-reset": 5, "pre-restore": 5 };
 
 export interface Backup {
   app: "ap-life-quest";
@@ -104,14 +109,17 @@ export async function snapshotJson(db: D1Database, id: number) {
 
 /** Creates a save point atomically (the row and all its chunks, or nothing). */
 export async function createSnapshot(db: D1Database, label: string, kind = "manual") {
-  const next = await first<{ n: number }>(db, "SELECT COALESCE(MAX(id), 0) + 1 AS n FROM snapshots");
+  const next = await first<{ n: number; manual: number }>(db, "SELECT COALESCE(MAX(id), 0) + 1 AS n, (SELECT COUNT(*) FROM snapshots WHERE kind = 'manual') AS manual FROM snapshots");
+  if (kind === "manual" && next!.manual >= MAX_MANUAL_SNAPSHOTS) throw bad(`You have ${MAX_MANUAL_SNAPSHOTS} save points. Delete an old one first.`);
   const id = next!.n;
   await db.batch([
     stmt(db, "INSERT INTO snapshots (id, label, kind) VALUES (?, ?, ?)", id, label.slice(0, 120), kind),
     ...(await chunkStatements(db, id)),
     stmt(db, "UPDATE snapshots SET size = (SELECT COALESCE(SUM(length(data)), 0) FROM snapshot_chunks WHERE snapshot_id = ?) WHERE id = ?", id, id),
-    // Keep the newest 8 automatic snapshots.
-    db.prepare(`DELETE FROM snapshots WHERE kind = 'auto' AND id NOT IN (SELECT id FROM snapshots WHERE kind = 'auto' ORDER BY id DESC LIMIT 8)`),
+    // Keep only the newest few of each automatic kind.
+    ...Object.entries(KEEP).map(([k, n]) =>
+      stmt(db, "DELETE FROM snapshots WHERE kind = ? AND id NOT IN (SELECT id FROM snapshots WHERE kind = ? ORDER BY id DESC LIMIT ?)", k, k, n),
+    ),
     db.prepare("DELETE FROM snapshot_chunks WHERE snapshot_id NOT IN (SELECT id FROM snapshots)"),
   ]);
   return id;
@@ -146,25 +154,66 @@ export async function restoreSnapshot(db: D1Database, id: number) {
   await db.batch(batch);
 }
 
-/** Replaces all game data with an uploaded backup file, atomically. Unknown tables/columns are ignored. */
-export async function importAll(db: D1Database, data: Backup) {
+/** Imported values get the same safety rules as things typed into the app. */
+function sanitise(col: string, v: unknown): unknown {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "object") return null; // backups only contain scalars
+  if (col === "link") return typeof v === "string" && /^https?:\/\//i.test(v) && v.length <= 1000 ? v : null;
+  if (col === "images") {
+    try {
+      const a = JSON.parse(String(v));
+      return Array.isArray(a) && a.length <= 12 && a.every((x) => Number.isInteger(x) && x > 0) ? JSON.stringify(a) : null;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof v === "string" && v.length > 10_000) return v.slice(0, 10_000);
+  return v;
+}
+
+/**
+ * Replaces all game data with an uploaded backup file, atomically. Unknown tables/columns are
+ * ignored. With keepTemplate, the character keeps its current template (a backup can't switch it).
+ */
+export async function importAll(db: D1Database, data: Backup, opts: { keepTemplate?: boolean } = {}) {
   if (!data || data.app !== "ap-life-quest" || !data.tables || typeof data.tables !== "object") throw bad("That file isn't an AP Life Quest backup");
   if (!Array.isArray(data.tables.settings) || !data.tables.settings.length || !Array.isArray(data.tables.player) || !data.tables.player.length)
     throw bad("Backup is missing settings/player data");
+  const rowCount = DATA_TABLES.reduce((n, t) => n + (Array.isArray(data.tables[t]) ? data.tables[t].length : 0), 0);
+  if (rowCount > MAX_IMPORT_ROWS) throw bad("That backup is too large to import");
+  const current = opts.keepTemplate ? await first<{ value: string }>(db, "SELECT value FROM settings WHERE key = 'template'") : null;
   const live = await tableColumns(db);
+  // NOT NULL columns that have a default: a null in the file means "use the default".
+  const info = await db.batch(DATA_TABLES.map((t) => db.prepare(`PRAGMA table_info(${t})`)));
+  const required: Record<string, Set<string>> = {};
+  DATA_TABLES.forEach((t, i) => {
+    required[t] = new Set((info[i].results as { name: string; notnull: number; dflt_value: unknown }[]).filter((c) => c.notnull && c.dflt_value !== null).map((c) => c.name));
+  });
   const batch: D1PreparedStatement[] = DATA_TABLES.map((t) => db.prepare(`DELETE FROM ${t}`));
   for (const t of DATA_TABLES) {
     const list = Array.isArray(data.tables[t]) ? data.tables[t].filter((r) => r && typeof r === "object") : [];
     if (!list.length) continue;
-    const cols = live[t].filter((c) => list.some((r) => c in r));
-    if (!cols.length) continue;
-    const perStmt = Math.max(1, Math.floor(90 / cols.length)); // D1 allows 100 bound params per statement
-    for (let j = 0; j < list.length; j += perStmt) {
-      const chunk = list.slice(j, j + perStmt);
-      const sql = `INSERT INTO ${t} (${cols.map((c) => `"${c}"`).join(",")}) VALUES ${chunk.map(() => `(${cols.map(() => "?").join(",")})`).join(",")}`;
-      batch.push(stmt(db, sql, ...chunk.flatMap((r) => cols.map((c) => r[c]))));
+    // Group rows by which columns they have, so a missing field gets its normal default
+    // (normal exports are a single group; hand-edited files may have several).
+    const groups = new Map<string, { cols: string[]; rows: Record<string, unknown>[] }>();
+    for (const r of list) {
+      const cols = live[t].filter((c) => c in r && !(r[c] === null && required[t].has(c)));
+      if (!cols.length) continue;
+      const key = cols.join(",");
+      if (!groups.has(key)) groups.set(key, { cols, rows: [] });
+      groups.get(key)!.rows.push(r);
+    }
+    for (const { cols, rows: grp } of groups.values()) {
+      const perStmt = Math.max(1, Math.floor(90 / cols.length)); // D1 allows 100 bound params per statement
+      for (let j = 0; j < grp.length; j += perStmt) {
+        const chunk = grp.slice(j, j + perStmt);
+        const sql = `INSERT INTO ${t} (${cols.map((c) => `"${c}"`).join(",")}) VALUES ${chunk.map(() => `(${cols.map(() => "?").join(",")})`).join(",")}`;
+        batch.push(stmt(db, sql, ...chunk.flatMap((r) => cols.map((c) => sanitise(c, r[c])))));
+      }
     }
   }
+  if (opts.keepTemplate) batch.push(stmt(db, "INSERT OR REPLACE INTO settings (key, value) VALUES ('template', ?)", current?.value ?? JSON.stringify("starter")));
   await db.batch(batch);
 }
 
@@ -235,10 +284,11 @@ export async function seasonReset(ctx: Ctx, name: string) {
 
 /** Wipes everything (a save point is made first) and reloads the starter content. */
 export async function factoryReset(db: D1Database, keepProfile: Record<string, unknown>) {
+  const allowOwnerOnly = await ownerTemplatesAllowed(db);
   await createSnapshot(db, "Before factory reset", "pre-reset");
   await db.batch(DATA_TABLES.map((t) => db.prepare(`DELETE FROM ${t}`)));
   try {
-    await seedAll(db, keepProfile);
+    await seedAll(db, keepProfile, undefined, allowOwnerOnly);
   } catch (e) {
     throw new HttpError(500, `Reset failed while seeding: ${(e as Error).message}`);
   }

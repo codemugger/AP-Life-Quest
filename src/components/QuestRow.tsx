@@ -5,6 +5,9 @@ import type { Metric, Quest } from "../../shared/types";
 import { useGame } from "../store";
 import { Check } from "../sprites";
 import { doneOn, fmt, relDay, valueOn, weekCount } from "../util";
+import { parseImages } from "../media";
+import { Gallery, IconOrEmoji, LinkButton } from "./Media";
+import { Rich } from "./Rich";
 import { Field, Modal, RewardChips } from "./ui";
 
 function questStreak(log: { quest_id: number; date: string }[], qid: number, date: string) {
@@ -22,7 +25,7 @@ export function QuestRow({ q, date, onEdit }: { q: Quest; date: string; onEdit?:
   const { state, act, busy: storeBusy } = useGame();
   const [mine, setBusy] = useState(false);
   const busy = mine || storeBusy;
-  const [prompt, setPrompt] = useState<null | "metric" | "qty">(null);
+  const [prompt, setPrompt] = useState<null | "metric" | "qty" | "card">(null);
   const logs = q.type === "todo" ? state.log.filter((l) => l.quest_id === q.id) : doneOn(state, q.id, date);
   const done = logs.length > 0;
   const metric = q.metric_key ? state.metrics.find((m) => m.key === q.metric_key) : undefined;
@@ -93,9 +96,14 @@ export function QuestRow({ q, date, onEdit }: { q: Quest; date: string; onEdit?:
   const weekN = q.type === "weekly" ? weekCount(state, q.id, date) : 0;
   return (
     <div className={`quest ${done && (q.type === "daily" || q.type === "todo") ? "done" : ""} ${bad ? "bad-habit" : ""}`}>
-      <div className="q-emoji">{q.emoji}</div>
+      <button className="q-emoji" onClick={() => setPrompt("card")} aria-label={`About ${q.title}`}>
+        <IconOrEmoji images={q.images} emoji={q.emoji} size={32} />
+      </button>
       <div className="q-body">
-        <div className="q-title">{q.title}</div>
+        <button className="q-title linkish" onClick={() => setPrompt("card")}>
+          {q.title}
+          {(q.notes || q.link || q.images) && <span className="tiny muted"> ›</span>}
+        </button>
         <div className="q-meta">
           {bad ? (
             <RewardChips ap={q.ap} hp={q.hp_penalty} bad />
@@ -130,6 +138,7 @@ export function QuestRow({ q, date, onEdit }: { q: Quest; date: string; onEdit?:
       </div>
       {button}
       {prompt === "metric" && metric && <LogValue metric={metric} date={date} onClose={() => setPrompt(null)} />}
+      {prompt === "card" && <QuestCard q={q} onClose={() => setPrompt(null)} onEdit={onEdit} />}
       {prompt === "qty" && (
         <QtyPrompt
           q={q}
@@ -141,6 +150,49 @@ export function QuestRow({ q, date, onEdit }: { q: Quest; date: string; onEdit?:
         />
       )}
     </div>
+  );
+}
+
+/** The "quest card": picture(s), notes, link and rewards, like a quest log entry in an RPG. */
+function QuestCard({ q, onClose, onEdit }: { q: Quest; onClose: () => void; onEdit?: () => void }) {
+  const kind = { daily: "Daily quest", weekly: `Weekly quest · ${q.weekly_target}× a week`, habit: q.polarity < 0 ? "Bad habit" : "Habit", todo: "To-do" }[q.type];
+  return (
+    <Modal
+      title={<>📜 {kind}</>}
+      onClose={onClose}
+      actions={
+        <>
+          {onEdit && (
+            <button className="btn" onClick={() => (onClose(), onEdit())}>
+              ✎ Edit
+            </button>
+          )}
+          <button className="btn primary" onClick={onClose}>
+            OK
+          </button>
+        </>
+      }
+    >
+      <div className="quest-card">
+        <div className="qc-icon">
+          <IconOrEmoji images={q.images} emoji={q.emoji} size={72} />
+        </div>
+        <h3 className="qc-title">{q.title}</h3>
+        <div className="row wrap" style={{ justifyContent: "center" }}>
+          {q.polarity < 0 ? <RewardChips ap={q.ap} hp={q.hp_penalty} bad /> : <RewardChips ap={q.ap} xp={q.xp} hp={q.type === "daily" || q.type === "weekly" ? q.hp_penalty : 0} />}
+          {q.unit && <span className="chip">per {q.unit}</span>}
+          <span className="chip">{q.difficulty}</span>
+        </div>
+      </div>
+      <Rich text={q.notes} />
+      {parseImages(q.images).length > 1 && <Gallery images={JSON.stringify(parseImages(q.images).slice(1))} title={q.title} />}
+      {q.link && (
+        <div className="row" style={{ marginTop: 8 }}>
+          <LinkButton href={q.link} />
+        </div>
+      )}
+      {!q.notes && !q.link && <p className="small muted">Tip: add notes, pictures or a link (e.g. a workout video) by editing this quest.</p>}
+    </Modal>
   );
 }
 

@@ -1,6 +1,6 @@
 // Pixel art: a tiny sprite renderer, the procedural pet, hats, chests and icons.
 import { memo, useEffect, useState, type ReactElement } from "react";
-import { buildPet, PET_COLORS, type Mood } from "./petgrid";
+import { buildPet, PET_COLORS, petPalette, type Mood } from "../shared/petgrid";
 
 export { PET_COLORS, type Mood };
 
@@ -76,21 +76,34 @@ export const Sprite = memo(function Sprite({
   );
 });
 
+export interface PetLook {
+  color?: string;
+  hat?: string | null;
+  species?: string;
+  eyes?: string;
+  face?: string | null;
+}
+
+/** The look props for a Pet from a character's settings. */
+export const lookOf = (s: { pet_color: string; hat: string | null; pet_species: string; pet_eyes: string; face: string | null }): PetLook => ({
+  color: s.pet_color,
+  hat: s.hat,
+  species: s.pet_species,
+  eyes: s.pet_eyes,
+  face: s.face,
+});
+
 export function Pet({
   stage,
   mood,
   color = "pink",
   hat = null,
+  species = "cat",
+  eyes = "dot",
+  face = null,
   scale = 6,
   className,
-}: {
-  stage: number;
-  mood: Mood;
-  color?: string;
-  hat?: string | null;
-  scale?: number;
-  className?: string;
-}) {
+}: PetLook & { stage: number; mood: Mood; scale?: number; className?: string }) {
   const [blink, setBlink] = useState(false);
   useEffect(() => {
     if (mood === "sleep" || mood === "fainted") return;
@@ -104,10 +117,10 @@ export function Pet({
       clearTimeout(t2);
     };
   }, [mood]);
-  const c = PET_COLORS[color] ?? PET_COLORS.pink;
+  const c = petPalette(color);
   const eggPal = { b: "#fff6e0", l: "#ffffff", d: "#ead7b4", e: c.b };
   const pal = stage === 0 ? eggPal : { b: c.b, l: c.l, d: c.d };
-  const grid = buildPet(stage, blink && mood !== "sad" ? "blink" : mood, hat);
+  const grid = buildPet(stage, blink && mood !== "sad" ? "blink" : mood, hat, { species, eyes, face });
   return <Sprite grid={grid} palette={pal} scale={scale} className={className} title="Your pet" />;
 }
 
@@ -143,6 +156,6 @@ export const Star = ({ scale = 2 }: { scale?: number }) => <Sprite grid={STAR} p
 export const Check = ({ scale = 3 }: { scale?: number }) => <Sprite grid={CHECK} scale={scale} />;
 
 /** Preview of a hat on its own (for the wardrobe). */
-export function HatPreview({ hat, color }: { hat: string; color: string }) {
-  return <Pet stage={2} mood="content" color={color} hat={hat} scale={3} />;
+export function HatPreview({ hat, look }: { hat: string; look: PetLook }) {
+  return <Pet stage={2} mood="content" {...look} hat={hat} scale={3} />;
 }

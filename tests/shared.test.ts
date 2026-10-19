@@ -4,7 +4,9 @@ import { bmi, bmiBand, ema, healthyRange, sma } from "../shared/health";
 import { levelInfo, petStage, titleFor, xpToNext } from "../shared/levels";
 import { priceOf, unitPrice, voucherApplies } from "../shared/pricing";
 import { checkRule, DEFAULT_SETTINGS, limitPeriodStart, ruleProblem, streakMultiplier, type RuleInputs } from "../shared/rules";
-import { buildPet } from "../src/petgrid";
+import { buildPet, isPetColor, PET_COLORS, petPalette } from "../shared/petgrid";
+import { EYES, isUnlocked, SPECIES } from "../shared/levels";
+import { TEMPLATES } from "../worker/seed";
 import { progressFor, type Stats } from "../worker/achievements";
 
 describe("levels", () => {
@@ -153,16 +155,59 @@ describe("achievement progress", () => {
 });
 
 describe("pixel pet", () => {
-  it("renders every stage × mood × hat as a clean grid", () => {
+  it("renders every species × stage × mood × accessory as a clean grid", () => {
     const moods = ["happy", "content", "meh", "sad", "fainted", "sleep", "blink"] as const;
-    const hats = [null, "party", "crown", "wizard", "flower", "bow", "headband", "sunnies"];
-    for (let stage = 0; stage <= 4; stage++)
-      for (const m of moods)
-        for (const h of hats) {
-          const g = buildPet(stage, m, h);
-          expect(g.length).toBeGreaterThanOrEqual(24);
-          for (const row of g) expect(row.length).toBe(24);
-          expect(g.join("")).toMatch(/o/); // has an outline
-        }
+    const hats = [null, "party", "crown", "wizard", "flower", "bow", "headband", "beanie", "cap"];
+    for (const species of SPECIES.map((x) => x.id))
+      for (const eyes of EYES.map((x) => x.id))
+        for (const face of [null, "glasses", "sunnies"])
+          for (let stage = 0; stage <= 4; stage++)
+            for (const m of moods)
+              for (const h of hats) {
+                const g = buildPet(stage, m, h, { species, eyes, face });
+                expect(g.length).toBeGreaterThanOrEqual(24);
+                for (const row of g) expect(row.length).toBe(24);
+                expect(g.join("")).toMatch(/o/);
+              }
+  });
+  it("derives shades for custom colours", () => {
+    expect(petPalette("pink").b).toBe(PET_COLORS.pink.b);
+    const c = petPalette("#336699");
+    expect(c.b).toBe("#336699");
+    expect(c.l).toMatch(/^#[0-9a-f]{6}$/);
+    expect(c.d).toMatch(/^#[0-9a-f]{6}$/);
+    expect(isPetColor("#336699")).toBe(true);
+    expect(isPetColor("red")).toBe(false);
+  });
+});
+
+describe("cosmetics", () => {
+  it("unlocks free, level and chest items correctly", () => {
+    expect(isUnlocked("beanie", [], 1)).toBe(true);
+    expect(isUnlocked("crown", [], 39)).toBe(false);
+    expect(isUnlocked("crown", [], 40)).toBe(true);
+    expect(isUnlocked("bow", [], 99)).toBe(false);
+    expect(isUnlocked("bow", ["bow"], 1)).toBe(true);
+    expect(isUnlocked("nope", ["nope"], 99)).toBe(false);
+  });
+});
+
+describe("templates", () => {
+  it("every quest and voucher only uses trackers that exist in its template", () => {
+    for (const [id, t] of Object.entries(TEMPLATES)) {
+      const keys = t.content.metrics.map((m) => m.key);
+      for (const q of t.content.quests) if (q.metric_key) expect(keys, `${id}: ${q.title}`).toContain(q.metric_key);
+      for (const v of t.content.vouchers) {
+        const r = v.rule as { metric?: string } | undefined;
+        if (r?.metric) expect(keys, `${id}: ${v.name}`).toContain(r.metric);
+      }
+      for (const a of t.content.achievements) {
+        const r = a.rule as { metric?: string };
+        if (r.metric) expect(keys, `${id}: ${a.name}`).toContain(r.metric);
+      }
+      expect(keys).toContain("weight");
+      expect(keys).toContain("calories");
+      expect(t.content.shop.some((i) => i.effect === "heal:30")).toBe(true);
+    }
   });
 });

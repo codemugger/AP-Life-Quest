@@ -12,11 +12,13 @@ export class HttpError extends Error {
 export const bad = (msg: string) => new HttpError(400, msg);
 export const notFound = (what = "Not found") => new HttpError(404, what);
 
-type Param = string | number | null;
+type Param = string | number | null | ArrayBuffer;
 
-/** Normalise a JS value into something D1 can bind. */
+/** Normalise a JS value into something D1 / Durable Object SQL can bind. */
 export function bindable(v: unknown): Param {
   if (v === undefined || v === null) return null;
+  if (v instanceof ArrayBuffer) return v;
+  if (ArrayBuffer.isView(v)) return v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength) as ArrayBuffer;
   if (typeof v === "boolean") return v ? 1 : 0;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (typeof v === "object") return JSON.stringify(v);

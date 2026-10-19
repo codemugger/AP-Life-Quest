@@ -5,9 +5,13 @@ import { ema } from "./health";
 export interface Settings {
   player_name: string;
   pet_name: string;
-  pet_color: string;
+  pet_color: string; // preset name or "#rrggbb"
+  pet_species: string;
+  pet_eyes: string;
   hat: string | null;
-  hats: string[];
+  face: string | null;
+  scene: string;
+  hats: string[]; // cosmetics unlocked early (chests); free and level ones are implicit
   height_m: number;
   birthday: string | null; // "MM-DD"
   timezone: string;
@@ -30,13 +34,18 @@ export interface Settings {
   sound: boolean;
   theme: "auto" | "day" | "night";
   current_season: number;
+  template: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   player_name: "Anson",
   pet_name: "Mochi",
   pet_color: "pink",
+  pet_species: "cat",
+  pet_eyes: "dot",
   hat: null,
+  face: null,
+  scene: "meadow",
   hats: [],
   height_m: 1.62,
   birthday: null,
@@ -60,10 +69,11 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: true,
   theme: "auto",
   current_season: 1,
+  template: "starter",
 };
 
 /** Keys the user may edit through the API (everything except internal bookkeeping). */
-export const EDITABLE_SETTINGS = Object.keys(DEFAULT_SETTINGS).filter((k) => k !== "current_season");
+export const EDITABLE_SETTINGS = Object.keys(DEFAULT_SETTINGS).filter((k) => k !== "current_season" && k !== "template" && k !== "hats");
 
 export const DIFFICULTY: Record<string, { ap: number; xp: number; hp: number; label: string }> = {
   trivial: { ap: 3, xp: 5, hp: 2, label: "Trivial" },

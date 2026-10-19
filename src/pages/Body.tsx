@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { addDays, prettyDate } from "../../shared/dates";
 import { bmi, bmiBand, ema, healthyRange, sma } from "../../shared/health";
 import type { Metric } from "../../shared/types";
-import { api } from "../api";
+import { api, g } from "../api";
 import { useGame } from "../store";
 import { BarChart, LineChart, Spark, type Pt } from "../components/charts";
 import { Editor } from "../components/Editor";
@@ -34,7 +34,7 @@ export default function Body() {
   const [table, setTable] = useState<string | null>(null);
 
   useEffect(() => {
-    if (range === "all" && !all) api<Pt[]>("history/weight").then(setAll).catch(() => setAll([]));
+    if (range === "all" && !all) api<Pt[]>(g("history/weight")).then(setAll).catch(() => setAll([]));
   }, [range, all]);
 
   const wData: Pt[] = range === "all" ? (all ?? wSeries) : wSeries.filter((v) => v.date >= addDays(state.today, -Number(range)));

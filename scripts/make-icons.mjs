@@ -1,7 +1,7 @@
 // Renders the home-screen icons (PNG) from the same pixel pet the app uses.  npm run icons
 import { writeFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
-import { buildPet, PET_COLORS } from "../src/petgrid.ts";
+import { buildPet, PET_COLORS } from "../shared/petgrid.ts";
 
 const BASE = { o: "#2d2142", k: "#2d2142", w: "#ffffff", p: "#ff7aa8", r: "#e0436b", y: "#ffe066", g: "#ffb703", R: "#ff5d6c", B: "#5ab8ff" };
 const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];

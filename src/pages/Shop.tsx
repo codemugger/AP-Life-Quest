@@ -6,6 +6,8 @@ import type { ShopItem, Voucher } from "../../shared/types";
 import { useGame } from "../store";
 import { Coin } from "../sprites";
 import { Editor } from "../components/Editor";
+import { IconOrEmoji } from "../components/Media";
+import { Rich } from "../components/Rich";
 import { Empty, Field, Modal, Panel, Tabs } from "../components/ui";
 import { fmt, fmtAP, inventoryOf, relDay } from "../util";
 
@@ -68,7 +70,9 @@ function ShopTab({ onBuy, onEdit }: { onBuy: (i: ShopItem) => void; onEdit: (r: 
                 const owned = inventoryOf(state, i.id);
                 return (
                   <div key={i.id} className="panel tight item-card" style={{ margin: 4 }}>
-                    <div className="big-emoji">{i.emoji}</div>
+                    <div className="big-emoji">
+                      <IconOrEmoji images={i.images} emoji={i.emoji} size={56} />
+                    </div>
                     <div className="name">{i.name}</div>
                     <div className="price">
                       <Coin scale={2} /> {fmt(price)}
@@ -87,7 +91,7 @@ function ShopTab({ onBuy, onEdit }: { onBuy: (i: ShopItem) => void; onEdit: (r: 
                         ✎
                       </button>
                     </div>
-                    {i.notes && <div className="tiny muted">{i.notes}</div>}
+                    <Rich text={i.notes} className="tiny muted" />
                   </div>
                 );
               })}
@@ -228,7 +232,7 @@ function BagTab() {
         <div className="list">
           {owned.map((i) => (
             <div className="li" key={i.id}>
-              <span style={{ fontSize: 28 }}>{i.emoji}</span>
+              <IconOrEmoji images={i.images} emoji={i.emoji} size={34} />
               <div className="grow">
                 <b>{i.name}</b>
                 <div className="small ink2">
@@ -294,7 +298,7 @@ function VoucherTab({ onEdit }: { onEdit: (r: Record<string, unknown>) => void }
           return (
             <div key={v.id} className="panel tight voucher" style={{ opacity: v.active ? 1 : 0.5 }}>
               <div className="row between">
-                <span style={{ fontSize: 26 }}>{v.emoji}</span>
+                <IconOrEmoji images={v.images} emoji={v.emoji} size={32} />
                 <span className="pct">−{Math.round(v.discount * 100)}%</span>
               </div>
               <b>{v.name}</b>

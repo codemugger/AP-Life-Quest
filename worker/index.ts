@@ -1,72 +1,81 @@
-// AP Life Quest — Cloudflare Worker API.
+// AP Life Quest v2 — Cloudflare Worker: accounts, invites, characters, admin, and a secure proxy
+// to each character's private Durable Object database (worker/character.ts).
 import { Hono, type Context } from "hono";
-import { EDITABLE_SETTINGS, DEFAULT_SETTINGS } from "../shared/rules";
-import { HATS } from "../shared/levels";
+import { EYES, SPECIES } from "../shared/levels";
+import { isPetColor } from "../shared/petgrid";
+import {
+  cleanName,
+  cleanUsername,
+  createInvite,
+  getMeta,
+  inviteValid,
+  joinWithInvite,
+  listCharacters,
+  listInvites,
+  publicUser,
+  registerCharacter,
+  requireCharacter,
+  setMeta,
+  userById,
+  userByName,
+  userCount,
+  type User,
+} from "./accounts";
 import {
   checkSession,
-  cookieHeader,
-  COOKIE,
+  clearCookie,
   createSession,
-  destroyAllSessions,
   destroySession,
+  destroyUserSessions,
+  hashPassword,
+  ipKey,
+  knownDevice,
   loginBlocked,
+  newTotpSecret,
+  passwordProblem,
+  randomBytes,
   recordAttempt,
+  rememberDevice,
+  totpCounter,
+  totpUri,
   verifyPassword,
   verifyTotp,
 } from "./auth";
-import { all, bad, HttpError } from "./db";
-import {
-  completeQuest,
-  finalize,
-  loadCtx,
-  processDays,
-  setMetric,
-  settingStmt,
-  startFast,
-  stopFast,
-  uncompleteQuest,
-  voidLedger,
-  award,
-  type Ctx,
-} from "./game";
-import { openChest, purchase, resolveObligation, useItem } from "./economy";
-import { setGoalStatus, toggleMilestone, toggleTask } from "./progress";
-import { claimAchievement } from "./achievements";
-import { createRow, deleteRow, updateRow, ENTITIES } from "./crud";
-import { buildState } from "./state";
-import { createSnapshot, exportJson, factoryReset, importAll, maybeAutoSnapshot, restoreSnapshot, seasonReset, snapshotJson } from "./backup";
+import { exportJson } from "./backup";
+import { CharacterDO, contentFromCopy } from "./character";
+import { all, bad, first, HttpError, run } from "./db";
+import { TEMPLATES } from "./seed";
+
+export { CharacterDO };
 
 export interface Env {
   DB: D1Database;
+  CHAR: DurableObjectNamespace<CharacterDO>;
+  /** v1 admin password; in v2 it's the one-time "setup password" that claims the owner account. */
   ADMIN_PASSWORD_HASH?: string;
   TOTP_SECRET?: string;
 }
 
-const VERSION = "1.0.0";
+type AppEnv = { Bindings: Env; Variables: { user: User } };
+type C = Context<AppEnv>;
+const app = new Hono<AppEnv>();
 
-/** Allowed ranges for numeric settings. */
-const RANGES: Record<string, [number, number]> = {
-  height_m: [0.5, 2.5],
-  day_start_hour: [0, 23],
-  grace_hours: [0, 48],
-  max_hp: [10, 1000],
-  crit_chance: [0, 1],
-  crit_mult: [1, 10],
-  streak_threshold: [0, 1],
-  streak_bonus_per_day: [0, 1],
-  streak_bonus_cap: [0, 10],
-  complete_heal: [0, 100],
-  perfect_day_heal: [0, 100],
-  perfect_day_chest_chance: [0, 1],
-  faint_ap_pct: [0, 1],
-  faint_min_ap: [0, 100000],
-  revive_quests: [1, 50],
-  revive_hp: [1, 1000],
-  fainted_earn_mult: [0, 1],
-};
+const ip = (c: C) => ipKey(c.req.header("cf-connecting-ip") ?? "local");
+const MAX_BODY = 8 * 1024 * 1024; // imports & pictures
+const body = <T = Record<string, any>>(c: C) => c.req.json<T>().catch(() => ({}) as T);
+const stub = (env: Env, id: string) => env.CHAR.get(env.CHAR.idFromName(id));
 
-type C = Context<{ Bindings: Env }>;
-const app = new Hono<{ Bindings: Env }>();
+/** Calls one of a character DO's internal operations (never reachable from the internet). */
+async function internal<T = any>(env: Env, id: string, op: string, payload?: unknown): Promise<T> {
+  const res = await stub(env, id).fetch(`https://character/__internal/${op}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: payload === undefined ? "{}" : JSON.stringify(payload),
+  });
+  const data = (await res.json().catch(() => null)) as { error?: string } | null;
+  if (!res.ok) throw new HttpError(res.status === 404 ? 404 : 500, data?.error ?? `Character ${op} failed`);
+  return data as T;
+}
 
 // ---------- security headers + CSRF guard on every API response ----------
 app.use("/api/*", async (c, next) => {
@@ -82,237 +91,388 @@ app.use("/api/*", async (c, next) => {
     // Always drain unread request bodies so keep-alive connections stay healthy.
     if (c.req.raw.body && !c.req.raw.bodyUsed) await c.req.raw.arrayBuffer().catch(() => undefined);
   }
-  c.header("Cache-Control", "no-store");
+  if (!c.res.headers.get("Cache-Control")) c.header("Cache-Control", "no-store");
   c.header("X-Content-Type-Options", "nosniff");
   c.header("X-Robots-Tag", "noindex, nofollow");
   c.header("Referrer-Policy", "no-referrer");
   c.header("X-Frame-Options", "DENY");
 });
 
-// ---------- auth (public) ----------
+// ---------- public: who am I, owner setup, login, invites ----------
 app.get("/api/auth/me", async (c) => {
   const s = await checkSession(c.env.DB, c.req.header("cookie"));
-  if (s?.refresh) c.header("Set-Cookie", s.refresh);
-  return c.json({ authed: !!s, configured: !!c.env.ADMIN_PASSWORD_HASH, totp: !!c.env.TOTP_SECRET });
+  let user = s ? await userById(c.env.DB, s.userId) : null;
+  if (user?.disabled) user = null;
+  if (s?.refresh && user) c.header("Set-Cookie", s.refresh);
+  const users = await userCount(c.env.DB);
+  return c.json({
+    authed: !!user,
+    user: user ? publicUser(user) : null,
+    needs_setup: users === 0,
+    setup_ready: !!c.env.ADMIN_PASSWORD_HASH,
+    setup_needs_code: !!c.env.TOTP_SECRET,
+  });
+});
+
+/** First run: the setup password (npm run set-password) creates the owner account. */
+app.post("/api/auth/setup", async (c) => {
+  if ((await userCount(c.env.DB)) > 0) throw new HttpError(409, "This castle already has an owner");
+  if (!c.env.ADMIN_PASSWORD_HASH) throw new HttpError(503, "Set a setup password first: npm run set-password");
+  const blocked = await loginBlocked(c.env.DB, ip(c), "#setup");
+  if (blocked) throw new HttpError(429, blocked);
+  const b = await body(c);
+  let ok = await verifyPassword(String(b.setup_password ?? "").slice(0, 200), c.env.ADMIN_PASSWORD_HASH);
+  if (ok && c.env.TOTP_SECRET) ok = await verifyTotp(c.env.TOTP_SECRET, String(b.code ?? "").trim());
+  await recordAttempt(c.env.DB, ip(c), ok, "#setup");
+  if (!ok) throw new HttpError(401, "Wrong setup password or code");
+  const username = cleanUsername(b.username);
+  const display = cleanName(b.display_name, "Display name");
+  const why = passwordProblem(b.password);
+  if (why) throw bad(why);
+  // Atomic: only succeeds while there are no users at all.
+  const row = await c.env.DB.prepare(
+    `INSERT INTO users (username, display_name, password_hash, totp_secret, role, max_characters)
+     SELECT ?, ?, ?, ?, 'owner', 10 WHERE NOT EXISTS (SELECT 1 FROM users) RETURNING id`,
+  )
+    .bind(username, display, await hashPassword(b.password), c.env.TOTP_SECRET ?? null)
+    .first<{ id: number }>();
+  if (!row) throw new HttpError(409, "This castle already has an owner");
+  c.header("Set-Cookie", await createSession(c.env.DB, row.id, c.req.header("user-agent") ?? null));
+  return c.json({ ok: true });
 });
 
 app.post("/api/auth/login", async (c) => {
-  if (!c.env.ADMIN_PASSWORD_HASH) throw new HttpError(503, "No password set yet. Run: npm run set-password");
-  const ip = c.req.header("cf-connecting-ip") ?? "local";
-  const blocked = await loginBlocked(c.env.DB, ip);
+  const b = await body(c);
+  const uname = String(b.username ?? "").trim().toLowerCase().slice(0, 40);
+  const u = uname ? await userByName(c.env.DB, uname) : null;
+  // A device you've logged in from before isn't affected by other people's failed attempts.
+  const trusted = !!u && (await knownDevice(c.env.DB, c.req.header("cookie"), u.id));
+  const blocked = await loginBlocked(c.env.DB, ip(c), uname, trusted);
   if (blocked) throw new HttpError(429, blocked);
-  const body = await c.req.json<{ password?: string; code?: string }>().catch(() => ({}) as { password?: string; code?: string });
-  const password = String(body.password ?? "").slice(0, 200);
-  let ok = password.length > 0 && (await verifyPassword(password, c.env.ADMIN_PASSWORD_HASH));
-  if (ok && c.env.TOTP_SECRET) ok = await verifyTotp(c.env.TOTP_SECRET, String(body.code ?? "").trim());
-  await recordAttempt(c.env.DB, ip, ok);
-  if (!ok) throw new HttpError(401, c.env.TOTP_SECRET ? "Wrong password or code" : "Wrong password");
-  const { token, maxAge } = await createSession(c.env.DB, c.req.header("user-agent") ?? null);
-  c.header("Set-Cookie", cookieHeader(token, maxAge));
+  const pw = String(b.password ?? "").slice(0, 200);
+  // Always do the hashing work so timing doesn't reveal which usernames exist.
+  let ok = await verifyPassword(pw, u?.password_hash ?? "pbkdf2$10000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+  ok = ok && !!u && !u.disabled;
+  if (ok && u!.totp_secret) {
+    const code = String(b.code ?? "").trim();
+    if (!code) return c.json({ error: "Enter the 6-digit code from your authenticator", need_code: true }, 401);
+    const step = await totpCounter(u!.totp_secret, code);
+    ok = step !== null && step > (u!.totp_last ?? -1); // each code works once
+    if (ok) await run(c.env.DB, "UPDATE users SET totp_last = ? WHERE id = ?", step, u!.id);
+  }
+  await recordAttempt(c.env.DB, ip(c), ok, uname);
+  if (!ok) throw new HttpError(401, "Wrong username, password or code");
+  await run(c.env.DB, "UPDATE users SET last_login = datetime('now') WHERE id = ?", u!.id);
+  c.header("Set-Cookie", await createSession(c.env.DB, u!.id, c.req.header("user-agent") ?? null));
+  if (!trusted) c.header("Set-Cookie", await rememberDevice(c.env.DB, u!.id), { append: true });
   return c.json({ ok: true });
 });
 
 app.post("/api/auth/logout", async (c) => {
   await destroySession(c.env.DB, c.req.header("cookie"));
-  c.header("Set-Cookie", `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
+  c.header("Set-Cookie", clearCookie());
   return c.json({ ok: true });
 });
 
-// ---------- everything below requires a session ----------
-const PUBLIC = new Set(["/api/auth/me", "/api/auth/login", "/api/auth/logout"]);
+app.get("/api/auth/invite/:code", async (c) => {
+  const blocked = await loginBlocked(c.env.DB, ip(c), null);
+  if (blocked) throw new HttpError(429, blocked);
+  const valid = await inviteValid(c.env.DB, c.req.param("code"));
+  if (!valid) await recordAttempt(c.env.DB, ip(c), false, "#invite");
+  return c.json({ valid });
+});
+
+app.post("/api/auth/join", async (c) => {
+  const blocked = await loginBlocked(c.env.DB, ip(c), null);
+  if (blocked) throw new HttpError(429, blocked);
+  const b = await body(c);
+  const userId = await joinWithInvite(c.env.DB, b.code, {
+    username: cleanUsername(b.username),
+    display_name: cleanName(b.display_name, "Display name"),
+    password: String(b.password ?? ""),
+  });
+  if (!userId) {
+    await recordAttempt(c.env.DB, ip(c), false, "#invite");
+    throw bad("This invite code is invalid, expired or already used");
+  }
+  c.header("Set-Cookie", await createSession(c.env.DB, userId, c.req.header("user-agent") ?? null));
+  c.header("Set-Cookie", await rememberDevice(c.env.DB, userId), { append: true });
+  return c.json({ ok: true });
+});
+
+// ---------- everything below requires a logged-in, enabled user ----------
+const PUBLIC = new Set(["/api/auth/me", "/api/auth/setup", "/api/auth/login", "/api/auth/logout", "/api/auth/join"]);
 app.use("/api/*", async (c, next) => {
-  if (PUBLIC.has(c.req.path)) return next();
+  if (PUBLIC.has(c.req.path) || c.req.path.startsWith("/api/auth/invite/")) return next();
   const s = await checkSession(c.env.DB, c.req.header("cookie"));
-  if (!s) throw new HttpError(401, "Please log in");
+  const user = s ? await userById(c.env.DB, s.userId) : null;
+  if (!s || !user || user.disabled) throw new HttpError(401, "Please log in");
+  c.set("user", user);
   await next();
   if (s.refresh) c.header("Set-Cookie", s.refresh, { append: true });
 });
 
-app.post("/api/auth/logout-all", async (c) => {
-  await destroyAllSessions(c.env.DB);
-  c.header("Set-Cookie", `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
+/** Re-checks your password for sensitive actions, with its own attempt limit. */
+async function confirmPassword(c: C, password: unknown) {
+  const user = c.get("user");
+  const bucket = `#acct:${user.id}`;
+  const blocked = await loginBlocked(c.env.DB, ip(c), bucket);
+  if (blocked) throw new HttpError(429, blocked);
+  const ok = await verifyPassword(String(password ?? "").slice(0, 200), user.password_hash);
+  await recordAttempt(c.env.DB, ip(c), ok, bucket);
+  if (!ok) throw new HttpError(401, "Wrong password");
+}
+
+const ownerOnly = (c: C) => {
+  if (c.get("user").role !== "owner") throw new HttpError(403, "Only the owner can do that");
+};
+
+// ---------- my account ----------
+async function legacyAvailable(env: Env) {
+  if (await getMeta(env.DB, "legacy_imported")) return false;
+  const n = await first<{ n: number }>(env.DB, "SELECT COUNT(*) AS n FROM settings").catch(() => null);
+  return (n?.n ?? 0) > 0;
+}
+
+app.get("/api/account", async (c) => {
+  const user = c.get("user");
+  const chars = await listCharacters(c.env.DB, user.id);
+  const characters = await Promise.all(
+    chars.map(async (ch) => ({ ...ch, summary: await internal(c.env, ch.id, "summary").catch(() => null) })),
+  );
+  const templates = Object.entries(TEMPLATES)
+    .filter(([, t]) => !t.ownerOnly || user.role === "owner")
+    .map(([id, t]) => ({ id, name: t.name, description: t.description }));
+  return c.json({
+    user: publicUser(user),
+    characters,
+    templates,
+    legacy: user.role === "owner" && (await legacyAvailable(c.env)),
+  });
+});
+
+app.put("/api/account", async (c) => {
+  const b = await body(c);
+  await run(c.env.DB, "UPDATE users SET display_name = ? WHERE id = ?", cleanName(b.display_name, "Display name"), c.get("user").id);
   return c.json({ ok: true });
 });
 
-/** Run a mutation inside a game context, then finalize (level-ups, achievements, faint) and return effects. */
-async function act(c: C, fn: (ctx: Ctx, body: Record<string, any>) => Promise<unknown>) {
-  const body = c.req.method === "GET" ? {} : await c.req.json<Record<string, any>>().catch(() => ({}));
-  const ctx = await loadCtx(c.env.DB);
-  const data = await fn(ctx, body ?? {});
-  await finalize(ctx);
-  return c.json({ ok: true, fx: ctx.fx, data: data ?? null });
-}
-
-const id = (c: C) => {
-  const n = Number(c.req.param("id"));
-  if (!Number.isInteger(n) || n <= 0) throw bad("Bad id");
-  return n;
-};
-
-app.get("/api/state", async (c) => {
-  const ctx = await loadCtx(c.env.DB);
-  return c.json(await buildState(ctx, VERSION));
+app.post("/api/account/password", async (c) => {
+  const user = c.get("user");
+  const b = await body(c);
+  await confirmPassword(c, b.current);
+  const why = passwordProblem(b.next);
+  if (why) throw bad(why);
+  await run(c.env.DB, "UPDATE users SET password_hash = ? WHERE id = ?", await hashPassword(b.next), user.id);
+  await destroyUserSessions(c.env.DB, user.id); // log out every other device…
+  c.header("Set-Cookie", await createSession(c.env.DB, user.id, c.req.header("user-agent") ?? null)); // …but not this one
+  return c.json({ ok: true });
 });
 
-/** Closes finished days (penalties/streaks/billing). The UI calls this until remaining = 0. */
-app.post("/api/process", async (c) => {
-  const ctx = await loadCtx(c.env.DB);
-  const remaining = await processDays(ctx);
-  await finalize(ctx);
-  if (remaining === 0)
-    c.executionCtx.waitUntil(maybeAutoSnapshot(ctx).catch((e) => console.error("weekly auto-save failed", e)));
-  return c.json({ ok: true, fx: ctx.fx, remaining });
+app.post("/api/account/totp/start", async (c) => {
+  const secret = newTotpSecret();
+  return c.json({ secret, uri: totpUri(secret, c.get("user").username) });
 });
 
-// quests
-app.post("/api/quests/:id/complete", (c) => act(c, (ctx, b) => completeQuest(ctx, id(c), { date: b.date, qty: b.qty })));
-app.post("/api/quests/:id/undo", (c) => act(c, (ctx, b) => uncompleteQuest(ctx, id(c), b.date)));
-app.post("/api/quests/clear-done", (c) =>
-  act(c, async (ctx) => {
-    await ctx.db
-      .prepare("UPDATE quests SET active = 0 WHERE type = 'todo' AND active = 1 AND id IN (SELECT quest_id FROM quest_log)")
-      .run();
-  }),
-);
-
-// trackers
-app.post("/api/metrics/:key/log", (c) =>
-  act(c, (ctx, b) => setMetric(ctx, c.req.param("key"), { date: b.date, value: b.value, mode: b.mode, note: b.note })),
-);
-app.get("/api/history/:key", async (c) =>
-  c.json(await all(c.env.DB, "SELECT date, value, note FROM metric_values WHERE metric_key = ? ORDER BY date", c.req.param("key"))),
-);
-app.post("/api/fast/start", (c) => act(c, (ctx) => startFast(ctx)));
-app.post("/api/fast/stop", (c) => act(c, (ctx, b) => stopFast(ctx, !!b.cancel)));
-
-// shop & inventory
-app.post("/api/shop/buy", (c) =>
-  act(c, (ctx, b) => purchase(ctx, { item_id: Number(b.item_id), qty: b.qty, voucher_id: b.voucher_id, note: b.note, use_now: !!b.use_now })),
-);
-app.post("/api/items/:id/use", (c) => act(c, (ctx, b) => useItem(ctx, id(c), { qty: b.qty, note: b.note })));
-app.post("/api/obligations/:id/resolve", (c) =>
-  act(c, (ctx, b) => {
-    if (!["use", "buy", "waive"].includes(b.method)) throw bad("Unknown method");
-    return resolveObligation(ctx, id(c), b.method, b.voucher_id);
-  }),
-);
-app.post("/api/chests/:id/open", (c) => act(c, (ctx) => openChest(ctx, id(c))));
-
-// goals & sprints
-app.post("/api/goals/:id/status", (c) =>
-  act(c, (ctx, b) => {
-    if (!["done", "active", "dropped"].includes(b.status)) throw bad("Unknown status");
-    return setGoalStatus(ctx, id(c), b.status);
-  }),
-);
-app.post("/api/milestones/:id/toggle", (c) => act(c, (ctx) => toggleMilestone(ctx, id(c))));
-app.post("/api/sprint_tasks/:id/toggle", (c) => act(c, (ctx) => toggleTask(ctx, id(c))));
-app.post("/api/achievements/:id/claim", (c) => act(c, (ctx) => claimAchievement(ctx, id(c))));
-
-// ledger
-app.post("/api/ledger/:id/void", (c) => act(c, (ctx) => voidLedger(ctx, id(c))));
-app.post("/api/ledger/adjust", (c) =>
-  act(c, async (ctx, b) => {
-    const n = (v: unknown) => Math.max(-1e6, Math.min(1e6, Math.round(Number(v) || 0)));
-    const ap = n(b.ap);
-    const xp = n(b.xp);
-    const hp = n(b.hp);
-    if (!ap && !xp && !hp) throw bad("Nothing to adjust");
-    const description = String(b.description ?? "").trim().slice(0, 200) || "Manual adjustment";
-    await award(ctx, { kind: "adjust", ap, xp, hp, source: "manual", description });
-  }),
-);
-
-// settings
-app.put("/api/settings", (c) =>
-  act(c, async (ctx, b) => {
-    const stmts: D1PreparedStatement[] = [];
-    for (const [k, v] of Object.entries(b)) {
-      if (!EDITABLE_SETTINGS.includes(k)) throw bad(`Unknown setting: ${k}`);
-      const def = (DEFAULT_SETTINGS as unknown as Record<string, unknown>)[k];
-      let val: unknown = v;
-      if (typeof def === "number") {
-        val = Number(v);
-        if (!Number.isFinite(val as number)) throw bad(`${k} must be a number`);
-        const range = RANGES[k];
-        if (range && ((val as number) < range[0] || (val as number) > range[1])) throw bad(`${k} must be between ${range[0]} and ${range[1]}`);
-      } else if (typeof def === "boolean") val = !!v;
-      else if (Array.isArray(def)) {
-        if (!Array.isArray(v)) throw bad(`${k} must be a list`);
-        val = k === "hats" ? v.filter((h) => HATS.some((x) => x.id === h)) : v;
-      } else if (v !== null) val = String(v).slice(0, 200);
-      if (k === "hat" && val && !ctx.s.hats.includes(String(val))) throw bad("You haven't unlocked that hat yet");
-      if (k === "timezone") {
-        try {
-          new Intl.DateTimeFormat("en", { timeZone: String(val) });
-        } catch {
-          throw bad("Unknown timezone");
-        }
-      }
-      stmts.push(settingStmt(ctx, k, val));
-    }
-    if (stmts.length) await ctx.db.batch(stmts);
-  }),
-);
-
-// generic config CRUD: /api/data/<collection>[/<id>]
-app.post("/api/data/:entity", (c) => act(c, (ctx, b) => createRow(ctx, c.req.param("entity"), b).then((pk) => ({ id: pk }))));
-app.put("/api/data/:entity/:pk", (c) => act(c, (ctx, b) => updateRow(ctx, c.req.param("entity"), c.req.param("pk"), b)));
-app.delete("/api/data/:entity/:pk", (c) => act(c, (ctx) => deleteRow(ctx, c.req.param("entity"), c.req.param("pk"))));
-app.get("/api/data", (c) => c.json(Object.keys(ENTITIES)));
-
-// save points, export/import, resets
-app.get("/api/snapshots", async (c) =>
-  c.json(await all(c.env.DB, "SELECT id, label, kind, created_at, size FROM snapshots ORDER BY id DESC")),
-);
-app.post("/api/snapshots", async (c) => {
-  const b = await c.req.json<{ label?: string }>().catch(() => ({}) as { label?: string });
-  const snapId = await createSnapshot(c.env.DB, String(b.label || "Manual save").slice(0, 120));
-  return c.json({ ok: true, id: snapId });
+app.post("/api/account/totp/enable", async (c) => {
+  const b = await body(c);
+  await confirmPassword(c, b.password);
+  const secret = String(b.secret ?? "").toUpperCase();
+  if (!/^[A-Z2-7]{16,64}$/.test(secret)) throw bad("Bad setup key");
+  const step = await totpCounter(secret, String(b.code ?? "").trim());
+  if (step === null) throw bad("That code didn't match. Check your phone's clock and try the newest code.");
+  await run(c.env.DB, "UPDATE users SET totp_secret = ?, totp_last = ? WHERE id = ?", secret, step, c.get("user").id);
+  return c.json({ ok: true });
 });
-app.post("/api/snapshots/:id/restore", async (c) => {
-  await restoreSnapshot(c.env.DB, id(c));
-  return c.json({ ok: true, fx: [{ t: "toast", msg: "Save point loaded", emoji: "💾" }] });
+
+app.post("/api/account/totp/disable", async (c) => {
+  const b = await body(c);
+  await confirmPassword(c, b.password);
+  await run(c.env.DB, "UPDATE users SET totp_secret = NULL, totp_last = NULL WHERE id = ?", c.get("user").id);
+  return c.json({ ok: true });
 });
-app.get("/api/snapshots/:id/download", async (c) => {
-  const json = await snapshotJson(c.env.DB, id(c));
-  c.header("Content-Disposition", `attachment; filename="ap-life-quest-savepoint-${id(c)}.json"`);
-  c.header("Content-Type", "application/json; charset=utf-8");
-  return c.body(json);
+
+app.post("/api/account/logout-all", async (c) => {
+  await destroyUserSessions(c.env.DB, c.get("user").id);
+  c.header("Set-Cookie", clearCookie());
+  return c.json({ ok: true });
 });
-app.delete("/api/snapshots/:id", async (c) => {
+
+app.delete("/api/account", async (c) => {
+  const user = c.get("user");
+  if (user.role === "owner") throw bad("The owner account can't be deleted");
+  const b = await body(c);
+  await confirmPassword(c, b.password);
+  for (const ch of await listCharacters(c.env.DB, user.id)) await internal(c.env, ch.id, "destroy").catch(() => undefined);
   await c.env.DB.batch([
-    c.env.DB.prepare("DELETE FROM snapshots WHERE id = ?").bind(id(c)),
-    c.env.DB.prepare("DELETE FROM snapshot_chunks WHERE snapshot_id = ?").bind(id(c)),
+    c.env.DB.prepare("UPDATE characters SET deleted_at = datetime('now') WHERE user_id = ?").bind(user.id),
+    c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id),
+    c.env.DB.prepare("DELETE FROM devices WHERE user_id = ?").bind(user.id),
+    c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(user.id),
+  ]);
+  c.header("Set-Cookie", clearCookie());
+  return c.json({ ok: true });
+});
+
+// ---------- characters ----------
+app.post("/api/characters", async (c) => {
+  const user = c.get("user");
+  const b = await body(c);
+  const name = cleanName(b.name, "Name");
+  const pet = cleanName(b.pet_name || "Mochi", "Pet name");
+  const looks = (b.looks ?? {}) as Record<string, string>;
+  const species = looks.species ?? "cat";
+  const eyes = looks.eyes ?? "dot";
+  const color = looks.color ?? "pink";
+  if (!SPECIES.some((s) => s.id === species)) throw bad("Unknown species");
+  if (!EYES.some((s) => s.id === eyes)) throw bad("Unknown eye style");
+  if (!isPetColor(color)) throw bad("Unknown colour");
+  const keep: Record<string, unknown> = { player_name: name, pet_name: pet, pet_species: species, pet_eyes: eyes, pet_color: color };
+  let content: ReturnType<typeof contentFromCopy> | undefined;
+  let template: string;
+  if (b.copy_from) {
+    const src = await requireCharacter(c.env.DB, user.id, String(b.copy_from));
+    const cfg = await internal<{ tables: Record<string, Record<string, unknown>[]>; settings: Record<string, unknown> }>(c.env, src.id, "export-config");
+    content = contentFromCopy(cfg);
+    template = String(cfg.settings.template ?? "starter");
+    if (TEMPLATES[template]?.ownerOnly && user.role !== "owner") template = "starter";
+    Object.assign(keep, { height_m: cfg.settings.height_m, timezone: cfg.settings.timezone });
+  } else {
+    template = String(b.template ?? "starter");
+    const t = TEMPLATES[template];
+    if (!t || (t.ownerOnly && user.role !== "owner")) throw bad("Unknown template");
+  }
+  keep.template = template;
+  const id = await registerCharacter(c.env.DB, user, name, b.copy_from ? `copy:${template}` : template);
+  try {
+    await internal(c.env, id, "init", { keep, content, owner: user.role === "owner" });
+  } catch (e) {
+    await run(c.env.DB, "UPDATE characters SET deleted_at = datetime('now') WHERE id = ?", id);
+    throw e;
+  }
+  await run(c.env.DB, "UPDATE users SET last_character = ? WHERE id = ?", id, user.id);
+  return c.json({ ok: true, id });
+});
+
+app.post("/api/characters/:cid/select", async (c) => {
+  const ch = await requireCharacter(c.env.DB, c.get("user").id, c.req.param("cid"));
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE users SET last_character = ? WHERE id = ?").bind(ch.id, c.get("user").id),
+    c.env.DB.prepare("UPDATE characters SET last_played = datetime('now') WHERE id = ?").bind(ch.id),
   ]);
   return c.json({ ok: true });
 });
-app.get("/api/export", async (c) => {
-  const json = await exportJson(c.env.DB);
-  c.header("Content-Disposition", `attachment; filename="ap-life-quest-backup-${new Date().toISOString().slice(0, 10)}.json"`);
-  c.header("Content-Type", "application/json; charset=utf-8");
-  return c.body(json);
+
+app.delete("/api/characters/:cid", async (c) => {
+  const user = c.get("user");
+  const ch = await requireCharacter(c.env.DB, user.id, c.req.param("cid"));
+  const b = await body(c);
+  if (String(b.confirm ?? "").trim().toLowerCase() !== ch.name.toLowerCase()) throw bad(`Type the character's name (${ch.name}) to confirm`);
+  await internal(c.env, ch.id, "destroy");
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE characters SET deleted_at = datetime('now') WHERE id = ?").bind(ch.id),
+    c.env.DB.prepare("UPDATE users SET last_character = NULL WHERE id = ? AND last_character = ?").bind(user.id, ch.id),
+  ]);
+  return c.json({ ok: true });
 });
-app.post("/api/import", async (c) => {
-  const data = await c.req.json().catch(() => null);
-  if (!data) throw bad("Could not read that file");
-  await createSnapshot(c.env.DB, "Before importing a backup", "pre-restore");
-  await importAll(c.env.DB, data);
-  return c.json({ ok: true, fx: [{ t: "toast", msg: "Backup imported", emoji: "📦" }] });
+
+/** One-time: turn the v1 single-player save (in D1) into the owner's first character. */
+app.post("/api/legacy/import", async (c) => {
+  ownerOnly(c);
+  if (!(await legacyAvailable(c.env))) throw bad("There's no v1 save to import (or it was already imported)");
+  const user = c.get("user");
+  const data = JSON.parse(await exportJson(c.env.DB));
+  const legacyName = (() => {
+    const row = (data.tables.settings as { key: string; value: string }[]).find((r) => r.key === "player_name");
+    try {
+      return row ? String(JSON.parse(row.value)) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const id = await registerCharacter(c.env.DB, user, cleanName(legacyName || user.display_name), "anson");
+  await internal(c.env, id, "import", { backup: data, owner: true });
+  await setMeta(c.env.DB, "legacy_imported", id);
+  await run(c.env.DB, "UPDATE users SET last_character = ? WHERE id = ?", id, user.id);
+  return c.json({ ok: true, id });
 });
-app.post("/api/reset/season", (c) =>
-  act(c, async (ctx, b) => {
-    if (b.confirm !== "NEW GAME") throw bad('Type "NEW GAME" to confirm');
-    await seasonReset(ctx, String(b.name ?? ""));
-  }),
-);
-app.post("/api/reset/factory", async (c) => {
-  const b = await c.req.json<{ confirm?: string }>().catch(() => ({}) as { confirm?: string });
-  if (b.confirm !== "RESET EVERYTHING") throw bad('Type "RESET EVERYTHING" to confirm');
-  const ctx = await loadCtx(c.env.DB);
-  const keep = { player_name: ctx.s.player_name, pet_name: ctx.s.pet_name, height_m: ctx.s.height_m, timezone: ctx.s.timezone, birthday: ctx.s.birthday };
-  await factoryReset(c.env.DB, keep);
-  return c.json({ ok: true, fx: [{ t: "toast", msg: "Factory reset complete. A save point was made first.", emoji: "💥" }] });
+
+// ---------- the game: /api/c/<character>/... → that character's private database ----------
+app.all("/api/c/:cid/*", async (c) => {
+  const ch = await requireCharacter(c.env.DB, c.get("user").id, c.req.param("cid"));
+  const url = new URL(c.req.url);
+  const rest = url.pathname.split("/").slice(4).join("/");
+  url.pathname = `/api/${rest}`;
+  // Buffer the body so the incoming request is always fully consumed.
+  const method = c.req.method;
+  const payload = method === "GET" || method === "HEAD" ? undefined : await c.req.arrayBuffer();
+  if (payload && payload.byteLength > MAX_BODY) throw new HttpError(413, "That's too big (max 8 MB)");
+  // Forward only what the game needs; x-aplq-owner can only ever come from here (never the client).
+  const headers = new Headers();
+  for (const h of ["content-type", "x-width", "x-height", "if-none-match"]) {
+    const v = c.req.header(h);
+    if (v) headers.set(h, v);
+  }
+  headers.set("x-aplq-owner", c.get("user").role === "owner" ? "1" : "0");
+  const res = await stub(c.env, ch.id).fetch(url.toString(), { method, headers, body: payload });
+  if (rest === "process" && res.ok)
+    c.executionCtx.waitUntil(run(c.env.DB, "UPDATE characters SET last_played = datetime('now') WHERE id = ?", ch.id).catch(() => undefined));
+  return new Response(res.body, res); // copy so headers stay mutable
+});
+
+// ---------- owner admin ----------
+app.get("/api/admin/overview", async (c) => {
+  ownerOnly(c);
+  const users = await all(
+    c.env.DB,
+    `SELECT u.id, u.username, u.display_name, u.role, u.disabled, u.max_characters, u.created_at, u.last_login, u.totp_secret IS NOT NULL AS totp,
+       (SELECT COUNT(*) FROM characters ch WHERE ch.user_id = u.id AND ch.deleted_at IS NULL) AS characters
+     FROM users u ORDER BY u.id`,
+  );
+  return c.json({ users, invites: await listInvites(c.env.DB) });
+});
+
+app.post("/api/admin/invites", async (c) => {
+  ownerOnly(c);
+  const b = await body(c);
+  const inv = await createInvite(c.env.DB, c.get("user").id, b.note ? String(b.note) : null, Number(b.days) || 14);
+  return c.json({ ok: true, ...inv });
+});
+
+app.delete("/api/admin/invites/:hash", async (c) => {
+  ownerOnly(c);
+  await run(c.env.DB, "UPDATE invites SET revoked = 1 WHERE code_hash = ? AND used_by IS NULL", c.req.param("hash"));
+  return c.json({ ok: true });
+});
+
+app.put("/api/admin/users/:id", async (c) => {
+  ownerOnly(c);
+  const target = await userById(c.env.DB, Number(c.req.param("id")));
+  if (!target) throw new HttpError(404, "User not found");
+  if (target.role === "owner") throw bad("You can't change the owner here");
+  const b = await body(c);
+  if (b.disabled !== undefined) {
+    await run(c.env.DB, "UPDATE users SET disabled = ? WHERE id = ?", b.disabled ? 1 : 0, target.id);
+    if (b.disabled) await destroyUserSessions(c.env.DB, target.id);
+  }
+  if (b.max_characters !== undefined) {
+    const n = Math.round(Number(b.max_characters));
+    if (!(n >= 1 && n <= 50)) throw bad("Max characters must be 1–50");
+    await run(c.env.DB, "UPDATE users SET max_characters = ? WHERE id = ?", n, target.id);
+  }
+  return c.json({ ok: true });
+});
+
+app.post("/api/admin/users/:id/reset-password", async (c) => {
+  ownerOnly(c);
+  const target = await userById(c.env.DB, Number(c.req.param("id")));
+  if (!target) throw new HttpError(404, "User not found");
+  if (target.role === "owner") throw bad("Change your own password in Account");
+  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+  const temp = [...randomBytes(14)].map((x) => alphabet[x % alphabet.length]).join("").replace(/(.{4})(?=.)/g, "$1-");
+  await run(c.env.DB, "UPDATE users SET password_hash = ?, totp_secret = NULL WHERE id = ?", await hashPassword(temp), target.id);
+  await destroyUserSessions(c.env.DB, target.id);
+  return c.json({ ok: true, temp });
 });
 
 app.all("/api/*", () => {

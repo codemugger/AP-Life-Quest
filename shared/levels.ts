@@ -52,24 +52,64 @@ export function petStage(level: number) {
   return s;
 }
 
-/** Hats unlocked automatically when reaching a level (others drop from chests). */
-export const LEVEL_HATS: Record<number, string> = {
-  5: "headband",
-  10: "party",
-  15: "flower",
-  25: "wizard",
-  40: "crown",
-};
+// ---------------------------------------------------------------------------
+// Cosmetics: hats, face accessories and camp scenes.
+// unlock: 0 = free, a number = reached at that level, "chest" = only from loot chests.
+// (Chests can also drop level-locked ones early.)
+// ---------------------------------------------------------------------------
+export type Slot = "hat" | "face" | "scene";
+export interface Cosmetic {
+  id: string;
+  slot: Slot;
+  name: string;
+  unlock: number | "chest";
+}
 
-export const HATS: { id: string; name: string }[] = [
-  { id: "headband", name: "Sport Headband" },
-  { id: "party", name: "Party Hat" },
-  { id: "flower", name: "Flower Clip" },
-  { id: "bow", name: "Big Bow" },
-  { id: "sunnies", name: "Cool Shades" },
-  { id: "wizard", name: "Wizard Hat" },
-  { id: "crown", name: "Royal Crown" },
+export const COSMETICS: Cosmetic[] = [
+  { id: "beanie", slot: "hat", name: "Cozy Beanie", unlock: 0 },
+  { id: "headband", slot: "hat", name: "Sport Headband", unlock: 5 },
+  { id: "party", slot: "hat", name: "Party Hat", unlock: 10 },
+  { id: "flower", slot: "hat", name: "Flower Clip", unlock: 15 },
+  { id: "wizard", slot: "hat", name: "Wizard Hat", unlock: 25 },
+  { id: "crown", slot: "hat", name: "Royal Crown", unlock: 40 },
+  { id: "bow", slot: "hat", name: "Big Bow", unlock: "chest" },
+  { id: "cap", slot: "hat", name: "Coach Cap", unlock: "chest" },
+  { id: "glasses", slot: "face", name: "Round Glasses", unlock: 0 },
+  { id: "sunnies", slot: "face", name: "Cool Shades", unlock: "chest" },
+  { id: "meadow", slot: "scene", name: "Meadow Camp", unlock: 0 },
+  { id: "beach", slot: "scene", name: "Sunny Beach", unlock: 0 },
+  { id: "city", slot: "scene", name: "City Lights", unlock: 8 },
+  { id: "sakura", slot: "scene", name: "Sakura Park", unlock: 12 },
+  { id: "space", slot: "scene", name: "Moon Base", unlock: 20 },
 ];
+
+/** Kept for older code paths: the hat slot only. */
+export const HATS = COSMETICS.filter((c) => c.slot === "hat");
+
+/** Cosmetics that become available exactly at a level (for the level-up announcement). */
+export const LEVEL_HATS: Record<number, string> = Object.fromEntries(
+  COSMETICS.filter((c) => typeof c.unlock === "number" && c.unlock > 0).map((c) => [c.unlock as number, c.id]),
+);
+
+export function isUnlocked(id: string, owned: string[], level: number) {
+  const c = COSMETICS.find((x) => x.id === id);
+  if (!c) return false;
+  return c.unlock === 0 || owned.includes(id) || (typeof c.unlock === "number" && level >= c.unlock);
+}
+
+export const SPECIES = [
+  { id: "cat", name: "Neko" },
+  { id: "blob", name: "Mochi blob" },
+  { id: "bunny", name: "Usagi" },
+  { id: "bear", name: "Kuma" },
+  { id: "dino", name: "Dino" },
+] as const;
+
+export const EYES = [
+  { id: "dot", name: "Classic" },
+  { id: "big", name: "Big & shiny" },
+  { id: "sparkle", name: "Sparkly" },
+] as const;
 
 export const RARITIES = ["common", "rare", "epic", "legendary"] as const;
 export type Rarity = (typeof RARITIES)[number];
