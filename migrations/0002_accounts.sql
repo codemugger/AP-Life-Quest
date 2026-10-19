@@ -8,6 +8,7 @@ CREATE TABLE users (
   display_name   TEXT NOT NULL,
   password_hash  TEXT NOT NULL,              -- pbkdf2$iter$salt$hash
   totp_secret    TEXT,                       -- base32, null = 2FA off
+  totp_last      INTEGER,                    -- last accepted 30s step (codes can't be replayed)
   role           TEXT NOT NULL DEFAULT 'member', -- owner | member
   disabled       INTEGER NOT NULL DEFAULT 0,
   max_characters INTEGER NOT NULL DEFAULT 3,
@@ -38,6 +39,15 @@ CREATE TABLE characters (
   deleted_at  TEXT
 );
 CREATE INDEX idx_characters_user ON characters(user_id, deleted_at);
+
+-- Devices that logged in successfully before: they skip the per-user/global lock-outs
+-- (so nobody can lock you out by spamming wrong passwords), but still need the password.
+CREATE TABLE devices (
+  token_hash TEXT PRIMARY KEY,
+  user_id    INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_devices_user ON devices(user_id);
 
 CREATE TABLE meta (
   key   TEXT PRIMARY KEY,

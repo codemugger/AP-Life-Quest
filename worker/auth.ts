@@ -5,7 +5,7 @@ import { first, run, stmt } from "./db";
 export const COOKIE = "__Host-aplq_session";
 const SESSION_DAYS = 30;
 const WINDOW_MS = 15 * 60_000;
-const MAX_FAILS_PER_IP = 5;
+const MAX_FAILS_PER_IP = 10; // a household can share one IP
 const MAX_FAILS_PER_USER = 10;
 const MAX_FAILS_TOTAL = 40; // global backstop
 export const PBKDF2_ITERATIONS = 10_000; // Workers free plan: ~10 ms CPU per request
@@ -104,13 +104,17 @@ async function totpAt(secret: Uint8Array, counter: number) {
   return String(code % 1_000_000).padStart(6, "0");
 }
 
-/** Accepts the current 30s code and one step either side (clock drift). */
-export async function verifyTotp(secretB32: string, code: string) {
-  if (!/^\d{6}$/.test(code ?? "")) return false;
+/** Returns the matching 30s step (current or one either side for clock drift), or null. */
+export async function totpCounter(secretB32: string, code: string) {
+  if (!/^\d{6}$/.test(code ?? "")) return null;
   const secret = base32Decode(secretB32);
   const counter = Math.floor(Date.now() / 30_000);
-  for (const d of [-1, 0, 1]) if ((await totpAt(secret, counter + d)) === code) return true;
-  return false;
+  for (const d of [-1, 0, 1]) if ((await totpAt(secret, counter + d)) === code) return counter + d;
+  return null;
+}
+
+export async function verifyTotp(secretB32: string, code: string) {
+  return (await totpCounter(secretB32, code)) !== null;
 }
 
 export function totpUri(secret: string, label: string) {
@@ -179,18 +183,44 @@ export async function destroyUserSessions(db: D1Database, userId: number) {
 }
 
 // ---------- lock-outs ----------
-/** null if allowed, otherwise a message explaining the lockout. */
-export async function loginBlocked(db: D1Database, ip: string, username: string | null) {
+/** IPv6 addresses are grouped per /64 (one connection usually owns a whole /64). */
+export function ipKey(ip: string) {
+  return ip.includes(":") ? `${ip.split(":").slice(0, 4).join(":")}::/64` : ip;
+}
+
+/**
+ * null if allowed, otherwise a message. Buckets:
+ *  - per IP: always (an attacker only locks out their own network);
+ *  - per username (incl. "#setup", "#acct:<id>"): unless the device is remembered;
+ *  - global backstop: real login attempts only, unless the device is remembered.
+ */
+export async function loginBlocked(db: D1Database, ip: string, username: string | null, trusted = false) {
   const since = Date.now() - WINDOW_MS;
   const [perIp, perUser, total] = await db.batch([
     stmt(db, "SELECT COUNT(*) AS c FROM login_attempts WHERE ok = 0 AND ip = ? AND ts > ?", ip, since),
     stmt(db, "SELECT COUNT(*) AS c FROM login_attempts WHERE ok = 0 AND username = ? AND ts > ?", username ?? "", since),
-    stmt(db, "SELECT COUNT(*) AS c FROM login_attempts WHERE ok = 0 AND ts > ?", since),
+    stmt(db, "SELECT COUNT(*) AS c FROM login_attempts WHERE ok = 0 AND ts > ? AND username IS NOT NULL AND username NOT LIKE '#%'", since),
   ]);
   const c = (r: D1Result) => (r.results[0] as { c: number }).c;
-  if (c(perIp) >= MAX_FAILS_PER_IP || (username && c(perUser) >= MAX_FAILS_PER_USER) || c(total) >= MAX_FAILS_TOTAL)
+  const realLogin = !!username && !username.startsWith("#");
+  if (c(perIp) >= MAX_FAILS_PER_IP || (username && !trusted && c(perUser) >= MAX_FAILS_PER_USER) || (realLogin && !trusted && c(total) >= MAX_FAILS_TOTAL))
     return "Too many wrong attempts. The castle gates are shut for 15 minutes.";
   return null;
+}
+
+// ---------- remembered devices ----------
+export const DEVICE_COOKIE = "__Host-aplq_device";
+
+export async function rememberDevice(db: D1Database, userId: number) {
+  const token = b64url(randomBytes(32));
+  await run(db, "INSERT INTO devices (token_hash, user_id) VALUES (?, ?)", await sha256Hex(token), userId);
+  return `${DEVICE_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${365 * 86_400}`;
+}
+
+export async function knownDevice(db: D1Database, cookie: string | null | undefined, userId: number) {
+  const token = readCookie(cookie, DEVICE_COOKIE);
+  if (!token || token.length > 100) return false;
+  return !!(await first(db, "SELECT 1 AS ok FROM devices WHERE token_hash = ? AND user_id = ?", await sha256Hex(token), userId));
 }
 
 export async function recordAttempt(db: D1Database, ip: string, ok: boolean, username: string | null) {

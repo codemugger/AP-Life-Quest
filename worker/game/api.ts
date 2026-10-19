@@ -196,7 +196,8 @@ gameApp.get("/api/data", (c) => c.json(Object.keys(ENTITIES)));
 
 // ---------- pictures ----------
 const MAX_PICTURE = 1_500_000;
-const MAX_TOTAL = 150 * 1024 * 1024;
+/** Picture storage per character (owner / invited members). */
+const pictureLimit = (c: C) => (c.req.header("x-aplq-owner") === "1" ? 150 : 50) * 1024 * 1024;
 const MAGIC: Record<string, (b: Uint8Array) => boolean> = {
   "image/jpeg": (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
   "image/png": (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47,
@@ -214,19 +215,27 @@ gameApp.post("/api/media", async (c) => {
   if (buf.byteLength > MAX_PICTURE) throw bad("Picture too big (max 1.5 MB after compression)");
   if (!check(new Uint8Array(buf, 0, 12))) throw bad("That file isn't really a picture");
   const used = (await first<{ s: number }>(c.env.DB, "SELECT COALESCE(SUM(size), 0) AS s FROM media"))?.s ?? 0;
-  if (used + buf.byteLength > MAX_TOTAL) throw bad("Picture storage is full (150 MB). Remove unused pictures in Settings.");
+  if (used + buf.byteLength > pictureLimit(c)) throw bad(`Picture storage is full (${pictureLimit(c) / 1024 / 1024} MB). Remove unused pictures in Settings.`);
   const dim = (h: string) => Math.max(0, Math.min(10000, Math.round(Number(c.req.header(h)) || 0))) || null;
   const row = await stmt(c.env.DB, "INSERT INTO media (mime, width, height, size, data) VALUES (?,?,?,?,?) RETURNING id", mime, dim("x-width"), dim("x-height"), buf.byteLength, buf).first<{ id: number }>();
   return c.json({ ok: true, id: row!.id });
 });
 
 gameApp.get("/api/media/:id", async (c) => {
+  // Pictures never change, so an ETag lets the browser re-check access cheaply (304) on every view,
+  // instead of keeping them readable from cache after logging out.
+  const etag = `"m${id(c)}"`;
+  if (c.req.header("if-none-match") === etag) {
+    const exists = await first(c.env.DB, "SELECT 1 AS ok FROM media WHERE id = ?", id(c));
+    if (exists) return new Response(null, { status: 304, headers: { ETag: etag, "Cache-Control": "private, no-cache" } });
+  }
   const row = await first<{ mime: string; data: ArrayBuffer }>(c.env.DB, "SELECT mime, data FROM media WHERE id = ?", id(c));
   if (!row || !MAGIC[row.mime]) throw notFound("Picture not found");
   return new Response(row.data, {
     headers: {
       "Content-Type": row.mime,
-      "Cache-Control": "private, max-age=31536000, immutable",
+      ETag: etag,
+      "Cache-Control": "private, no-cache",
       "Content-Security-Policy": "default-src 'none'",
       "Content-Disposition": "inline",
       "X-Content-Type-Options": "nosniff",
@@ -245,7 +254,7 @@ gameApp.get("/api/media", async (c) => {
     c.env.DB.prepare(`SELECT COUNT(*) AS n FROM media WHERE ${unusedSql}`),
   ]);
   const t = tot.results[0] as { n: number; bytes: number };
-  return c.json({ count: t.n, bytes: t.bytes, unused: (refd.results[0] as { n: number }).n, limit: MAX_TOTAL });
+  return c.json({ count: t.n, bytes: t.bytes, unused: (refd.results[0] as { n: number }).n, limit: pictureLimit(c) });
 });
 
 /** Deletes pictures nothing points at (older save points may then show a placeholder). */
@@ -288,7 +297,7 @@ gameApp.post("/api/import", async (c) => {
   const data = await c.req.json().catch(() => null);
   if (!data) throw bad("Could not read that file");
   await createSnapshot(c.env.DB, "Before importing a backup", "pre-restore");
-  await importAll(c.env.DB, data);
+  await importAll(c.env.DB, data, { keepTemplate: true });
   return c.json({ ok: true, fx: [{ t: "toast", msg: "Backup imported", emoji: "📦" }] });
 });
 gameApp.post("/api/reset/season", (c) =>

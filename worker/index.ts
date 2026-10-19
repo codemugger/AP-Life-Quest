@@ -4,13 +4,12 @@ import { Hono, type Context } from "hono";
 import { EYES, SPECIES } from "../shared/levels";
 import { isPetColor } from "../shared/petgrid";
 import {
-  claimInvite,
   cleanName,
   cleanUsername,
   createInvite,
-  createUser,
   getMeta,
   inviteValid,
+  joinWithInvite,
   listCharacters,
   listInvites,
   publicUser,
@@ -29,11 +28,15 @@ import {
   destroySession,
   destroyUserSessions,
   hashPassword,
+  ipKey,
+  knownDevice,
   loginBlocked,
   newTotpSecret,
   passwordProblem,
   randomBytes,
   recordAttempt,
+  rememberDevice,
+  totpCounter,
   totpUri,
   verifyPassword,
   verifyTotp,
@@ -57,7 +60,8 @@ type AppEnv = { Bindings: Env; Variables: { user: User } };
 type C = Context<AppEnv>;
 const app = new Hono<AppEnv>();
 
-const ip = (c: C) => c.req.header("cf-connecting-ip") ?? "local";
+const ip = (c: C) => ipKey(c.req.header("cf-connecting-ip") ?? "local");
+const MAX_BODY = 8 * 1024 * 1024; // imports & pictures
 const body = <T = Record<string, any>>(c: C) => c.req.json<T>().catch(() => ({}) as T);
 const stub = (env: Env, id: string) => env.CHAR.get(env.CHAR.idFromName(id));
 
@@ -140,9 +144,11 @@ app.post("/api/auth/setup", async (c) => {
 app.post("/api/auth/login", async (c) => {
   const b = await body(c);
   const uname = String(b.username ?? "").trim().toLowerCase().slice(0, 40);
-  const blocked = await loginBlocked(c.env.DB, ip(c), uname);
-  if (blocked) throw new HttpError(429, blocked);
   const u = uname ? await userByName(c.env.DB, uname) : null;
+  // A device you've logged in from before isn't affected by other people's failed attempts.
+  const trusted = !!u && (await knownDevice(c.env.DB, c.req.header("cookie"), u.id));
+  const blocked = await loginBlocked(c.env.DB, ip(c), uname, trusted);
+  if (blocked) throw new HttpError(429, blocked);
   const pw = String(b.password ?? "").slice(0, 200);
   // Always do the hashing work so timing doesn't reveal which usernames exist.
   let ok = await verifyPassword(pw, u?.password_hash ?? "pbkdf2$10000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
@@ -150,12 +156,15 @@ app.post("/api/auth/login", async (c) => {
   if (ok && u!.totp_secret) {
     const code = String(b.code ?? "").trim();
     if (!code) return c.json({ error: "Enter the 6-digit code from your authenticator", need_code: true }, 401);
-    ok = await verifyTotp(u!.totp_secret, code);
+    const step = await totpCounter(u!.totp_secret, code);
+    ok = step !== null && step > (u!.totp_last ?? -1); // each code works once
+    if (ok) await run(c.env.DB, "UPDATE users SET totp_last = ? WHERE id = ?", step, u!.id);
   }
   await recordAttempt(c.env.DB, ip(c), ok, uname);
   if (!ok) throw new HttpError(401, "Wrong username, password or code");
   await run(c.env.DB, "UPDATE users SET last_login = datetime('now') WHERE id = ?", u!.id);
   c.header("Set-Cookie", await createSession(c.env.DB, u!.id, c.req.header("user-agent") ?? null));
+  if (!trusted) c.header("Set-Cookie", await rememberDevice(c.env.DB, u!.id), { append: true });
   return c.json({ ok: true });
 });
 
@@ -169,7 +178,7 @@ app.get("/api/auth/invite/:code", async (c) => {
   const blocked = await loginBlocked(c.env.DB, ip(c), null);
   if (blocked) throw new HttpError(429, blocked);
   const valid = await inviteValid(c.env.DB, c.req.param("code"));
-  if (!valid) await recordAttempt(c.env.DB, ip(c), false, null);
+  if (!valid) await recordAttempt(c.env.DB, ip(c), false, "#invite");
   return c.json({ valid });
 });
 
@@ -177,21 +186,17 @@ app.post("/api/auth/join", async (c) => {
   const blocked = await loginBlocked(c.env.DB, ip(c), null);
   if (blocked) throw new HttpError(429, blocked);
   const b = await body(c);
-  if (!(await inviteValid(c.env.DB, b.code))) {
-    await recordAttempt(c.env.DB, ip(c), false, null);
-    throw bad("This invite code is invalid, expired or already used");
-  }
-  const user = await createUser(c.env.DB, {
+  const userId = await joinWithInvite(c.env.DB, b.code, {
     username: cleanUsername(b.username),
     display_name: cleanName(b.display_name, "Display name"),
     password: String(b.password ?? ""),
-    role: "member",
   });
-  if (!(await claimInvite(c.env.DB, b.code, user.id))) {
-    await run(c.env.DB, "DELETE FROM users WHERE id = ?", user.id);
-    throw new HttpError(409, "That invite was just used by someone else");
+  if (!userId) {
+    await recordAttempt(c.env.DB, ip(c), false, "#invite");
+    throw bad("This invite code is invalid, expired or already used");
   }
-  c.header("Set-Cookie", await createSession(c.env.DB, user.id, c.req.header("user-agent") ?? null));
+  c.header("Set-Cookie", await createSession(c.env.DB, userId, c.req.header("user-agent") ?? null));
+  c.header("Set-Cookie", await rememberDevice(c.env.DB, userId), { append: true });
   return c.json({ ok: true });
 });
 
@@ -206,6 +211,17 @@ app.use("/api/*", async (c, next) => {
   await next();
   if (s.refresh) c.header("Set-Cookie", s.refresh, { append: true });
 });
+
+/** Re-checks your password for sensitive actions, with its own attempt limit. */
+async function confirmPassword(c: C, password: unknown) {
+  const user = c.get("user");
+  const bucket = `#acct:${user.id}`;
+  const blocked = await loginBlocked(c.env.DB, ip(c), bucket);
+  if (blocked) throw new HttpError(429, blocked);
+  const ok = await verifyPassword(String(password ?? "").slice(0, 200), user.password_hash);
+  await recordAttempt(c.env.DB, ip(c), ok, bucket);
+  if (!ok) throw new HttpError(401, "Wrong password");
+}
 
 const ownerOnly = (c: C) => {
   if (c.get("user").role !== "owner") throw new HttpError(403, "Only the owner can do that");
@@ -244,7 +260,7 @@ app.put("/api/account", async (c) => {
 app.post("/api/account/password", async (c) => {
   const user = c.get("user");
   const b = await body(c);
-  if (!(await verifyPassword(String(b.current ?? ""), user.password_hash))) throw new HttpError(401, "Current password is wrong");
+  await confirmPassword(c, b.current);
   const why = passwordProblem(b.next);
   if (why) throw bad(why);
   await run(c.env.DB, "UPDATE users SET password_hash = ? WHERE id = ?", await hashPassword(b.next), user.id);
@@ -260,17 +276,19 @@ app.post("/api/account/totp/start", async (c) => {
 
 app.post("/api/account/totp/enable", async (c) => {
   const b = await body(c);
+  await confirmPassword(c, b.password);
   const secret = String(b.secret ?? "").toUpperCase();
   if (!/^[A-Z2-7]{16,64}$/.test(secret)) throw bad("Bad setup key");
-  if (!(await verifyTotp(secret, String(b.code ?? "").trim()))) throw bad("That code didn't match. Check your phone's clock and try the newest code.");
-  await run(c.env.DB, "UPDATE users SET totp_secret = ? WHERE id = ?", secret, c.get("user").id);
+  const step = await totpCounter(secret, String(b.code ?? "").trim());
+  if (step === null) throw bad("That code didn't match. Check your phone's clock and try the newest code.");
+  await run(c.env.DB, "UPDATE users SET totp_secret = ?, totp_last = ? WHERE id = ?", secret, step, c.get("user").id);
   return c.json({ ok: true });
 });
 
 app.post("/api/account/totp/disable", async (c) => {
   const b = await body(c);
-  if (!(await verifyPassword(String(b.password ?? ""), c.get("user").password_hash))) throw new HttpError(401, "Wrong password");
-  await run(c.env.DB, "UPDATE users SET totp_secret = NULL WHERE id = ?", c.get("user").id);
+  await confirmPassword(c, b.password);
+  await run(c.env.DB, "UPDATE users SET totp_secret = NULL, totp_last = NULL WHERE id = ?", c.get("user").id);
   return c.json({ ok: true });
 });
 
@@ -284,11 +302,12 @@ app.delete("/api/account", async (c) => {
   const user = c.get("user");
   if (user.role === "owner") throw bad("The owner account can't be deleted");
   const b = await body(c);
-  if (!(await verifyPassword(String(b.password ?? ""), user.password_hash))) throw new HttpError(401, "Wrong password");
+  await confirmPassword(c, b.password);
   for (const ch of await listCharacters(c.env.DB, user.id)) await internal(c.env, ch.id, "destroy").catch(() => undefined);
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE characters SET deleted_at = datetime('now') WHERE user_id = ?").bind(user.id),
     c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id),
+    c.env.DB.prepare("DELETE FROM devices WHERE user_id = ?").bind(user.id),
     c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(user.id),
   ]);
   c.header("Set-Cookie", clearCookie());
@@ -316,6 +335,7 @@ app.post("/api/characters", async (c) => {
     const cfg = await internal<{ tables: Record<string, Record<string, unknown>[]>; settings: Record<string, unknown> }>(c.env, src.id, "export-config");
     content = contentFromCopy(cfg);
     template = String(cfg.settings.template ?? "starter");
+    if (TEMPLATES[template]?.ownerOnly && user.role !== "owner") template = "starter";
     Object.assign(keep, { height_m: cfg.settings.height_m, timezone: cfg.settings.timezone });
   } else {
     template = String(b.template ?? "starter");
@@ -325,7 +345,7 @@ app.post("/api/characters", async (c) => {
   keep.template = template;
   const id = await registerCharacter(c.env.DB, user, name, b.copy_from ? `copy:${template}` : template);
   try {
-    await internal(c.env, id, "init", { keep, content });
+    await internal(c.env, id, "init", { keep, content, owner: user.role === "owner" });
   } catch (e) {
     await run(c.env.DB, "UPDATE characters SET deleted_at = datetime('now') WHERE id = ?", id);
     throw e;
@@ -371,7 +391,7 @@ app.post("/api/legacy/import", async (c) => {
     }
   })();
   const id = await registerCharacter(c.env.DB, user, cleanName(legacyName || user.display_name), "anson");
-  await internal(c.env, id, "import", data);
+  await internal(c.env, id, "import", { backup: data, owner: true });
   await setMeta(c.env.DB, "legacy_imported", id);
   await run(c.env.DB, "UPDATE users SET last_character = ? WHERE id = ?", id, user.id);
   return c.json({ ok: true, id });
@@ -383,10 +403,18 @@ app.all("/api/c/:cid/*", async (c) => {
   const url = new URL(c.req.url);
   const rest = url.pathname.split("/").slice(4).join("/");
   url.pathname = `/api/${rest}`;
-  // Buffer the body (max ~1.5 MB pictures) so the incoming request is always fully consumed.
+  // Buffer the body so the incoming request is always fully consumed.
   const method = c.req.method;
   const payload = method === "GET" || method === "HEAD" ? undefined : await c.req.arrayBuffer();
-  const res = await stub(c.env, ch.id).fetch(url.toString(), { method, headers: c.req.raw.headers, body: payload });
+  if (payload && payload.byteLength > MAX_BODY) throw new HttpError(413, "That's too big (max 8 MB)");
+  // Forward only what the game needs; x-aplq-owner can only ever come from here (never the client).
+  const headers = new Headers();
+  for (const h of ["content-type", "x-width", "x-height", "if-none-match"]) {
+    const v = c.req.header(h);
+    if (v) headers.set(h, v);
+  }
+  headers.set("x-aplq-owner", c.get("user").role === "owner" ? "1" : "0");
+  const res = await stub(c.env, ch.id).fetch(url.toString(), { method, headers, body: payload });
   if (rest === "process" && res.ok)
     c.executionCtx.waitUntil(run(c.env.DB, "UPDATE characters SET last_played = datetime('now') WHERE id = ?", ch.id).catch(() => undefined));
   return new Response(res.body, res); // copy so headers stay mutable

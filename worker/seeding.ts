@@ -1,14 +1,22 @@
 // Writes starter content into an empty character database (new character / factory reset).
-import { insertStmt, stmt } from "./db";
-import { seedSettings, templateContent, type TemplateContent } from "./seed";
+import { first, insertStmt, stmt } from "./db";
+import { seedSettings, templateContent, TEMPLATES, type TemplateContent } from "./seed";
+
+/** True when this character may use owner-only templates (a trusted flag set only by the Worker at creation). */
+export async function ownerTemplatesAllowed(db: D1Database) {
+  const row = await first<{ value: string }>(db, "SELECT value FROM _meta WHERE key = 'owner_templates'").catch(() => null);
+  return row?.value === "1";
+}
 
 /**
  * `keep` = profile + looks to carry over (and `template`, which picks the content).
  * `content` overrides the template (used when copying setup from another character).
  */
-export async function seedAll(db: D1Database, keep: Record<string, unknown> = {}, content?: TemplateContent) {
-  const tpl = content ?? templateContent(keep.template as string | undefined);
-  const settings: Record<string, unknown> = { ...seedSettings(), ...(tpl.settings ?? {}), ...keep, current_season: 1 };
+export async function seedAll(db: D1Database, keep: Record<string, unknown> = {}, content?: TemplateContent, allowOwnerOnly = false) {
+  let template = String(keep.template ?? "starter");
+  if (!TEMPLATES[template] || (TEMPLATES[template].ownerOnly && !allowOwnerOnly && !content)) template = "starter";
+  const tpl = content ?? templateContent(template);
+  const settings: Record<string, unknown> = { ...seedSettings(), ...(tpl.settings ?? {}), ...keep, template, current_season: 1 };
   const today = new Date().toISOString().slice(0, 10);
   const batch: D1PreparedStatement[] = [
     // Fails (and rolls back the whole batch) if this database was already seeded.

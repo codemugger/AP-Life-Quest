@@ -3,6 +3,21 @@
 //   2. in another terminal: npm run test:api
 // Uses the local setup password from AP_DEV_PASSWORD (default: mochi-dev-password).
 import { execSync } from "node:child_process";
+import { createHmac } from "node:crypto";
+
+/** Real 6-digit TOTP code for a base32 secret (to test 2FA end to end). */
+function totp(secret, step = Math.floor(Date.now() / 30000)) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const ch of secret) bits += alphabet.indexOf(ch).toString(2).padStart(5, "0");
+  const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
+  const msg = Buffer.alloc(8);
+  msg.writeUInt32BE(Math.floor(step / 2 ** 32), 0);
+  msg.writeUInt32BE(step >>> 0, 4);
+  const h = createHmac("sha1", key).update(msg).digest();
+  const o = h[h.length - 1] & 0xf;
+  return String((((h[o] & 0x7f) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]) % 1_000_000).padStart(6, "0");
+}
 
 const PASSWORD = process.env.AP_DEV_PASSWORD ?? "mochi-dev-password";
 const BASE = process.env.AP_URL ?? "http://localhost:5173";
@@ -171,6 +186,11 @@ ok((await post("/data/quests", { type: "daily", title: "x", images: ["1;DROP"] }
 ok((await post("/data/events", { title: "Xi'an trip", date: "2027-01-01", images: [up.data.id], notes: "Terracotta warriors!" })).status === 200, "event with photos saves");
 const stats = (await owner.get(g("/media"))).data;
 ok(stats.count === 1 && stats.unused === 0, "picture stats know it's in use");
+ok((await owner.get(g(`/media/${up.data.id}`)).then(() => owner.post(g("/media"), null, { raw: PNG, headers: { "content-type": "image/png" } }))).status === 200, "second upload ok");
+const cached = await fetch(`${B}/c/${A}/media/${up.data.id}`, { headers: { "if-none-match": `"m${up.data.id}"`, cookie: "" } });
+ok(cached.status === 401, "cached pictures still need a login");
+const spoof = await member.post(`/c/${M}/media`, null, { raw: PNG, headers: { "content-type": "image/png", "x-aplq-owner": "1" } });
+ok(spoof.status === 200 && (await member.get(`/c/${M}/media`)).data.limit === 50 * 1024 * 1024, "members can't spoof the owner's storage limit");
 
 // ================= save points inside a character =================
 const snap = (await post("/snapshots", { label: "regress" })).data.id;
@@ -186,9 +206,8 @@ ok(s2.player.ap === 0 && s2.quests.length === (await state()).quests.length, "co
 ok((await owner.del(`/characters/${c2.data.id}`, { confirm: "nope" })).status === 400, "delete needs the name typed");
 ok((await owner.del(`/characters/${c2.data.id}`, { confirm: "anson test" })).status === 200, "delete works with the name");
 ok((await owner.get(`/c/${c2.data.id}/state`)).status === 404, "deleted character is gone");
-await member.post("/characters", { name: "F2", template: "blank" });
-await member.post("/characters", { name: "F3", template: "blank" });
-ok((await member.post("/characters", { name: "F4", template: "blank" })).status === 400, "members are limited to 3 characters");
+await Promise.all(["F2", "F3", "F4", "F5", "F6"].map((n) => member.post("/characters", { name: n, template: "blank" })));
+ok((await member.get("/account")).data.characters.length === 3, "parallel creation can't exceed the 3-character limit");
 
 // ================= admin powers =================
 const ov = (await owner.get("/admin/overview")).data;
@@ -203,7 +222,33 @@ ok((await again.post("/auth/login", { username: "friend", password: reset.data.t
 // ================= 2FA =================
 const t = (await owner.post("/account/totp/start")).data;
 ok(/^[A-Z2-7]{32}$/.test(t.secret) && t.uri.startsWith("otpauth://"), "2FA setup key issued");
-ok((await owner.post("/account/totp/enable", { secret: t.secret, code: "000000" })).status === 400, "2FA needs a correct code to turn on");
+ok((await owner.post("/account/totp/enable", { secret: t.secret, code: totp(t.secret) })).status === 401, "turning on 2FA needs your password");
+ok((await owner.post("/account/totp/enable", { secret: t.secret, code: "000000", password: "owner-password-123" })).status === 400, "…and a correct code");
+const now = Math.floor(Date.now() / 30000);
+ok((await owner.post("/account/totp/enable", { secret: t.secret, code: totp(t.secret, now - 1), password: "owner-password-123" })).status === 200, "2FA turns on");
+const dev = client(); // a brand-new device
+ok((await dev.post("/auth/login", { username: "anson", password: "owner-password-123" })).data?.need_code === true, "login now asks for the code");
+const code = totp(t.secret, now);
+ok((await dev.post("/auth/login", { username: "anson", password: "owner-password-123", code })).status === 200, "login with the code works");
+ok((await client().post("/auth/login", { username: "anson", password: "owner-password-123", code })).status === 401, "the same code can't be used twice");
+ok((await owner.post("/account/totp/disable", { password: "owner-password-123" })).status === 200, "2FA turns off with the password");
+
+// ================= security regressions =================
+// (1) a member can't get the owner-only template via a doctored backup + factory reset
+const mexp = (await again.get(`/c/${M}/export`)).data;
+mexp.tables.settings = mexp.tables.settings.filter((r) => r.key !== "template").concat([{ key: "template", value: JSON.stringify("anson") }]);
+mexp.tables.quests.push({ id: 9999, type: "daily", title: "evil link", emoji: "x", link: "javascript:alert(1)", images: "[1,\"x\"]", days: "1111111" });
+ok((await again.post(`/c/${M}/import`, mexp)).status === 200, "member imports a doctored backup");
+let mstate = (await again.get(`/c/${M}/state`)).data;
+const evil = mstate.quests.find((q) => q.title === "evil link");
+ok(mstate.settings.template === "starter" && evil && evil.link === null && evil.images === null, "import keeps the template and strips bad links/pictures");
+await again.post(`/c/${M}/reset/factory`, { confirm: "RESET EVERYTHING" });
+mstate = (await again.get(`/c/${M}/state`)).data;
+ok(!mstate.shop.some((i) => i.name.includes("Calorie Waiver")) && mstate.settings.template === "starter", "factory reset can't produce the owner's template");
+// (2) save-point cap
+let last = 0;
+for (let i = 0; i < 13; i++) last = (await again.post(`/c/${M}/snapshots`, { label: `s${i}` })).status;
+ok(last === 400, "manual save points are capped at 12");
 
 // ================= v1 import =================
 const sql = (q) => execSync(`npx wrangler d1 execute ap-life-quest-db --local --command "${q}"`, { stdio: "pipe" });

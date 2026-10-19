@@ -178,6 +178,10 @@ export function Join({ code, onDone }: { code: string; onDone: () => void }) {
           <input className="input" autoComplete="username" autoCapitalize="none" value={username} onChange={(e) => setUsername(e.target.value)} required />
         </Field>
         <PasswordPair pw={pw} setPw={setPw} pw2={pw2} setPw2={setPw2} />
+        <p className="tiny muted">
+          If you forget your password, the person who invited you (the owner) can give you a temporary one. That also means they could sign in as you, so only
+          join if you trust them.
+        </p>
         {err && <div className="alert small">{err}</div>}
         <button className="btn primary block" disabled={busy}>
           {busy ? "Creating…" : "▶ Join the adventure"}

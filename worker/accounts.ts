@@ -9,6 +9,7 @@ export interface User {
   display_name: string;
   password_hash: string;
   totp_secret: string | null;
+  totp_last: number | null;
   role: "owner" | "member";
   disabled: number;
   max_characters: number;
@@ -139,12 +140,61 @@ export async function requireCharacter(db: D1Database, userId: number, id: strin
   return c;
 }
 
+/** Registers a character — the limit check and insert are one statement, so parallel requests can't exceed it. */
 export async function registerCharacter(db: D1Database, user: User, name: string, template: string) {
-  const n = (await first<{ n: number }>(db, "SELECT COUNT(*) AS n FROM characters WHERE user_id = ? AND deleted_at IS NULL", user.id))?.n ?? 0;
-  if (n >= user.max_characters) throw bad(`You can have up to ${user.max_characters} characters`);
   const id = crypto.randomUUID();
-  await run(db, "INSERT INTO characters (id, user_id, name, template) VALUES (?,?,?,?)", id, user.id, name, template);
+  const r = await run(
+    db,
+    `INSERT INTO characters (id, user_id, name, template)
+     SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM characters WHERE user_id = ? AND deleted_at IS NULL) < ?`,
+    id,
+    user.id,
+    name,
+    template,
+    user.id,
+    user.max_characters,
+  );
+  if (!r.meta.changes) throw bad(`You can have up to ${user.max_characters} characters`);
   return id;
+}
+
+/**
+ * Creates a member from an invite in ONE transaction: the account only exists if the invite was
+ * valid and unused, and the invite is used up in the same step. Returns the new user id, or null.
+ */
+export async function joinWithInvite(db: D1Database, code: unknown, u: { username: string; display_name: string; password: string }) {
+  const why = passwordProblem(u.password);
+  if (why) throw bad(why);
+  if (await userByName(db, u.username)) throw new HttpError(409, "That username is taken");
+  const h = await sha256Hex(normaliseInvite(code));
+  const now = new Date().toISOString();
+  const valid = "SELECT 1 FROM invites WHERE code_hash = ? AND used_by IS NULL AND revoked = 0 AND expires_at > ?";
+  try {
+    const [ins] = await db.batch([
+      stmt(
+        db,
+        `INSERT INTO users (username, display_name, password_hash, role, max_characters)
+         SELECT ?, ?, ?, 'member', 3 WHERE EXISTS (${valid}) RETURNING id`,
+        u.username,
+        u.display_name,
+        await hashPassword(u.password),
+        h,
+        now,
+      ),
+      stmt(
+        db,
+        `UPDATE invites SET used_by = (SELECT id FROM users WHERE username = ?), used_at = datetime('now')
+         WHERE code_hash = ? AND used_by IS NULL AND revoked = 0 AND expires_at > ?`,
+        u.username,
+        h,
+        now,
+      ),
+    ]);
+    return (ins.results[0] as { id: number } | undefined)?.id ?? null;
+  } catch (e) {
+    if (/UNIQUE/i.test(String((e as Error).message))) throw new HttpError(409, "That username is taken");
+    throw e;
+  }
 }
 
 export async function getMeta(db: D1Database, key: string) {

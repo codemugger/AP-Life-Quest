@@ -34,6 +34,7 @@ export default function Account() {
   const [next2, setNext2] = useState("");
   const [totp, setTotp] = useState<{ secret: string; uri: string } | null>(null);
   const [code, setCode] = useState("");
+  const [onPw, setOnPw] = useState("");
   const [offPw, setOffPw] = useState("");
   const [deleting, setDeleting] = useState(false);
   const run = async (fn: () => Promise<unknown>, ok: string) => {
@@ -121,18 +122,20 @@ export default function Account() {
                   <li>
                     Or type the setup key: <span className="kbd">{totp.secret.replace(/(.{4})/g, "$1 ").trim()}</span>
                   </li>
-                  <li>Enter the 6-digit code it shows:</li>
+                  <li>Enter the 6-digit code it shows, and your password:</li>
                 </ol>
+                <input className="input" type="password" autoComplete="current-password" placeholder="Your password" value={onPw} onChange={(e) => setOnPw(e.target.value)} style={{ maxWidth: 260 }} />
                 <div className="row">
                   <input className="input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} style={{ maxWidth: 140 }} />
                   <button
                     className="btn good"
-                    disabled={code.length !== 6}
+                    disabled={code.length !== 6 || !onPw}
                     onClick={() =>
                       run(async () => {
-                        await api("account/totp/enable", { body: { secret: totp.secret, code } });
+                        await api("account/totp/enable", { body: { secret: totp.secret, code, password: onPw } });
                         setTotp(null);
                         setCode("");
+                        setOnPw("");
                       }, "2FA is on! 🛡️")
                     }
                   >

@@ -243,16 +243,18 @@ To start over completely, create a new character (or delete one under **Characte
 ## 12. Security
 
 - **Invite-only:** the owner is created once with the setup password; everyone else needs a single-use, expiring invite code (stored hashed).
-- **Passwords:** salted PBKDF2-SHA256 hashes. **Optional 2FA** (TOTP) per user, set up with a QR code under Account.
+- **Passwords:** salted PBKDF2-SHA256 hashes. **Optional 2FA** (TOTP) per user, set up with a QR code under Account. Each code works only once. Turning 2FA on or off, changing your password and deleting your account all re-ask for your password.
 - **Lock-outs:**
-  - 5 wrong logins per IP per 15 min;
+  - 10 wrong attempts per IP (IPv6 per /64) per 15 min;
   - 10 per username;
   - a 40-per-15-min global backstop.
 
-  Login timing doesn't reveal which usernames exist.
+  Devices you've logged in from before skip the per-username and global limits, so a stranger spamming wrong passwords can't lock you out. Login timing doesn't reveal which usernames exist.
 - **Sessions:** random 256-bit tokens in `HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` cookies, stored hashed, with a 30-day sliding expiry. Changing your password logs out your other devices; **Log out everywhere** is in Account. Disabled accounts are locked out immediately.
-- **Isolation:** each character is its own Durable Object database. Every request is checked for login and ownership before it's forwarded, and the internal operations can't be reached from the internet.
-- **Pictures:** only JPEG, PNG, WebP or GIF, checked by their actual bytes (no SVG or HTML), max 1.5 MB, served with `nosniff` and a locked-down Content-Security-Policy.
+- **Isolation:** each character is its own Durable Object database. Every request is checked for login and ownership before it's forwarded. Only the headers the game needs are passed on, and the internal operations can't be reached from the internet. Owner-only templates are protected by a flag that backups can't change.
+- **Fair use:** per character, members get 200 MB of storage with 50 MB of pictures (owner: 1 GB / 150 MB). Other limits: 12 manual save points, 120 changes a minute, 8 MB per upload or import. Character creation can't exceed each person's limit.
+- **Pictures:** only JPEG, PNG, WebP or GIF, checked by their actual bytes (no SVG or HTML), max 1.5 MB, served with `nosniff` and a locked-down Content-Security-Policy. Access is re-checked against your login on every view (nothing readable from the browser cache after logging out).
+- **Imports** are validated like typed input: bad links and picture lists are dropped, sizes are capped.
 - **Notes** are rendered without HTML, and links must be `http(s)`.
 - **CSRF guard** (custom header + same-origin check), strict security headers, and `noindex` so search engines stay away.
 - **Secrets never committed:** `.dev.vars`, `backups/` and your `.xlsx` files are git-ignored.
@@ -273,7 +275,7 @@ Everything fits Cloudflare's **free** plan for you plus a handful of invited peo
 | Requests (Worker + character databases) | 100,000 / day |
 | Storage (account DB + all characters) | 5 GB total |
 | Account DB rows read / written | 5 M / 100 k per day |
-| Pictures | 150 MB per character (app limit) |
+| Per character (app limit) | members 200 MB incl. 50 MB pictures; owner 1 GB incl. 150 MB |
 
 Beyond roughly 20–50 active players, move to **Workers Paid (US$5/month)**. No code changes are needed.
 
@@ -309,7 +311,7 @@ npm run dev                       # http://localhost:5173 (UI + API + character 
 | Command | What it does |
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and unit tests |
-| `npm run test:api` | 60+ end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`) |
+| `npm run test:api` | 75 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`) |
 | `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
 | `npm run versions` / `npm run rollback` | Deployments |
 | `npm run backup` | SQL dump of the account database |
@@ -361,7 +363,8 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 | Lost or stolen phone | Account → **Log out everywhere** (from another device), then change your password |
 | A day was scored unfairly | Log → void the penalty. For planned rest days, buy a 🏖️ Rest Day Pass |
 | Something broke after an update | `npm run rollback` (code) and/or Save points → Load (data) |
-| Picture won't upload | Max 1.5 MB after compression; JPEG, PNG, WebP or GIF; 150 MB per character |
+| Picture won't upload | Max 1.5 MB after compression; JPEG, PNG, WebP or GIF; 50 MB per character for members, 150 MB for the owner |
+| "Storage is full" | Settings → delete old save points or remove unused pictures |
 
 ---
 

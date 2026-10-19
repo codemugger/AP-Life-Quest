@@ -69,7 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: true,
   theme: "auto",
   current_season: 1,
-  template: "anson",
+  template: "starter",
 };
 
 /** Keys the user may edit through the API (everything except internal bookkeeping). */
