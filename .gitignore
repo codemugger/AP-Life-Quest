@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+*.log
+# Personal legacy spreadsheets & backups never go into git
+*.xlsx
+backups/
+.env
+
+# Claude Code runtime files
+.claude/*.lock
