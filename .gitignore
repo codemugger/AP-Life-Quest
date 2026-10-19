@@ -10,3 +10,6 @@ backups/
 
 # Claude Code runtime files
 .claude/*.lock
+
+# Separate checkouts used for building the next version
+.worktrees/
