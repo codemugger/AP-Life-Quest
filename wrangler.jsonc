@@ -14,7 +14,7 @@
       "binding": "DB",
       "database_name": "ap-life-quest-db",
       // Filled in by `npm run setup` (scripts/setup.mjs). Any value works for local dev.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "5cace10f-379e-42f3-be84-891e3b3c56bd",
       "migrations_dir": "migrations"
     }
   ]
