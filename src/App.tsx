@@ -1,12 +1,14 @@
-// App shell: auth gate, hash routing, side nav (laptop) / tab bar (phone).
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import { api } from "./api";
+// App shell: auth gate → account (choose your save) → game, with hash routing and
+// a side nav (laptop) / tab bar (phone).
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { api, setCharacter } from "./api";
+import { AccountProvider, useAccount, type Me } from "./account";
 import { FxProvider } from "./fx";
 import { GameProvider, useGame } from "./store";
 import { Pet } from "./sprites";
 import { Hud } from "./components/Hud";
 import Camp from "./pages/Camp";
-import Login from "./pages/Login";
+import { Join, Login, Setup } from "./pages/Login";
 import Quests from "./pages/Quests";
 
 const Body = lazy(() => import("./pages/Body"));
@@ -15,6 +17,9 @@ const Journey = lazy(() => import("./pages/Journey"));
 const Trophies = lazy(() => import("./pages/Trophies"));
 const Log = lazy(() => import("./pages/Log"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
+const Characters = lazy(() => import("./pages/Characters"));
+const AccountPage = lazy(() => import("./pages/Account"));
+const Admin = lazy(() => import("./pages/Admin"));
 
 function useRoute() {
   const parse = () => {
@@ -46,7 +51,7 @@ function Splash({ text = "Loading your save…" }: { text?: string }) {
   );
 }
 
-const NAV = [
+const GAME_NAV = [
   { id: "camp", label: "Camp", ico: "🏕️" },
   { id: "quests", label: "Quests", ico: "⚔️" },
   { id: "body", label: "Body", ico: "💗" },
@@ -56,10 +61,57 @@ const NAV = [
   { id: "log", label: "Log", ico: "📜" },
   { id: "settings", label: "Settings", ico: "⚙️" },
 ];
-const MORE = ["journey", "trophies", "log", "settings", "more"];
+const ACCOUNT_PAGES = ["characters", "account", "admin"];
+const MORE = ["journey", "trophies", "log", "settings", "more", ...ACCOUNT_PAGES];
 
-function Shell() {
+function accountNav(owner: boolean) {
+  return [
+    { id: "characters", label: "Characters", ico: "🎮" },
+    { id: "account", label: "Account", ico: "👤" },
+    ...(owner ? [{ id: "admin", label: "Admin", ico: "👑" }] : []),
+  ];
+}
+
+const go = (id: string) => (location.hash = id === "camp" ? "#/" : `#/${id}`);
+
+/** Account-level pages (no character loaded). */
+function AccountShell({ page }: { page: string }) {
+  const { account } = useAccount();
+  const hasChar = account.characters.some((c) => c.id === account.user.last_character);
+  return (
+    <div className="app">
+      <header className="hud">
+        <div className="hud-inner">
+          <span className="px-font" style={{ fontSize: 12 }}>
+            AP LIFE QUEST
+          </span>
+          <span className="grow" />
+          <nav className="row" aria-label="Account">
+            {hasChar && (
+              <button className="btn xs" onClick={() => go("camp")}>
+                ◀ Back to game
+              </button>
+            )}
+            {accountNav(account.user.role === "owner").map((n) => (
+              <button key={n.id} className={`btn xs ${page === n.id ? "gold" : ""}`} onClick={() => go(n.id)} aria-current={page === n.id ? "page" : undefined}>
+                {n.ico} <span className="hide-sm">{n.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
+      <main className="main solo">
+        <Suspense fallback={<div className="empty">Loading…</div>}>
+          {page === "account" ? <AccountPage /> : page === "admin" && account.user.role === "owner" ? <Admin /> : <Characters />}
+        </Suspense>
+      </main>
+    </div>
+  );
+}
+
+function GameShell() {
   const { state } = useGame();
+  const { account } = useAccount();
   const { page, sub } = useRoute();
   const theme = state.settings.theme;
   useEffect(() => {
@@ -67,12 +119,9 @@ function Shell() {
     else document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  const badges: Record<string, number> = {
-    camp: state.chests.length,
-    shop: state.obligations.length,
-  };
-  const go = (id: string) => (location.hash = id === "camp" ? "#/" : `#/${id}`);
-  let content;
+  const badges: Record<string, number> = { camp: state.chests.length, shop: state.obligations.length };
+  const extra = accountNav(account.user.role === "owner");
+  let content: ReactNode;
   switch (page) {
     case "quests":
       content = <Quests />;
@@ -101,6 +150,7 @@ function Shell() {
     default:
       content = <Camp />;
   }
+  const isOn = (id: string) => page === id || (id === "camp" && !GAME_NAV.some((x) => x.id === page) && page !== "more");
   return (
     <div className="app">
       <nav className="sidenav" aria-label="Main">
@@ -109,14 +159,20 @@ function Shell() {
           <br />
           QUEST
         </div>
-        {NAV.map((n) => (
-          <button key={n.id} className={page === n.id || (n.id === "camp" && !NAV.some((x) => x.id === page) && page !== "more") ? "on" : ""} onClick={() => go(n.id)}>
+        {GAME_NAV.map((n) => (
+          <button key={n.id} className={isOn(n.id) ? "on" : ""} onClick={() => go(n.id)}>
             <span>{n.ico}</span> {n.label}
             {!!badges[n.id] && <span className="badge-dot">{badges[n.id]}</span>}
           </button>
         ))}
+        <div className="nav-sep" />
+        {extra.map((n) => (
+          <button key={n.id} onClick={() => go(n.id)}>
+            <span>{n.ico}</span> {n.label}
+          </button>
+        ))}
         <div className="foot">
-          {state.season.name}
+          {state.settings.player_name} · {state.season.name}
           <br />v{__APP_VERSION__}
         </div>
       </nav>
@@ -125,8 +181,8 @@ function Shell() {
         <Suspense fallback={<div className="empty">Loading…</div>}>{content}</Suspense>
       </main>
       <nav className="tabbar" aria-label="Main">
-        {[NAV[0], NAV[1], NAV[2], NAV[3], { id: "more", label: "More", ico: "☰" }].map((n) => {
-          const on = n.id === "more" ? MORE.includes(page) : page === n.id || (n.id === "camp" && !NAV.some((x) => x.id === page) && page !== "more");
+        {[GAME_NAV[0], GAME_NAV[1], GAME_NAV[2], GAME_NAV[3], { id: "more", label: "More", ico: "☰" }].map((n) => {
+          const on = n.id === "more" ? MORE.includes(page) : isOn(n.id);
           return (
             <button key={n.id} className={on ? "on" : ""} onClick={() => go(n.id)} aria-current={on ? "page" : undefined}>
               <span className="ico">{n.ico}</span>
@@ -141,13 +197,14 @@ function Shell() {
 }
 
 function More() {
+  const { account } = useAccount();
   return (
     <>
       <div className="page-head">
         <h1>☰ More</h1>
       </div>
       <div className="cards">
-        {NAV.slice(4).map((n) => (
+        {[...GAME_NAV.slice(4), ...accountNav(account.user.role === "owner")].map((n) => (
           <a key={n.id} href={`#/${n.id}`} className="panel trophy" style={{ textDecoration: "none", color: "inherit", margin: 4 }}>
             <span className="t-emoji">{n.ico}</span>
             <span className="t-name">{n.label}</span>
@@ -158,27 +215,57 @@ function More() {
   );
 }
 
-export default function App() {
-  const [auth, setAuth] = useState<"checking" | "out" | "in">("checking");
-  const [meta, setMeta] = useState({ configured: true, totp: false });
-  useEffect(() => {
-    api<{ authed: boolean; configured: boolean; totp: boolean }>("auth/me")
-      .then((r) => {
-        setMeta(r);
-        setAuth(r.authed ? "in" : "out");
-      })
-      .catch(() => setAuth("out"));
-  }, []);
-  const out = useCallback(() => setAuth("out"), []);
+/** Logged in: pick the character to play (or show account pages). */
+function Authed({ onLoggedOut }: { onLoggedOut: () => void }) {
+  const { account } = useAccount();
+  const { page } = useRoute();
+  const cid = account.characters.some((c) => c.id === account.user.last_character) ? account.user.last_character : null;
+  if (ACCOUNT_PAGES.includes(page) || !cid) return <AccountShell page={cid ? page : ACCOUNT_PAGES.includes(page) ? page : "characters"} />;
+  setCharacter(cid);
   return (
-    <FxProvider>
-      {auth === "checking" ? (
-        <Splash text="Waking up…" />
-      ) : auth === "out" ? (
-        <Login configured={meta.configured} totp={meta.totp} onDone={() => setAuth("in")} />
-      ) : (
-        <GameProvider onLoggedOut={out}>{(loading) => (loading ? <Splash /> : <Shell />)}</GameProvider>
-      )}
-    </FxProvider>
+    <GameProvider key={cid} onLoggedOut={onLoggedOut}>
+      {(loading) => (loading ? <Splash /> : <GameShell />)}
+    </GameProvider>
   );
+}
+
+export default function App() {
+  const [me, setMe] = useState<Me | null>(null);
+  const [offline, setOffline] = useState(false);
+  const route = useRoute();
+  const loadMe = useCallback(() => {
+    api<Me>("auth/me")
+      .then((r) => {
+        setMe(r);
+        setOffline(false);
+      })
+      .catch(() => setOffline(true));
+  }, []);
+  useEffect(() => loadMe(), [loadMe]);
+  const out = useCallback(() => setMe((m) => (m ? { ...m, authed: false, user: null } : m)), []);
+  let body: ReactNode;
+  if (offline)
+    body = (
+      <div className="login-wrap">
+        <div className="panel login">
+          <div style={{ fontSize: 40 }}>📡</div>
+          <h1>Can't reach the castle</h1>
+          <button className="btn primary" onClick={loadMe}>
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  else if (!me) body = <Splash text="Waking up…" />;
+  else if (!me.authed) {
+    if (route.page === "join" && route.sub) body = <Join code={route.sub} onDone={loadMe} />;
+    else if (me.needs_setup) body = <Setup me={me} onDone={loadMe} />;
+    else body = <Login onDone={loadMe} />;
+  } else
+    body = (
+      <AccountProvider key={me.user?.id} onLoggedOut={out} loading={<Splash />}>
+        <Authed onLoggedOut={out} />
+      </AccountProvider>
+    );
+  return <FxProvider>{body}</FxProvider>;
 }

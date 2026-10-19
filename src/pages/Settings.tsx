@@ -1,10 +1,10 @@
 // Settings: profile, look & sound, game rules, save points/backups, resets, security, about.
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_SETTINGS, type Settings as S } from "../../shared/rules";
-import { api, download } from "../api";
+import { api, download, g } from "../api";
 import { useFx } from "../fx";
 import { useGame } from "../store";
-import { Field, Modal, Panel } from "../components/ui";
+import { Bar, Field, Modal, Panel } from "../components/ui";
 import { fmt } from "../util";
 
 interface Snap {
@@ -106,6 +106,8 @@ export default function Settings() {
 
         <SavePoints />
 
+        <Pictures />
+
         <Panel title="💥 Danger zone">
           <div className="col">
             <div className="inset">
@@ -141,7 +143,7 @@ function SavePoints() {
   const [snaps, setSnaps] = useState<Snap[] | null>(null);
   const [label, setLabel] = useState("");
   const file = useRef<HTMLInputElement>(null);
-  const load = () => api<Snap[]>("snapshots").then(setSnaps).catch(() => setSnaps([]));
+  const load = () => api<Snap[]>(g("snapshots")).then(setSnaps).catch(() => setSnaps([]));
   useEffect(() => void load(), []);
   const kindLabel: Record<string, string> = { manual: "💾", auto: "🕒", "pre-reset": "🧯", "pre-restore": "↩️" };
   return (
@@ -156,7 +158,7 @@ function SavePoints() {
           className="btn good"
           onClick={async () => {
             try {
-              await api("snapshots", { body: { label: label || "Manual save" } });
+              await api(g("snapshots"), { body: { label: label || "Manual save" } });
               setLabel("");
               fx.toast("Game saved", "💾");
               void load();
@@ -167,7 +169,7 @@ function SavePoints() {
         >
           Save now
         </button>
-        <button className="btn" onClick={() => download("export", `ap-life-quest-${new Date().toISOString().slice(0, 10)}.json`).catch((e) => fx.error(e.message))}>
+        <button className="btn" onClick={() => download(g("export"), `ap-life-quest-${new Date().toISOString().slice(0, 10)}.json`).catch((e) => fx.error(e.message))}>
           ⬇ Download backup
         </button>
         <button className="btn" onClick={() => file.current?.click()}>
@@ -216,7 +218,7 @@ function SavePoints() {
             >
               Load
             </button>
-            <button className="btn xs" onClick={() => download(`snapshots/${sp.id}/download`, `ap-life-quest-savepoint-${sp.id}.json`).catch((e) => fx.error(e.message))} aria-label="Download">
+            <button className="btn xs" onClick={() => download(g(`snapshots/${sp.id}/download`), `ap-life-quest-savepoint-${sp.id}.json`).catch((e) => fx.error(e.message))} aria-label="Download">
               ⬇
             </button>
             <button
@@ -224,7 +226,7 @@ function SavePoints() {
               aria-label="Delete"
               onClick={async () => {
                 if (!confirm(`Delete save point “${sp.label}”?`)) return;
-                await api(`snapshots/${sp.id}`, { method: "DELETE" }).catch((e) => fx.error(e.message));
+                await api(g(`snapshots/${sp.id}`), { method: "DELETE" }).catch((e) => fx.error(e.message));
                 void load();
               }}
             >
@@ -233,6 +235,48 @@ function SavePoints() {
           </div>
         ))}
       </div>
+    </Panel>
+  );
+}
+
+interface MediaStats {
+  count: number;
+  bytes: number;
+  unused: number;
+  limit: number;
+}
+
+function Pictures() {
+  const { act } = useGame();
+  const fx = useFx();
+  const [m, setM] = useState<MediaStats | null>(null);
+  const load = () => api<MediaStats>(g("media")).then(setM).catch(() => setM(null));
+  useEffect(() => void load(), []);
+  return (
+    <Panel title="🖼️ Pictures">
+      {m ? (
+        <>
+          <p className="small">
+            {m.count} picture(s) · {fmt(m.bytes / 1024 / 1024, 1)} MB of {fmt(m.limit / 1024 / 1024, 0)} MB
+          </p>
+          <Bar value={m.bytes} max={m.limit} kind="gold" thin seg={false} />
+          <div className="row wrap" style={{ marginTop: 10 }}>
+            <button
+              className="btn sm"
+              disabled={!m.unused}
+              onClick={() =>
+                confirm(`Delete ${m.unused} picture(s) that nothing uses any more? (Older save points may then show a placeholder.)`) &&
+                act("media/cleanup").then(load).catch((e) => fx.error(e.message))
+              }
+            >
+              🧹 Remove {m.unused} unused
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="small muted">Loading…</p>
+      )}
+      <p className="tiny muted">Add pictures to quests, events, goals, shop items, vouchers, achievements and sprint bosses from their edit screens.</p>
     </Panel>
   );
 }
@@ -298,12 +342,12 @@ function Security() {
             <button className="btn" onClick={() => api("auth/logout", { body: {} }).finally(() => location.reload())}>
               Log out
             </button>
-            <button className="btn danger" onClick={() => confirm("Log out on every device (phone, laptop…)?") && api("auth/logout-all", { body: {} }).finally(() => location.reload())}>
+            <button className="btn danger" onClick={() => confirm("Log out on every device (phone, laptop…)?") && api("account/logout-all", { body: {} }).finally(() => location.reload())}>
               Log out everywhere
             </button>
           </div>
           <p className="tiny muted">
-            Change password: <span className="kbd">npm run set-password</span> · 2FA: <span className="kbd">npm run setup-2fa</span>
+            Password, 2FA and devices: <a href="#/account">Account page</a> · Switch or create characters: <a href="#/characters">Characters</a>
           </p>
         </div>
         <div className="small ink2">

@@ -108,7 +108,7 @@ export async function loadCtx(db: D1Database, attempt = 0): Promise<Ctx> {
   if (!sRes.results.length || !pRes.results.length) {
     if (attempt > 1) throw new HttpError(500, "Could not initialise the database");
     try {
-      await seedAll(db);
+      await seedAll(db, { template: "starter" });
     } catch {
       // Another request seeded at the same time — just reload.
     }

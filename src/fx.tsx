@@ -1,10 +1,10 @@
 // The "juice": floating numbers, toasts, celebrations, confetti, sounds and pet reactions.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Fx, GameState } from "../shared/types";
-import { HATS } from "../shared/levels";
+import { COSMETICS } from "../shared/levels";
 import { prettyDate } from "../shared/dates";
 import { sfx } from "./sound";
-import { Chest, Pet } from "./sprites";
+import { Chest, lookOf, Pet, type PetLook } from "./sprites";
 
 interface FxApi {
   play: (list: Fx[], state?: GameState) => void;
@@ -22,10 +22,10 @@ const petAnim = (kind: "jump" | "hurt") => petBus.dispatchEvent(new CustomEvent(
 type Float = { id: number; text: string; cls: string; x: number; y: number };
 type Toast = { id: number; msg: string; emoji: string; tone: string };
 type Modal =
-  | { kind: "levelup"; level: number; title: string; stage: number; color: string; hat: string | null }
+  | { kind: "levelup"; level: number; title: string; stage: number; look: PetLook }
   | { kind: "loot"; fx: Extract<Fx, { t: "loot" }> }
   | { kind: "fainted"; ap: number; pet: string; need: number }
-  | { kind: "revived"; pet: string; stage: number; color: string; hat: string | null }
+  | { kind: "revived"; pet: string; stage: number; look: PetLook }
   | { kind: "goal"; title: string; emoji: string }
   | { kind: "boss"; title: string; boss: string; won: boolean }
   | { kind: "court"; fx: Extract<Fx, { t: "obligation" }> }
@@ -120,7 +120,7 @@ export function FxProvider({ children }: { children: ReactNode }) {
             }
             break;
           case "levelup":
-            add.push({ kind: "levelup", level: f.level, title: f.title, stage: st?.player.stage ?? 1, color: s?.pet_color ?? "pink", hat: s?.hat ?? null });
+            add.push({ kind: "levelup", level: f.level, title: f.title, stage: st?.player.stage ?? 1, look: s ? lookOf(s) : {} });
             break;
           case "achievement":
             sfx.achievement();
@@ -136,10 +136,10 @@ export function FxProvider({ children }: { children: ReactNode }) {
             add.push({ kind: "fainted", ap: f.ap_lost, pet: s?.pet_name ?? "Your pet", need: s?.revive_quests ?? 3 });
             break;
           case "revived":
-            add.push({ kind: "revived", pet: s?.pet_name ?? "Your pet", stage: st?.player.stage ?? 1, color: s?.pet_color ?? "pink", hat: s?.hat ?? null });
+            add.push({ kind: "revived", pet: s?.pet_name ?? "Your pet", stage: st?.player.stage ?? 1, look: s ? lookOf(s) : {} });
             break;
           case "hat":
-            addToast(`New hat unlocked: ${HATS.find((h) => h.id === f.hat)?.name ?? f.hat}! Try it on in Camp.`, "🎩", "gold");
+            addToast(`New look unlocked: ${COSMETICS.find((h) => h.id === f.hat)?.name ?? f.hat}! Try it in the Camp wardrobe.`, "🎀", "gold");
             break;
           case "boss":
             if (f.won) add.push({ kind: "boss", title: f.title, boss: f.boss, won: true });
@@ -243,7 +243,7 @@ function ModalBody({ m, close }: { m: Modal; close: () => void }) {
         <div className="celebrate">
           <div className="px-font tiny muted">LEVEL UP!</div>
           <div style={{ display: "flex", justifyContent: "center", margin: "10px 0" }}>
-            <Pet stage={m.stage} mood="happy" color={m.color} hat={m.hat} scale={6} className="pet-sprite" />
+            <Pet stage={m.stage} mood="happy" {...m.look} scale={6} className="pet-sprite" />
           </div>
           <h3>Level {m.level}</h3>
           <p>
@@ -262,7 +262,7 @@ function ModalBody({ m, close }: { m: Modal; close: () => void }) {
           </div>
           <h3>+{f.ap} AP · +{f.xp} XP</h3>
           {f.item && <p>🎒 Bonus item: <b>{f.item}</b> (in your Bag)</p>}
-          {f.hat && <p>🎩 New hat: <b>{HATS.find((h) => h.id === f.hat)?.name}</b>!</p>}
+          {f.hat && <p>🎀 New look: <b>{COSMETICS.find((h) => h.id === f.hat)?.name}</b>!</p>}
           {ok("Sweet!")}
         </div>
       );
@@ -285,7 +285,7 @@ function ModalBody({ m, close }: { m: Modal; close: () => void }) {
       return (
         <div className="celebrate">
           <div style={{ display: "flex", justifyContent: "center", margin: "10px 0" }}>
-            <Pet stage={m.stage} mood="happy" color={m.color} hat={m.hat} scale={6} className="pet-sprite" />
+            <Pet stage={m.stage} mood="happy" {...m.look} scale={6} className="pet-sprite" />
           </div>
           <h3>{m.pet} is back!</h3>
           <p>Revived with half HP. Welcome back, hero.</p>

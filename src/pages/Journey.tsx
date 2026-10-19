@@ -1,10 +1,13 @@
 // Journey: life goals (milestones / tracker / manual), sprint boss raids, and life events.
 import { useState } from "react";
 import { daysBetween, prettyDate } from "../../shared/dates";
-import type { Goal, Sprint } from "../../shared/types";
+import type { Goal, LifeEvent, Sprint } from "../../shared/types";
 import { useGame } from "../store";
 import { Editor } from "../components/Editor";
-import { Bar, Empty, Panel, Tabs } from "../components/ui";
+import { Gallery, IconOrEmoji, LinkButton, MediaImg } from "../components/Media";
+import { Rich } from "../components/Rich";
+import { parseImages } from "../media";
+import { Bar, Empty, Modal, Panel, Tabs } from "../components/ui";
 import { fmt, latest, relDay } from "../util";
 
 type Tab = "goals" | "sprints" | "events";
@@ -109,7 +112,18 @@ function GoalCard({ g, open }: { g: Goal; open: Open }) {
         </button>
       }
     >
-      {g.description && <p className="small ink2" style={{ marginTop: -4 }}>{g.description}</p>}
+      {parseImages(g.images).length > 0 && (
+        <div className="cover">
+          <MediaImg id={parseImages(g.images)[0]} size="100%" />
+        </div>
+      )}
+      <Rich text={g.description} className="small ink2" />
+      {parseImages(g.images).length > 1 && <Gallery images={JSON.stringify(parseImages(g.images).slice(1))} title={g.title} />}
+      {g.link && (
+        <div style={{ margin: "4px 0 8px" }}>
+          <LinkButton href={g.link} />
+        </div>
+      )}
       <div className="bar-label">
         <span>{Math.round(g.pct)}%</span>
         <span>{g.target_date ? `🎯 ${prettyDate(g.target_date)} (${relDay(g.target_date, state.today)})` : ""}</span>
@@ -231,7 +245,9 @@ function BossCard({ sp, open }: { sp: Sprint; open: Open }) {
       }
     >
       <div className="row" style={{ gap: 14 }}>
-        <div className={`boss-emoji ${hit ? "hit" : ""}`}>{sp.boss_emoji}</div>
+        <div className={`boss-emoji ${hit ? "hit" : ""}`}>
+          <IconOrEmoji images={sp.images} emoji={sp.boss_emoji} size={64} />
+        </div>
         <div className="grow">
           <b>{sp.boss}</b>
           <div className="bar-label" style={{ marginTop: 4 }}>
@@ -277,8 +293,50 @@ function BossCard({ sp, open }: { sp: Sprint; open: Open }) {
   );
 }
 
+/** Event card: photos, story and link. */
+function EventCard({ e, onClose, onEdit }: { e: LifeEvent; onClose: () => void; onEdit: () => void }) {
+  const { state } = useGame();
+  const ids = parseImages(e.images);
+  return (
+    <Modal
+      title={<>{e.emoji} {e.title}</>}
+      onClose={onClose}
+      wide
+      actions={
+        <>
+          <button className="btn" onClick={() => (onClose(), onEdit())}>
+            ✎ Edit
+          </button>
+          <button className="btn primary" onClick={onClose}>
+            OK
+          </button>
+        </>
+      }
+    >
+      {ids.length > 0 && (
+        <div className="cover tall">
+          <MediaImg id={ids[0]} size="100%" />
+        </div>
+      )}
+      <p className="small ink2">
+        {prettyDate(e.date)}
+        {e.end_date ? ` → ${prettyDate(e.end_date)}` : ""} · {relDay(e.date, state.today)}
+      </p>
+      <Rich text={e.notes} />
+      {ids.length > 1 && <Gallery images={e.images} title={e.title} />}
+      {e.link && (
+        <div style={{ marginTop: 8 }}>
+          <LinkButton href={e.link} />
+        </div>
+      )}
+      {!e.notes && !ids.length && <p className="small muted">Add photos and the story by editing this event: it becomes a memory in your timeline.</p>}
+    </Modal>
+  );
+}
+
 function Events({ open }: { open: Open }) {
   const { state } = useGame();
+  const [view, setView] = useState<LifeEvent | null>(null);
   const upcoming = state.events.filter((e) => (e.end_date ?? e.date) >= state.today);
   const past = state.events.filter((e) => (e.end_date ?? e.date) < state.today).reverse();
   return (
@@ -287,8 +345,8 @@ function Events({ open }: { open: Open }) {
         {upcoming.length ? (
           <div className="list">
             {upcoming.map((e) => (
-              <button key={e.id} className="li" onClick={() => open("events", e)} style={{ background: "none", border: 0, borderBottom: "2px dashed var(--grid)", width: "100%", textAlign: "left", cursor: "pointer" }}>
-                <span style={{ fontSize: 26 }}>{e.emoji}</span>
+              <button key={e.id} className="li" onClick={() => setView(e)} style={{ background: "none", border: 0, borderBottom: "2px dashed var(--grid)", width: "100%", textAlign: "left", cursor: "pointer" }}>
+                <IconOrEmoji images={e.images} emoji={e.emoji} size={36} className="ev-thumb" />
                 <div className="grow">
                   <b>{e.title}</b>
                   <div className="small ink2">
@@ -308,14 +366,14 @@ function Events({ open }: { open: Open }) {
         {past.length ? (
           <div className="list">
             {past.map((e) => (
-              <button key={e.id} className="li" onClick={() => open("events", e)} style={{ background: "none", border: 0, borderBottom: "2px dashed var(--grid)", width: "100%", textAlign: "left", cursor: "pointer" }}>
-                <span style={{ fontSize: 22 }}>{e.emoji}</span>
+              <button key={e.id} className="li" onClick={() => setView(e)} style={{ background: "none", border: 0, borderBottom: "2px dashed var(--grid)", width: "100%", textAlign: "left", cursor: "pointer" }}>
+                <IconOrEmoji images={e.images} emoji={e.emoji} size={44} className="ev-thumb" />
                 <div className="grow">
                   <b>{e.title}</b>
                   <div className="small ink2">
                     {prettyDate(e.date)} · {relDay(e.date, state.today)}
                   </div>
-                  {e.notes && <div className="small">{e.notes}</div>}
+                  {e.notes && <div className="small ellipsis">{e.notes.replace(/[*\[\]]/g, "")}</div>}
                 </div>
               </button>
             ))}
@@ -324,6 +382,7 @@ function Events({ open }: { open: Open }) {
           <Empty emoji="📸">Past events and memories will collect here.</Empty>
         )}
       </Panel>
+      {view && <EventCard e={view} onClose={() => setView(null)} onEdit={() => open("events", view)} />}
     </div>
   );
 }

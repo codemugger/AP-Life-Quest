@@ -52,6 +52,8 @@ export interface Quest {
   active: number;
   sort: number;
   created_at: string;
+  images: string | null;
+  link: string | null;
 }
 
 export interface QuestLog {
@@ -101,6 +103,7 @@ export interface ShopItem {
   min_level: number;
   active: number;
   sort: number;
+  images: string | null;
 }
 
 export interface Voucher {
@@ -117,6 +120,7 @@ export interface Voucher {
   rule: string | null;
   active: number;
   sort: number;
+  images: string | null;
   used: number; // uses in the current limit period
   rule_ok: boolean;
   rule_text: string;
@@ -151,6 +155,7 @@ export interface Achievement {
   hidden: number;
   active: number;
   sort: number;
+  images: string | null;
   unlocked_at: string | null;
   progress: [number, number] | null;
   past_seasons: number;
@@ -183,6 +188,8 @@ export interface Goal {
   completed_at: string | null;
   sort: number;
   created_at: string;
+  images: string | null;
+  link: string | null;
   milestones: Milestone[];
   pct: number;
 }
@@ -207,6 +214,7 @@ export interface Sprint {
   status: string;
   ap: number;
   xp: number;
+  images: string | null;
   tasks: SprintTask[];
 }
 
@@ -218,6 +226,8 @@ export interface LifeEvent {
   emoji: string;
   kind: string;
   notes: string | null;
+  images: string | null;
+  link: string | null;
 }
 
 export interface LedgerRow {

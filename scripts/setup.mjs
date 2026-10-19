@@ -50,5 +50,7 @@ if (yes) npm(["run", "setup-2fa"]);
 
 console.log(`
 🎉 All done! Open the URL printed by the deploy step above (https://ap-life-quest.<your-subdomain>.workers.dev).
-   On iPhone: open it in Safari → Share → "Add to Home Screen" for the full-screen app.
+   1. "Claim your castle" with the setup password you just chose → create your owner account.
+   2. Create your first character (or import your v1 save).
+   3. On iPhone: Safari → Share → "Add to Home Screen" for the full-screen app.
 `);

@@ -122,3 +122,105 @@ export const SEED_GOALS: Row[] = [
 export function seedSettings(): Row {
   return { ...DEFAULT_SETTINGS };
 }
+
+// ---------------------------------------------------------------------------
+// Templates for new characters
+// ---------------------------------------------------------------------------
+export interface TemplateContent {
+  metrics: Row[];
+  quests: Row[];
+  shop: Row[];
+  vouchers: Row[];
+  achievements: Row[];
+  goals: Row[];
+  milestones?: Row[];
+  settings?: Row;
+}
+
+const GAME_ITEMS = SEED_SHOP.filter((i) => i.category === "Game");
+const usesMetric = (a: Row, keys: string[]) => {
+  const r = a.rule as { metric?: string };
+  return !r.metric || keys.includes(r.metric);
+};
+
+const STARTER_METRICS: Row[] = [
+  { key: "weight", name: "Weight", emoji: "⚖️", unit: "kg", mode: "set", direction: "down", target: null, decimals: 1, builtin: 1, sort: 1 },
+  { key: "calories", name: "Calories", emoji: "🍱", unit: "kcal", mode: "set", direction: "down", target: 2000, decimals: 0, builtin: 1, sort: 2 },
+  { key: "water", name: "Water", emoji: "💧", unit: "glasses", mode: "add", direction: "up", target: 8, decimals: 0, quick: "1,2", sort: 3 },
+  { key: "sleep", name: "Sleep", emoji: "😴", unit: "h", mode: "set", direction: "up", target: 7, decimals: 1, sort: 4 },
+  { key: "focus", name: "Focus time", emoji: "🧠", unit: "h", mode: "add", direction: "up", target: 2, decimals: 2, quick: "0.5,1", sort: 5 },
+  { key: "steps", name: "Steps", emoji: "👟", unit: "steps", mode: "set", direction: "up", target: 8000, decimals: 0, sort: 6 },
+];
+
+const STARTER: TemplateContent = {
+  metrics: STARTER_METRICS,
+  quests: [
+    { type: "daily", title: "Drink 8 glasses of water", emoji: "💧", area: "body", difficulty: "easy", ap: 5, xp: 10, hp_penalty: 3, metric_key: "water", metric_op: ">=", sort: 1 },
+    { type: "daily", title: "Sleep 7+ hours", emoji: "😴", area: "body", difficulty: "medium", ap: 10, xp: 20, hp_penalty: 5, metric_key: "sleep", metric_op: ">=", sort: 2 },
+    { type: "daily", title: "Log what you ate", emoji: "🍱", area: "body", difficulty: "easy", ap: 5, xp: 10, hp_penalty: 3, metric_key: "calories", metric_op: "logged", sort: 3 },
+    { type: "daily", title: "Move for 30 minutes", emoji: "💪", area: "body", difficulty: "medium", ap: 10, xp: 20, hp_penalty: 5, sort: 4 },
+    { type: "daily", title: "Deep focus for 2 hours", emoji: "🧠", area: "mind", difficulty: "hard", ap: 20, xp: 35, hp_penalty: 8, metric_key: "focus", metric_op: ">=", days: "1111100", sort: 5 },
+    { type: "daily", title: "Tidy up for 10 minutes", emoji: "🧹", area: "home", difficulty: "trivial", ap: 3, xp: 5, hp_penalty: 2, sort: 6 },
+    { type: "weekly", title: "Workout", emoji: "🏃", area: "body", difficulty: "hard", ap: 20, xp: 35, hp_penalty: 8, weekly_target: 3, sort: 10 },
+    { type: "weekly", title: "Call a friend or family", emoji: "📞", area: "family", difficulty: "easy", ap: 5, xp: 10, hp_penalty: 3, weekly_target: 1, sort: 11 },
+    { type: "habit", title: "Read 20 pages", emoji: "📖", area: "mind", difficulty: "easy", ap: 5, xp: 10, hp_penalty: 0, polarity: 1, sort: 20 },
+    { type: "habit", title: "Bonus workout", emoji: "🏋️", area: "body", difficulty: "medium", ap: 10, xp: 20, hp_penalty: 0, polarity: 1, sort: 21 },
+    { type: "habit", title: "Junk food", emoji: "🍟", area: "body", difficulty: "easy", ap: 5, xp: 0, hp_penalty: 3, polarity: -1, sort: 22 },
+    { type: "habit", title: "Doomscrolling (30+ min)", emoji: "📱", area: "mind", difficulty: "easy", ap: 5, xp: 0, hp_penalty: 3, polarity: -1, sort: 23 },
+    { type: "todo", title: "Set your first life goal in Journey", emoji: "🎯", area: "life", difficulty: "easy", ap: 15, xp: 20, sort: 30 },
+    { type: "todo", title: "Customise your pet in the Camp wardrobe", emoji: "🎀", area: "fun", difficulty: "trivial", ap: 10, xp: 10, sort: 31 },
+  ],
+  shop: [
+    { name: "Bubble tea", emoji: "🧋", category: "Treats", base_price: 30, sort: 1 },
+    { name: "Favourite snack", emoji: "🍫", category: "Treats", base_price: 20, sort: 2 },
+    { name: "Takeaway dinner", emoji: "🍜", category: "Treats", base_price: 60, sort: 3 },
+    { name: "Gaming / TV hour", emoji: "🎮", category: "Fun", base_price: 25, unit: "hour", sort: 4 },
+    { name: "Movie night", emoji: "🎬", category: "Fun", base_price: 50, sort: 5 },
+    { name: "Lazy sleep-in", emoji: "🛌", category: "Fun", base_price: 40, sort: 6 },
+    { name: "New book or game", emoji: "📚", category: "Big rewards", base_price: 300, sort: 7 },
+    { name: "Spa / massage", emoji: "💆", category: "Big rewards", base_price: 250, sort: 8 },
+    { name: "Day trip", emoji: "🚌", category: "Big rewards", base_price: 600, unit: "pass", sort: 9 },
+    { name: "Weekend getaway", emoji: "✈️", category: "Big rewards", base_price: 2000, unit: "pass", voucher_ok: 0, notes: "No vouchers: earn this one!", sort: 10 },
+    ...GAME_ITEMS,
+  ],
+  vouchers: [
+    { name: "Birthday Bash", emoji: "🥳", discount: 0.5, description: "50% off on your birthday", condition: "Only on your birthday", rule: { t: "birthday" }, sort: 1 },
+    { name: "Payday Treat", emoji: "💸", discount: 0.2, description: "Once a month", limit_type: "per_month", limit_count: 1, condition: "Payday!", sort: 2 },
+    { name: "Hustle Bonus", emoji: "💼", discount: 0.3, description: "Earned 600+ AP this month", limit_type: "per_month", limit_count: 1, rule: { t: "month_earned", min: 600 }, sort: 3 },
+    { name: "Hydration Hero", emoji: "💧", discount: 0.25, description: "56+ glasses of water this week", rule: { t: "metric_week_sum", metric: "water", min: 56 }, sort: 4 },
+  ],
+  achievements: SEED_ACHIEVEMENTS.filter(
+    (a) => usesMetric(a, STARTER_METRICS.map((m) => m.key as string)) && a.key !== "goal_weight" && a.key !== "bmi_healthy",
+  ),
+  goals: [],
+  settings: { height_m: 1.7 },
+};
+
+const BLANK: TemplateContent = {
+  metrics: SEED_METRICS.filter((m) => m.key === "weight" || m.key === "calories").map((m) => ({ ...m, target: m.key === "calories" ? 2000 : null })),
+  quests: [],
+  shop: GAME_ITEMS,
+  vouchers: [],
+  achievements: SEED_ACHIEVEMENTS.filter((a) => usesMetric(a, ["weight", "calories"]) && a.key !== "goal_weight" && a.key !== "bmi_healthy"),
+  goals: [],
+  settings: { height_m: 1.7 },
+};
+
+const ANSON: TemplateContent = {
+  metrics: SEED_METRICS,
+  quests: SEED_QUESTS,
+  shop: SEED_SHOP,
+  vouchers: SEED_VOUCHERS,
+  achievements: SEED_ACHIEVEMENTS,
+  goals: SEED_GOALS,
+};
+
+export const TEMPLATES: Record<string, { name: string; description: string; content: TemplateContent; ownerOnly?: boolean }> = {
+  starter: { name: "Healthy-life starter", description: "Water, sleep, movement, focus and everyday rewards. Great for anyone.", content: STARTER },
+  anson: { name: "Anson's original", description: "Your full setup: CSD, calorie court, waiver tickets and your 15 vouchers.", content: ANSON, ownerOnly: true },
+  blank: { name: "Blank", description: "Just weight, calories and the game items. Build everything yourself.", content: BLANK },
+};
+
+export function templateContent(id: string | undefined): TemplateContent {
+  return (TEMPLATES[id ?? ""] ?? TEMPLATES.starter).content;
+}

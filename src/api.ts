@@ -3,9 +3,31 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public data: any = null,
   ) {
     super(message);
   }
+}
+
+// ---- the character you're playing: game calls go to /api/c/<id>/... ----
+let currentCharacter: string | null = null;
+export const setCharacter = (id: string | null) => (currentCharacter = id);
+export const getCharacter = () => currentCharacter;
+/** Path of a game endpoint for the current character. */
+export const g = (path: string) => `c/${currentCharacter}/${path}`;
+export const mediaUrl = (id: number) => `/api/c/${currentCharacter}/media/${id}`;
+
+/** Uploads a prepared picture; returns its media id. */
+export async function uploadMedia(blob: Blob, width: number, height: number): Promise<number> {
+  const res = await fetch(`/api/${g("media")}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "content-type": blob.type, "x-requested-with": "aplq", "x-width": String(width), "x-height": String(height) },
+    body: blob,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, data?.error ?? "Upload failed");
+  return data.id as number;
 }
 
 export async function api<T = any>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
@@ -35,7 +57,7 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
   } catch {
     /* empty body */
   }
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, data?.error ?? `Request failed (${res.status})`, data);
   return data as T;
 }
 

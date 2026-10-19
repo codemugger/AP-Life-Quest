@@ -4,7 +4,7 @@ import { ruleProblem } from "../shared/rules";
 import { bad, first, notFound, stmt } from "./db";
 import type { Ctx } from "./game";
 
-type Kind = "text" | "longtext" | "int" | "num" | "bool" | "json" | "date";
+type Kind = "text" | "longtext" | "int" | "num" | "bool" | "json" | "date" | "images" | "url";
 type Field = [Kind, { enum?: string[]; nullable?: boolean; min?: number; max?: number }?];
 
 interface Entity {
@@ -23,6 +23,8 @@ const N: Field = ["num", { nullable: true }];
 const I: Field = ["int"];
 const B: Field = ["bool"];
 const D: Field = ["date", { nullable: true }];
+const IMG: Field = ["images", { nullable: true }];
+const URL_: Field = ["url", { nullable: true }];
 
 export const ENTITIES: Record<string, Entity> = {
   quests: {
@@ -50,6 +52,8 @@ export const ENTITIES: Record<string, Entity> = {
       active: B,
       sort: I,
       created_at: D,
+      images: IMG,
+      link: URL_,
     },
   },
   metrics: {
@@ -92,6 +96,7 @@ export const ENTITIES: Record<string, Entity> = {
       min_level: ["int", { min: 0, max: 999 }],
       active: B,
       sort: I,
+      images: IMG,
     },
   },
   vouchers: {
@@ -111,6 +116,7 @@ export const ENTITIES: Record<string, Entity> = {
       rule: ["json", { nullable: true }],
       active: B,
       sort: I,
+      images: IMG,
     },
   },
   achievements: {
@@ -128,6 +134,7 @@ export const ENTITIES: Record<string, Entity> = {
       hidden: B,
       active: B,
       sort: I,
+      images: IMG,
     },
     onDelete: ["DELETE FROM achievement_unlocks WHERE achievement_id = ?"],
   },
@@ -149,6 +156,8 @@ export const ENTITIES: Record<string, Entity> = {
       ap: ["int", { min: 0, max: 100000 }],
       xp: ["int", { min: 0, max: 100000 }],
       sort: I,
+      images: IMG,
+      link: URL_,
     },
     onDelete: ["DELETE FROM milestones WHERE goal_id = ?"],
   },
@@ -171,6 +180,7 @@ export const ENTITIES: Record<string, Entity> = {
       end_date: ["date"],
       ap: ["int", { min: 0, max: 100000 }],
       xp: ["int", { min: 0, max: 100000 }],
+      images: IMG,
     },
     onDelete: ["DELETE FROM sprint_tasks WHERE sprint_id = ?"],
   },
@@ -191,6 +201,8 @@ export const ENTITIES: Record<string, Entity> = {
       emoji: T,
       kind: ["text", { enum: ["event", "trip", "milestone", "memory"] }],
       notes: ["longtext", { nullable: true }],
+      images: IMG,
+      link: URL_,
     },
   },
 };
@@ -231,6 +243,36 @@ function clean(e: Entity, body: Record<string, unknown>, creating: boolean) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) throw bad(`${col} must be a date (YYYY-MM-DD)`);
         out[col] = String(v);
         break;
+      case "images": {
+        let list = v;
+        if (typeof v === "string") {
+          try {
+            list = JSON.parse(v);
+          } catch {
+            throw bad(`${col} must be a list of picture ids`);
+          }
+        }
+        if (!Array.isArray(list) || list.length > 12 || !list.every((x) => Number.isInteger(x) && x > 0)) throw bad("Up to 12 pictures");
+        out[col] = list.length ? JSON.stringify(list) : null;
+        break;
+      }
+      case "url": {
+        const u = String(v).trim();
+        if (!u) {
+          out[col] = null;
+          break;
+        }
+        let parsed: URL;
+        try {
+          parsed = new URL(u);
+        } catch {
+          throw bad("Link must be a full web address (https://…)");
+        }
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") throw bad("Only http(s) links are allowed");
+        if (u.length > 1000) throw bad("Link is too long");
+        out[col] = parsed.toString();
+        break;
+      }
       case "json": {
         let parsed = v;
         if (typeof v === "string") {

@@ -1,6 +1,6 @@
 // Shop, vouchers, inventory, calorie court and loot chests.
 import { addDays, monthStart } from "../shared/dates";
-import { HATS, levelInfo, type Rarity } from "../shared/levels";
+import { COSMETICS, isUnlocked, levelInfo, type Rarity } from "../shared/levels";
 import { priceOf, unitPrice, voucherApplies } from "../shared/pricing";
 import { checkRule, limitPeriodStart, parseRule, type RuleInputs } from "../shared/rules";
 import { all, bad, first, HttpError, notFound, rand, randInt, run, stmt } from "./db";
@@ -225,7 +225,8 @@ export async function openChest(ctx: Ctx, id: number) {
   let itemName: string | undefined;
   const batch: D1PreparedStatement[] = [];
 
-  const locked = HATS.filter((h) => !ctx.s.hats.includes(h.id));
+  const level = levelInfo(ctx.before.xp).level;
+  const locked = COSMETICS.filter((h) => h.unlock !== 0 && !isUnlocked(h.id, ctx.s.hats, level));
   if (locked.length && rand() < L.hat) {
     hat = locked[randInt(0, locked.length - 1)].id;
     ctx.s.hats.push(hat);

@@ -5,6 +5,7 @@ import { useGame } from "../store";
 import { Chest, Coin } from "../sprites";
 import { PetStage } from "../components/Hud";
 import { LogValue, QuestRow } from "../components/QuestRow";
+import { IconOrEmoji } from "../components/Media";
 import { Bar, Panel, Seg } from "../components/ui";
 import { dailiesFor, doneOn, fmt, fmtAP, relDay, valueOn } from "../util";
 
@@ -113,7 +114,7 @@ export default function Camp() {
               })}
               {upcoming.map((e) => (
                 <div className="li" key={e.id}>
-                  <span style={{ fontSize: 24 }}>{e.emoji}</span>
+                  <IconOrEmoji images={e.images} emoji={e.emoji} size={32} className="ev-thumb" />
                   <div className="grow">
                     <b>{e.title}</b>
                   </div>

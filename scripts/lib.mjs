@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { pbkdf2Sync, randomBytes } from "node:crypto";
 import readline from "node:readline";
+import path from "node:path";
 
 export const DB_NAME = "ap-life-quest-db";
 export const ITERATIONS = 10_000;
@@ -45,13 +46,21 @@ export function ask(question, hidden = false) {
 
 const isWin = process.platform === "win32";
 
-/** Runs `npx wrangler …`. Returns { status, stdout } (inherit = stream output to the terminal). */
+const WRANGLER = path.resolve("node_modules", "wrangler", "bin", "wrangler.js");
+
+/**
+ * Runs wrangler through Node directly (no shell, so arguments with spaces/quotes — like SQL — arrive
+ * intact on Windows too). Returns { status, stdout } (inherit = stream output to the terminal).
+ */
 export function wrangler(args, { input, inherit = false } = {}) {
-  const r = spawnSync(isWin ? "npx.cmd" : "npx", ["wrangler", ...args], {
+  if (!existsSync(WRANGLER)) {
+    console.error("✘ wrangler isn't installed here. Run: npm install");
+    return { status: 1, stdout: "" };
+  }
+  const r = spawnSync(process.execPath, [WRANGLER, ...args], {
     input,
     encoding: "utf8",
     stdio: inherit ? ["inherit", "inherit", "inherit"] : [input ? "pipe" : "inherit", "pipe", "pipe"],
-    shell: isWin,
   });
   return { status: r.status ?? 1, stdout: (r.stdout ?? "") + (r.stderr ?? "") };
 }

@@ -3,9 +3,10 @@ import { useMemo, useState, type ReactElement } from "react";
 import { DIFFICULTY } from "../../shared/rules";
 import type { GameState } from "../../shared/types";
 import { useGame } from "../store";
+import { ImagesInput } from "./Media";
 import { DaysInput, EmojiInput, Field, Modal } from "./ui";
 
-type FType = "text" | "textarea" | "number" | "select" | "emoji" | "date" | "bool" | "days" | "multi" | "json";
+type FType = "text" | "textarea" | "number" | "select" | "emoji" | "date" | "bool" | "days" | "multi" | "json" | "images" | "url";
 interface F {
   k: string;
   label: string;
@@ -15,6 +16,7 @@ interface F {
   show?: (d: Record<string, any>) => boolean;
   step?: string;
   list?: string[];
+  max?: number;
 }
 interface Spec {
   title: string;
@@ -85,6 +87,7 @@ function specs(s: GameState): Record<string, Spec> {
         { k: "type", label: "Type", type: "select", options: [["daily", "Daily — due every (chosen) day"], ["weekly", "Weekly — N times a week"], ["habit", "Habit — tap any time, good or bad"], ["todo", "To-do — one-off"]] },
         { k: "title", label: "Title", type: "text" },
         { k: "emoji", label: "Icon", type: "emoji" },
+        { k: "images", label: "Picture (optional, replaces the icon)", type: "images", max: 3 },
         { k: "difficulty", label: "Difficulty (sets rewards)", type: "select", options: Object.entries(DIFFICULTY).map(([k, v]) => [k, `${v.label} · ${v.ap} AP · ${v.xp} XP`]) },
         { k: "polarity", label: "Good or bad habit?", type: "select", options: [["1", "😇 Good (+AP)"], ["-1", "😈 Bad (−AP, −HP)"]], show: (d) => d.type === "habit" },
         { k: "ap", label: "AP", type: "number", help: "Per completion (per unit if the habit has a unit)" },
@@ -98,10 +101,17 @@ function specs(s: GameState): Record<string, Spec> {
         { k: "metric_op", label: "Complete when…", type: "select", options: [["logged", "anything is logged"], ["<=", "value ≤ threshold"], [">=", "value ≥ threshold"]], show: (d) => !!d.metric_key },
         { k: "metric_value", label: "Threshold", type: "number", help: "Leave empty to follow the tracker's target", show: (d) => !!d.metric_key && d.metric_op !== "logged" },
         { k: "area", label: "Life area", type: "select", options: AREAS },
-        { k: "notes", label: "Notes", type: "textarea" },
+        { k: "notes", label: "Notes / instructions", type: "textarea", help: 'Supports **bold**, *italic*, "- " lists and links' },
+        { k: "link", label: "Link (workout video, map, website…)", type: "url" },
         { k: "active", label: "Active", type: "bool" },
       ],
-      toBody: (d) => ({ ...d, metric_key: d.metric_key || null, metric_op: d.metric_key ? d.metric_op || "logged" : null, polarity: Number(d.polarity) }),
+      toBody: (d) => ({
+        ...d,
+        metric_key: d.metric_key || null,
+        metric_op: d.metric_key ? d.metric_op || "logged" : null,
+        // only habits show the good/bad choice; other quests keep the default (good)
+        ...(d.polarity !== undefined && d.polarity !== null ? { polarity: Number(d.polarity) } : {}),
+      }),
     },
     metrics: {
       title: "Tracker",
@@ -127,6 +137,7 @@ function specs(s: GameState): Record<string, Spec> {
       fields: [
         { k: "name", label: "Name", type: "text" },
         { k: "emoji", label: "Icon", type: "emoji" },
+        { k: "images", label: "Picture (optional)", type: "images", max: 3 },
         { k: "category", label: "Category", type: "text", list: categories },
         { k: "base_price", label: "Base price (AP)", type: "number" },
         { k: "tax", label: "Tax multiplier", type: "number", step: "any", help: "1 = no tax, 3 = x3 tax" },
@@ -137,7 +148,7 @@ function specs(s: GameState): Record<string, Spec> {
         { k: "trigger_min", label: "…is at least", type: "number", show: (d) => !!d.trigger_metric },
         { k: "trigger_max", label: "…and at most (empty = no limit)", type: "number", step: "any", show: (d) => !!d.trigger_metric },
         { k: "min_level", label: "Unlocks at level", type: "number" },
-        { k: "notes", label: "Notes / T&Cs", type: "textarea" },
+        { k: "notes", label: "Notes / T&Cs", type: "textarea", help: 'Supports **bold**, *italic*, "- " lists and links' },
         { k: "active", label: "In stock", type: "bool" },
       ],
       toBody: (d) => ({ ...d, effect: d.effect || null, trigger_metric: d.trigger_metric || null }),
@@ -149,6 +160,7 @@ function specs(s: GameState): Record<string, Spec> {
       fields: [
         { k: "name", label: "Name", type: "text" },
         { k: "emoji", label: "Icon", type: "emoji" },
+        { k: "images", label: "Picture (optional)", type: "images", max: 1 },
         { k: "discount", label: "Discount (0.3 = 30% off)", type: "number", step: "0.05" },
         { k: "description", label: "Description", type: "text" },
         { k: "scope", label: "Applies to", type: "select", options: [["all", "All items (that allow vouchers)"], ["categories", "Only some categories"], ["items", "Only some items"]] },
@@ -204,6 +216,7 @@ function specs(s: GameState): Record<string, Spec> {
         { k: "name", label: "Name", type: "text" },
         { k: "emoji", label: "Icon", type: "emoji" },
         { k: "description", label: "Description", type: "text" },
+        { k: "images", label: "Badge picture (optional)", type: "images", max: 1 },
         { k: "_t", label: "Unlocks when…", type: "select", options: ACH_RULES.map(([k, l]) => [k, l]) },
         { k: "_m", label: "Tracker", type: "select", options: metricOpts, show: (d) => ACH_RULES.find((r) => r[0] === d._t)?.[2].startsWith("metric") ?? false },
         { k: "_n", label: "N", type: "number", step: "any", show: (d) => ["n", "metric+n"].includes(ACH_RULES.find((r) => r[0] === d._t)?.[2] ?? "") },
@@ -238,7 +251,9 @@ function specs(s: GameState): Record<string, Spec> {
       fields: [
         { k: "title", label: "Goal", type: "text" },
         { k: "emoji", label: "Icon", type: "emoji" },
-        { k: "description", label: "Why it matters", type: "textarea" },
+        { k: "description", label: "Why it matters", type: "textarea", help: 'Supports **bold**, *italic*, "- " lists and links' },
+        { k: "images", label: "Vision board pictures", type: "images", max: 6 },
+        { k: "link", label: "Link (optional)", type: "url" },
         { k: "area", label: "Life area", type: "select", options: AREAS },
         { k: "target_date", label: "Target date", type: "date" },
         { k: "mode", label: "Progress from", type: "select", options: [["milestones", "🚩 Milestones checklist"], ["metric", "📈 A tracker reaching a value"], ["manual", "🎚️ Manual %"]] },
@@ -258,6 +273,7 @@ function specs(s: GameState): Record<string, Spec> {
       fields: [
         { k: "title", label: "Sprint name", type: "text" },
         { k: "boss", label: "Boss name", type: "text", help: "Name the thing you're fighting: Sugar Dragon, Doomscroll Demon…" },
+        { k: "images", label: "Boss picture (try pixel art!)", type: "images", max: 1 },
         { k: "boss_emoji", label: "Boss", type: "select", options: [["👾", "👾 Slime"], ["🐉", "🐉 Dragon"], ["👹", "👹 Ogre"], ["🦑", "🦑 Kraken"], ["🧟", "🧟 Zombie"], ["🤖", "🤖 Robot"], ["👻", "👻 Ghost"], ["🦖", "🦖 Rex"]] },
         { k: "start_date", label: "Start", type: "date" },
         { k: "end_date", label: "End", type: "date", help: "1–4 weeks works well" },
@@ -281,7 +297,9 @@ function specs(s: GameState): Record<string, Spec> {
         { k: "kind", label: "Type", type: "select", options: [["event", "📅 Event"], ["trip", "✈️ Trip / adventure"], ["milestone", "🏁 Life milestone"], ["memory", "📸 Memory"]] },
         { k: "date", label: "Date", type: "date" },
         { k: "end_date", label: "Until (optional)", type: "date" },
-        { k: "notes", label: "Notes", type: "textarea" },
+        { k: "images", label: "Photos", type: "images", max: 12 },
+        { k: "notes", label: "Notes / story", type: "textarea", help: 'Supports **bold**, *italic*, "- " lists and links' },
+        { k: "link", label: "Link (booking, map, album…)", type: "url" },
       ],
     },
   };
@@ -427,6 +445,12 @@ function FieldInput({ f, value, onChange }: { f: F; value: any; onChange: (v: an
     }
     case "emoji":
       input = <EmojiInput value={value} onChange={onChange} />;
+      break;
+    case "images":
+      input = <ImagesInput value={value ?? null} onChange={onChange} max={f.max} />;
+      break;
+    case "url":
+      input = <input className="input" type="url" inputMode="url" placeholder="https://…" value={value ?? ""} onChange={(e) => onChange(e.target.value || null)} />;
       break;
     case "days":
       input = <DaysInput value={value} onChange={onChange} />;

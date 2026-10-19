@@ -1,26 +1,30 @@
 # 🐣 AP Life Quest
 
-A private, cute pixel-RPG for your real life. Log your weight, calories, CSD hours and habits, clear daily quests, earn **AP** (Achievement Points) and **XP**, level up a pet called Mochi, and spend AP on real-life rewards in the AP Shop. Slack off and you lose HP, and the Calorie Court sends you a bill.
+A cute pixel-RPG for your real life. Log your weight, calories, focus hours and habits, clear daily quests, earn **AP** (Achievement Points) and **XP**, raise a pet that evolves as you level up, and spend AP on real-life rewards in the AP Shop. Slack off and you lose HP, and the Calorie Court sends you a bill.
 
-It runs as a website (laptop + iPhone home-screen app), only you can log in, and it costs **$0/month** on Cloudflare's free tier.
+It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: you're the owner, and anyone you invite gets their own private account with their own characters. It costs **$0/month** on Cloudflare's free tier.
 
 ---
 
 ## Contents
 
 1. [How the game works](#1-how-the-game-works)
-2. [A day in the life (how to use it)](#2-a-day-in-the-life)
-3. [First-time setup (≈10 minutes)](#3-first-time-setup)
-4. [Install on your iPhone](#4-install-on-your-iphone)
-5. [Updating the app](#5-updating-the-app)
-6. [Rolling back: code, data, or both](#6-rolling-back)
-7. [Resets: New Game+ and Factory reset](#7-resets)
-8. [Making it yours: adding new things](#8-making-it-yours)
-9. [Security](#9-security)
-10. [Costs and free-tier limits](#10-costs-and-limits)
-11. [Local development](#11-local-development)
-12. [Project structure](#12-project-structure)
-13. [Troubleshooting](#13-troubleshooting)
+2. [A day in the life](#2-a-day-in-the-life)
+3. [Accounts, characters and invites](#3-accounts-characters-and-invites)
+4. [Make it yours: looks, pictures, notes and links](#4-make-it-yours-looks-pictures-notes-and-links)
+5. [First-time setup (≈10 minutes)](#5-first-time-setup)
+6. [Upgrading from v1](#6-upgrading-from-v1)
+7. [Install on your iPhone](#7-install-on-your-iphone)
+8. [Updating the app](#8-updating-the-app)
+9. [Rolling back: code, data, or both](#9-rolling-back)
+10. [Resets: New Game+ and Factory reset](#10-resets)
+11. [Adding new things](#11-adding-new-things)
+12. [Security](#12-security)
+13. [Costs and free-tier limits](#13-costs-and-limits)
+14. [Thinking of going commercial?](#14-thinking-of-going-commercial)
+15. [Local development](#15-local-development)
+16. [Project structure](#16-project-structure)
+17. [Troubleshooting](#17-troubleshooting)
 
 ---
 
@@ -32,309 +36,333 @@ It runs as a website (laptop + iPhone home-screen app), only you can log in, and
 | **XP** ⭐ | Never spent. Fills your level bar. Level 1→2 needs 100 XP, then +50 more per level. |
 | **HP** ❤️ | Your discipline health (max 100). Missed dailies hurt; completing quests heals a little; a perfect day heals 10; levelling up fully heals. |
 | **Level & title** | Sprout → Wanderer → Apprentice → Adventurer → Knight → Ranger → Champion → Hero → Guardian → Legend → Mythic… |
-| **Pet** | Mochi hatches from an egg and evolves at levels 3, 10, 20 and 35. Mood follows your HP and today's effort. Tap Mochi to change hats/colour. |
-| **Streak** 🔥 | +1 for each day you finish ≥ 80% of your dailies. Each streak day adds +2% AP to every quest (max +50%). Streak milestones (3, 7, 14, 30, 60, 100) drop chests. |
-| **Critical hits** | 10% of quest completions pay **double AP**. Fixed per quest per day, so undo/redo can't re-roll it. |
-| **Chests** 🎁 | Drop on level-ups, perfect days (35% chance), streak milestones, gold/platinum achievements, sprint wins (epic) and goals (legendary). Open them for AP, XP, hats and free items. Level-up and goal rewards are paid once per season, so undo/redo can't farm them. |
-| **Fainting** 😵 | If HP hits 0, Mochi faints: you lose 10% of your AP (min 20), your streak resets, and quests pay half until you complete **3 quests** to revive. |
+| **Pet** | Hatches from an egg and evolves at levels 3, 10, 20 and 35. Mood follows your HP and today's effort. |
+| **Streak** 🔥 | +1 for each day you finish ≥ 80% of your dailies. Each streak day adds +2% AP to every quest (max +50%). Milestones (3, 7, 14, 30, 60, 100) drop chests. |
+| **Critical hits** | 10% of quest completions pay **double AP** (fixed per quest per day, so undo/redo can't re-roll it). |
+| **Chests** 🎁 | Drop on level-ups, perfect days, streak milestones, gold/platinum achievements, sprint wins and goals. Open them for AP, XP, hats, scenes and free items. Level-up and goal rewards are paid once per season, so undo/redo can't farm them. |
+| **Fainting** 😵 | If HP hits 0 your pet faints: you lose 10% of your AP (min 20), your streak resets, and quests pay half until you complete **3 quests** to revive. Undoing whatever knocked you out undoes the faint. |
 
-### Quest types
+**Quest types**
 
-- **Dailies:** due on chosen weekdays. Unfinished ones cost HP when the day closes. Many tick themselves: log your weight and "Morning weigh-in" completes; log calories ≤ budget and "Stay within calorie budget" completes. If you later correct the number, the quest un-ticks.
-- **Weeklies:** do N times per week (checked Sunday night).
-- **Habits:** tap any time. Good ones pay (e.g. *MU coaching* pays 10 AP **per hour**, the old G-Scheme rebate); bad ones cost AP + HP (e.g. *bubble tea*).
-- **To-dos:** one-off quests, no penalty.
+- **Dailies:** due on chosen weekdays; missing one costs HP when the day closes. Many tick themselves when you log a tracker (weigh-in, calories ≤ budget, CSD ≥ 6 h…).
+- **Weeklies:** do N times a week.
+- **Habits:** tap any time. Good ones pay (e.g. *coaching* pays per hour); bad ones cost AP + HP.
+- **To-dos:** one-offs.
 
-### When does a day "close"?
+**When does a day close?** The game day starts at **4 am**. Yesterday stays open until **4 pm** (12 h grace) so you can catch up in the morning. Closing applies missed-quest damage, the streak, perfect-day healing, Calorie Court auto-billing and sprint deadlines, then shows a "While you were away" report. Each day can only ever be scored once, even if your phone and laptop open the app at the same moment.
 
-The game day starts at **4 am** (so 1 am still counts as yesterday). You get a **12-hour grace period**: yesterday stays open until **4 pm today**. Until then the Camp page shows a *Today / Yesterday* switch so you can catch up the morning after. When a day closes, the app:
+**⚖️ Calorie Court:** a day in a waiver band (3000–3999, 4000–4999…) requires that Calorie Waiver Ticket (×3 tax). Settle it in **Shop → Court**:
 
-1. deducts HP for missed dailies (and missed weeklies on Sundays),
-2. updates the streak (a 🛡️ Streak Shield in your bag saves it once),
-3. heals you +10 HP on a perfect day (and maybe drops a chest),
-4. auto-bills any unsettled Calorie Court cases,
-5. ends any sprint that ran out of time,
-6. shows you a "While you were away" report next time you open the app.
+- use a ticket from your bag,
+- buy one (vouchers allowed). Buying and using a waiver ticket from the Shop also settles the case, or
+- grant an exception.
 
-Days are processed when you open the app, so nothing needs to run in the background. Each day can only ever be scored once, even if your phone and laptop open the app at the same moment.
+If you ignore it, it's auto-billed at full price.
 
-### ⚖️ The Calorie Court (your waiver-ticket rule)
-
-When a day's calories land in a waiver band (3000–3999, 4000–4999, 5000–5999, 6000+), the matching **Calorie Waiver Ticket** (×3 tax) is required. Before the day closes you can settle it in **Shop → Court**:
-
-- use a ticket you already own,
-- buy one now (vouchers allowed, e.g. SGH ROCKS −90%). Buying and using a waiver ticket from the Shop also settles the case, or
-- grant an exception (honour system: for genuine cases only).
-
-If you ignore it, it is **auto-billed at full taxed price**, with no vouchers, and that can push your AP negative.
-
-### Vouchers
-
-All 15 of your vouchers are pre-loaded. Some have an **automatic check** the app enforces:
-
-| Voucher | Auto-check |
-|---|---|
-| DO THE HUSTLE! | AP earned this month ≥ 600 (once per month) |
-| LIFELONG LEARNING | ≥ 42h CSD this week |
-| 1080H OF FASTING | ≥ 1,080 fasting hours logged in total (use the fasting timer) |
-| 55KG + 1800kcal 30EMA | latest weight ≤ 55 and 30-day calorie EMA ≤ 1,800 (once per season) |
-| Stress Relief | calories (today/yesterday) ≤ 2,267, massage only |
-
-The rest use the **honour system**: the condition is shown and you tick "I honestly meet this". Leap Passes allow no vouchers at all.
+**Vouchers** can have automatic checks (AP earned this month, CSD this week, fasting total, weight + 30-day calorie EMA, recent calories, birthday…) or use the honour system.
 
 ---
 
 ## 2. A day in the life
 
-1. **Morning:** open the app. Read the overnight report. Weigh in (Camp → Quick log). The weigh-in quest ticks itself.
-2. **During the day:** tap **+0.5 / +1 / +2** for CSD hours. Start the **fasting timer** when you start a fast. Tap habits as they happen (coaching hours, bonus workouts, the odd bubble tea…).
-3. **Evening:** enter the day's total calories (one box, one tap). Tick "Move for 30 minutes". Open any chests.
-4. **Treat yourself** in the Shop when you've earned it. Use items from your Bag when you actually enjoy them (massage, trip…).
+1. **Morning:** open the app and read the overnight report. Weigh in (Camp → Quick log); the weigh-in quest ticks itself.
+2. **During the day:** tap **+0.5 / +1 / +2** for focus or CSD hours, start the **fasting timer**, and tap habits as they happen.
+3. **Evening:** enter the day's calories (one box), tick what you did, open chests.
+4. **Treat yourself** in the Shop, and use rewards from your Bag when you enjoy them.
 5. **Weekly:** check Body (weight trend, BMI, 30-day EMA) and Journey (goals, sprint boss, upcoming trips).
 
 ---
 
-## 3. First-time setup
+## 3. Accounts, characters and invites
 
-You need:
+- **Your account** = your login (username + password, optional 2FA). Manage it under **Account**.
+- **Characters** = separate games, like save files. Each has its own name, pet, looks, quests, shop, trackers, history, pictures and save points. Switch with **Characters** ("Choose your save"). You can have up to 10; members get 3 by default.
+- **New character wizard:** name → design your pet → pick a starting template:
+  - **Healthy-life starter**: water, sleep, movement, focus, and everyday rewards. For anyone.
+  - **Anson's original**: your full v1 setup (CSD, calorie court, your 15 vouchers). Owner only.
+  - **Copy one of your characters**: the same quests, trackers, shop and vouchers, with fresh progress.
+  - **Blank**: build everything yourself.
+- **Inviting someone (owner):** **Admin → Invite someone** → send the link. Each invite works once and expires (default 14 days). In Admin you can also set someone's character limit, disable an account, or give them a temporary password.
+- **Privacy:** every character lives in its **own separate database**. Nobody, including you as owner, can open someone else's characters through the app.
 
-- A computer with **Node.js 20+** (already installed on this PC: v24).
-- A free **Cloudflare account**: <https://dash.cloudflare.com/sign-up> (no card needed for this app).
+---
 
-Then, in a terminal in this folder:
+## 4. Make it yours: looks, pictures, notes and links
+
+**🎀 Wardrobe** (tap your pet on the Camp page):
+
+| | Options | How to get them |
+|---|---|---|
+| Species | Neko (cat), Mochi blob, Usagi (bunny), Kuma (bear), Dino | free |
+| Eyes | Classic, Big & shiny, Sparkly | free |
+| Colour | 9 presets **or any colour** you pick | free |
+| Hats | Beanie (free), Headband (Lv 5), Party hat (Lv 10), Flower (Lv 15), Wizard (Lv 25), Crown (Lv 40), Bow & Coach cap (chest drops) | level up / chests |
+| Face | Round glasses (free), Cool shades (chest) | free / chests |
+| Scene | Meadow & Beach (free), City Lights (Lv 8), Sakura Park (Lv 12), Moon Base (Lv 20) | level up / chests |
+
+Chests can drop locked items early.
+
+**🖼️ Pictures:** you can add pictures to quests, events, goals, shop items, vouchers, achievements and sprint bosses. When adding one you choose:
+
+- **📷 Photo**: resized on your phone to keep it small, or
+- **👾 Pixel art**: turns any picture into a crunchy 8-bit icon that matches the game.
+
+The first picture is the icon or cover; tap ⭐ on another to make it the cover. Events become a photo **timeline of memories**, and goals get a **vision board**. Each character can store 150 MB of pictures, and **Settings → Pictures** shows usage and can remove unused ones.
+
+**📝 Notes** support `**bold**`, `*italic*`, `- lists` and links.
+
+**🔗 Links** (workout videos, maps, booking pages…) show as a button on the quest, event or goal card.
+
+---
+
+## 5. First-time setup
+
+You need **Node.js 20+** (already on this PC) and a free **Cloudflare account** (<https://dash.cloudflare.com/sign-up>). In a terminal in this folder:
 
 ```bash
 npm install
 npm run setup
 ```
 
-`npm run setup` will:
+This logs you in to Cloudflare in the browser, creates the database, checks, builds and deploys, then asks for a **setup password** (and offers 2FA).
 
-1. open a browser so you can log in to Cloudflare and click **Allow**,
-2. create your private database (`ap-life-quest-db`) and save its ID in `wrangler.jsonc`,
-3. run the checks and tests, build, apply the database schema (answer **y**), and deploy,
-4. ask you to choose your **password** (min 10 characters; a passphrase like `mochi-eats-salad-55kg` is great),
-5. offer to turn on **2FA codes** (recommended).
-
-At the end you'll see your site address, something like `https://ap-life-quest.<your-name>.workers.dev`. Bookmark it.
-
-> Commit the updated `wrangler.jsonc` afterwards (`git commit -am "Configure database"`). It only contains the database ID, which isn't a secret.
+Open the site address it prints (`https://ap-life-quest.<you>.workers.dev`). The first visit shows **Claim your castle**: enter the setup password and choose your owner username and password. Then create your first character. Commit the updated `wrangler.jsonc` afterwards (it holds the database ID, which isn't secret).
 
 ---
 
-## 4. Install on your iPhone
+## 6. Upgrading from v1
 
-1. Open your site in **Safari** and log in.
-2. Tap **Share** → **Add to Home Screen** → **Add**.
-3. Launch it from the home screen. It opens full-screen like a real app, and stays logged in for 30 days (refreshed every time you use it).
-4. Let iPhone save your password (and your 2FA code: Settings → Passwords → the entry → *Set Up Verification Code*), so logging in is one tap.
+If v1 is already deployed and you've been logging in it:
 
-On the laptop, just use the website (or install it from Chrome/Edge's address-bar "Install app" button).
+1. In the main project folder: `git merge v2` (your `wrangler.jsonc` there already has the real database ID).
+2. `npm install`, then `npm run deploy`. It adds the accounts tables and leaves your v1 data untouched.
+3. Open the site and click **Claim your castle**. The setup password is your **v1 password**, and if you had 2FA in v1, your current code (it keeps working for your new owner account).
+4. On **Choose your save**, click **Import** on the "Your v1 save is waiting" banner. Everything you logged becomes your first character.
 
 ---
 
-## 5. Updating the app
+## 7. Install on your iPhone
 
-Every change is versioned three ways: **git** (your code history), **Cloudflare Worker versions** (every deploy is kept), and **save points** (your data).
+Open the site in **Safari** → **Share** → **Add to Home Screen**. It opens full-screen, stays logged in for 30 days (refreshed as you use it), and iPhone can save your password and 2FA codes (Settings → Passwords).
+
+---
+
+## 8. Updating the app
 
 ```bash
-# 1. make your changes (or ask Claude Code to)
-npm run dev              # try it locally (see section 11)
-# 2. bump "version" in package.json if you like, then save the change in git
-git add -A && git commit -m "Add sleep quest"
-git tag v1.1.0           # optional, makes rollback easy
-# 3. ship it
+npm run dev              # try changes locally (section 15)
+git add -A && git commit -m "Describe the change"
+git tag v2.1.0           # optional: easy rollback point
 npm run deploy           # typecheck + tests → build → migrate DB → deploy
 ```
 
-`npm run deploy` refuses to ship if type checks or tests fail. The version shows in **Settings → Security & about** and at the bottom of the laptop sidebar.
+**Database changes:** only ever **add** tables or columns (with defaults); never drop or rename. That keeps code rollbacks safe.
 
-**Database changes:** add a new file in `migrations/` (e.g. `0002_add_mood.sql`). Only ever **add** tables or columns (with defaults); never drop or rename. That way an older app version still works on the newer database, which keeps code rollbacks safe.
+- Account tables: new file in `migrations/`.
+- Character tables: new file in `worker/schema/`, plus one line in the `SCHEMA` list in `worker/character.ts`. Every character upgrades itself automatically the next time it's opened.
 
 ---
 
-## 6. Rolling back
+## 9. Rolling back
 
-### Undo one mistake (most common)
+**Undo one mistake:**
 
-- **Quest ticked by accident?** Tap it again (or the ↩ button).
-- **Anything else?** Open **📜 Log**, find the entry, tap **↩ Void**. The AP/XP/HP are reversed (and quest/purchase records removed). Undoing whatever knocked Mochi out also undoes the faint. A purchase you've already used from your bag can't be refunded; use ± Adjust instead.
-- **Need a manual fix?** Log → **± Adjust** (e.g. one-off rebates).
+- tap the quest again, or
+- **📜 Log → ↩ Void** (AP/XP/HP reversed), or
+- **± Adjust** for manual corrections.
 
-### Roll back the data (your game save)
+**Roll back a character's data:**
 
-- **In the app:** Settings → **Save points** → **Load**. A save point is made automatically every week and before every reset, restore or import, and the current game is saved before loading, so loading is itself undoable.
-- **Download a backup file:** Settings → **⬇ Download backup** (JSON). Restore with **⬆ Import backup**.
-- **Full database dump to your PC:** `npm run backup` → `backups/live-YYYY-MM-DD-HH-MM.sql` (git-ignored).
-- **Cloudflare Time Travel** (point-in-time restore, last 7 days on the free plan):
+- **Settings → Save points → Load**. A save point is made weekly and before every reset, import or load.
+- **⬇ Download backup** / **⬆ Import backup** (a JSON file; pictures aren't included in the file).
 
-  ```bash
-  npx wrangler d1 time-travel info ap-life-quest-db --timestamp=2026-10-20T08:00:00+08:00
-  npx wrangler d1 time-travel restore ap-life-quest-db --timestamp=2026-10-20T08:00:00+08:00
-  ```
-
-### Roll back the code (the app itself)
+**Roll back the code:**
 
 ```bash
-npm run versions         # list recent deployments
-npm run rollback         # roll back to the previous version (asks to confirm)
+npm run versions         # recent deployments
+npm run rollback         # back to the previous version
 ```
 
-Or in the Cloudflare dashboard: **Workers & Pages → ap-life-quest → Deployments → ⋯ → Rollback**. Rolling back code does **not** touch your data.
+Or use the Cloudflare dashboard: **Workers & Pages → ap-life-quest → Deployments → Rollback**. Rolling back code never touches data. To redeploy an older tag: `git checkout v1.0.0 && npm run deploy`.
 
-To redeploy an older tagged version from git: `git checkout v1.0.0 && npm run deploy && git checkout main`.
+**Account database:** `npm run backup` saves a SQL dump. For a point-in-time restore over the last 7 days:
+
+```bash
+npx wrangler d1 time-travel restore ap-life-quest-db --timestamp=<time>
+```
 
 ---
 
-## 7. Resets
+## 10. Resets
 
-For when discipline slipped and you want a clean slate. Both are in **Settings → Danger zone**, both need you to type a confirmation, and both create a save point first, so they're reversible.
+Both are in **Settings → Danger zone** (per character). Both need you to type a confirmation and make a save point first.
 
-| | 🌱 **New Game+** (season reset) | 🧨 **Factory reset** |
+| | 🌱 **New Game+** | 🧨 **Factory reset** |
 |---|---|---|
-| AP, XP, level, HP, streak | reset | reset |
-| Inventory, achievements, chests | reset (achievements can be re-earned) | wiped |
-| Quests, trackers, shop, vouchers, rules | **kept** | back to starter content |
-| Weight/calorie/CSD history | **kept** | wiped |
-| Old season | archived in the 🏛️ **Hall of Fame** with its stats | gone (except in the save point) |
+| AP, XP, level, HP, streak, inventory, achievements | reset | reset |
+| Quests, trackers, shop, vouchers, rules | **kept** | back to the template |
+| Tracker history | **kept** | wiped |
+| Old season | archived in the 🏛️ Hall of Fame | gone (except in the save point) |
 
-New Game+ is the "fresh start, same you" button. Factory reset is the nuclear option.
+To start over completely, create a new character (or delete one under **Characters**).
 
 ---
 
-## 8. Making it yours
+## 11. Adding new things
 
-Almost everything is editable **inside the app**, no code needed:
+**In the app (no code):**
 
-| What | Where |
+- quests, trackers, shop items, vouchers, achievements (19 rule types or "claim manually"), goals, sprints and events, all with pictures, notes and links;
+- game rules (crit chance, streak bonus, HP, faint penalty, day start, grace hours);
+- profile and looks.
+
+**Voucher rule JSON:**
+
+```
+{"t":"month_earned","min":600}
+{"t":"metric_week_sum","metric":"csd","min":42}
+{"t":"metric_total","metric":"fasting","min":1080}
+{"t":"metric_recent","metric":"calories","max":2267}
+{"t":"metric_latest","metric":"weight","max":55}
+{"t":"metric_ema","metric":"calories","period":30,"max":1800}
+{"t":"birthday"}
+{"t":"all","rules":[…]}
+```
+
+**Shop item effects:** `heal:30`, `rest_day`, `streak_freeze`.
+
+**In code:**
+
+- Game engine: `worker/game.ts`. Game routes: `worker/game/api.ts`. Accounts and admin: `worker/index.ts`.
+- Make a new column editable: add it in a migration, then to the whitelist in `worker/crud.ts` and the field list in `src/components/Editor.tsx`.
+- New pet hats or faces: `shared/petgrid.ts` (pixel grids) and `shared/levels.ts` (unlock rules).
+- New templates: `worker/seed.ts`.
+
+---
+
+## 12. Security
+
+- **Invite-only:** the owner is created once with the setup password; everyone else needs a single-use, expiring invite code (stored hashed).
+- **Passwords:** salted PBKDF2-SHA256 hashes. **Optional 2FA** (TOTP) per user, set up with a QR code under Account.
+- **Lock-outs:**
+  - 5 wrong logins per IP per 15 min;
+  - 10 per username;
+  - a 40-per-15-min global backstop.
+
+  Login timing doesn't reveal which usernames exist.
+- **Sessions:** random 256-bit tokens in `HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` cookies, stored hashed, with a 30-day sliding expiry. Changing your password logs out your other devices; **Log out everywhere** is in Account. Disabled accounts are locked out immediately.
+- **Isolation:** each character is its own Durable Object database. Every request is checked for login and ownership before it's forwarded, and the internal operations can't be reached from the internet.
+- **Pictures:** only JPEG, PNG, WebP or GIF, checked by their actual bytes (no SVG or HTML), max 1.5 MB, served with `nosniff` and a locked-down Content-Security-Policy.
+- **Notes** are rendered without HTML, and links must be `http(s)`.
+- **CSRF guard** (custom header + same-origin check), strict security headers, and `noindex` so search engines stay away.
+- **Secrets never committed:** `.dev.vars`, `backups/` and your `.xlsx` files are git-ignored.
+
+**Recovery:**
+
+- A member forgot their password → **Admin → Reset password**.
+- You (owner) forgot yours, or lost your 2FA phone → `npm run reset-owner` (needs your Cloudflare login on this PC).
+
+---
+
+## 13. Costs and limits
+
+Everything fits Cloudflare's **free** plan for you plus a handful of invited people:
+
+| Resource | Free allowance |
 |---|---|
-| Quests (dailies/weeklies/habits/to-dos, rewards, penalties, days, auto-complete from a tracker) | Quests → ＋ New / edit |
-| Trackers (anything: sleep, steps, water, push-ups, BP…; per-day value or adds-up; target; direction) | Body → ＋ Tracker (Sleep & Water are pre-made but hidden) |
-| Shop items (price, ×tax, vouchers allowed, auto-required by a tracker band, level lock, effects) | Shop → ＋ New shop item / ✎ |
-| Vouchers (discount, scope, limits, automatic check) | Shop → Vouchers |
-| Achievements (19 rule types, or "claim manually") | Trophies → ＋ Custom achievement |
-| Life goals (milestones, tracker target, or manual %) | Journey → Goals |
-| Sprints (boss raids with damage tasks) | Journey → Sprints |
-| Events, trips & memories (countdowns + timeline) | Journey → Events |
-| Game rules (crit chance, streak bonus, HP, faint penalty, grace hours, day start…) | Settings → Game rules |
-| Name, pet name, height (for BMI), birthday, timezone, theme, sound | Settings |
+| Requests (Worker + character databases) | 100,000 / day |
+| Storage (account DB + all characters) | 5 GB total |
+| Account DB rows read / written | 5 M / 100 k per day |
+| Pictures | 150 MB per character (app limit) |
 
-### Rule reference
-
-**Achievement rules:** `quests_done`, `streak`, `level`, `perfect_days`, `metric_days`, `metric_total`, `metric_week_sum`, `under_target_streak`, `metric_target`, `weight_lost`, `bmi_below`, `purchases`, `ap_balance`, `chests_opened`, `crits`, `sprints_won`, `goals_done`, `revives`, `manual`.
-
-**Voucher rules (JSON):** `{"t":"month_earned","min":600}`, `{"t":"metric_week_sum","metric":"csd","min":42}`, `{"t":"metric_total","metric":"fasting","min":1080}`, `{"t":"metric_recent","metric":"calories","max":2267}`, `{"t":"metric_latest","metric":"weight","max":55}`, `{"t":"metric_ema","metric":"calories","period":30,"max":1800}`, `{"t":"birthday"}`, and `{"t":"all","rules":[…]}` to combine.
-
-**Shop item effects:** `heal:30` (potion), `rest_day` (no penalties today, streak frozen), `streak_freeze` (auto-used shield).
-
-### Adding a brand-new feature in code
-
-1. **Database:** new migration in `migrations/` (additive only).
-2. **Server:** game logic lives in `worker/` (`game.ts` is the engine; `index.ts` lists every API route). To make a new column editable, add it to the whitelist in `worker/crud.ts`.
-3. **UI:** pages are in `src/pages/`; the generic editor's field list is in `src/components/Editor.tsx`.
-4. `npm run check` → `npm run dev` → `npm run deploy`.
+Beyond roughly 20–50 active players, move to **Workers Paid (US$5/month)**. No code changes are needed.
 
 ---
 
-## 9. Security
+## 14. Thinking of going commercial?
 
-- **Only you can get in.** Every `/api` call except login needs a valid session; the page shell holds no personal data.
-- **Password:** stored only as a salted PBKDF2-SHA256 hash in an encrypted Cloudflare secret, never in the code or database. Change it any time: `npm run set-password`.
-- **2FA (optional):** standard 6-digit TOTP codes (iPhone Passwords, Google Authenticator, 1Password…). `npm run setup-2fa` to enable, `npm run setup-2fa -- --off` to disable.
-- **Brute-force lock-out:** 5 wrong tries from one IP locks that IP out for 15 minutes (with a global backstop of 40 wrong tries per 15 minutes).
-- **Sessions:** random 256-bit tokens in `HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` cookies; only a SHA-256 hash is stored server-side. 30-day sliding expiry. **Settings → Log out everywhere** kills every session (e.g. lost phone).
-- **CSRF:** every write must carry a custom header and a same-origin `Origin`, so other sites can't act on your behalf.
-- **Hardening headers:** strict Content-Security-Policy, no framing, `nosniff`, no referrer, HSTS, and `noindex` (search engines are told to stay away).
-- **Secrets never committed:** `.dev.vars`, `backups/` and your old `.xlsx` files are git-ignored.
+The architecture is already multi-tenant (a private database per character), so scaling up is mostly *product* and *legal* work rather than a rewrite. Before taking strangers or payments:
 
-*Why only 10k PBKDF2 iterations?* The Worker free plan allows ~10 ms of CPU per request. The hash lives in an encrypted secret (an attacker would need your Cloudflare account to get it), and online guessing is stopped by the lock-out, so a long passphrase plus 2FA is what really protects you.
+1. **Personal data law (Singapore PDPA):** weight, BMI, blood pressure and calories are sensitive health data. You'd need:
+   - a privacy policy and clear consent at sign-up;
+   - data export and delete-my-account for users (delete already exists);
+   - a breach-response plan and someone responsible for data protection.
 
-*Extra layer (optional):* you can put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/) (free for up to 50 users) in front of the site for email-code login at the edge as well.
-
----
-
-## 10. Costs and limits
-
-Everything fits in Cloudflare's **free** plan:
-
-| Resource | Free allowance | This app (typical day) |
-|---|---|---|
-| Worker requests | 100,000 / day | ~100–300 |
-| Static assets (the UI) | unlimited, free | – |
-| D1 storage | 5 GB | a few MB per year |
-| D1 rows read | 5 million / day | ~0.3–2 million (grows slowly with history) |
-| D1 rows written | 100,000 / day | ~100s |
-| Time Travel | 7 days | – |
-
-If you ever outgrow it, **Workers Paid is US$5/month** (25 billion rows read, 30-day Time Travel). No code changes needed.
+   Keep it entirely separate from your day job: no work devices, accounts or data.
+2. **Terms of use** and a medical disclaimer: "not medical advice"; calorie and weight goals should be healthy and safe.
+3. **Public sign-up:** you'd add email verification and password-reset emails (an email service such as Resend or Postmark, with free tiers), plus abuse protection (Cloudflare Turnstile).
+4. **Payments:** Stripe Checkout + webhooks to switch an account's plan (for example `max_characters` or picture storage). As a web app (PWA) there's no App Store cut.
+5. **Generic content and branding:** the *Healthy-life starter* template is the base for public users. Your personal template stays owner-only. Pick a product name and check the trademark.
+6. **Operations:** Workers Paid plan, monitoring (Cloudflare observability is already on), backups, and a support email.
 
 ---
 
-## 11. Local development
+## 15. Local development
 
 ```bash
 npm install
-npm run set-password -- --local   # writes .dev.vars (local only)
-npm run db:migrate:local          # create the local SQLite database
-npm run dev                       # http://localhost:5173 (UI + API, hot reload)
+npm run set-password -- --local   # local setup password (.dev.vars)
+npm run db:migrate:local          # local account database
+npm run dev                       # http://localhost:5173 (UI + API + character databases)
 ```
-
-Useful commands:
 
 | Command | What it does |
 |---|---|
-| `npm run check` | Type-check (UI + Worker) and run unit tests |
-| `npm run test` | Unit tests only (`tests/`) |
-| `npm run test:api` | 30 end-to-end API checks against `npm run dev` (resets the **local** game) |
-| `npm run build` | Production build into `dist/` |
-| `npm run deploy` | check → build → migrate remote DB → deploy |
-| `npm run versions` / `npm run rollback` | List / roll back deployments |
-| `npm run backup` (`-- --local`) | SQL dump of the live (or local) DB into `backups/` |
-| `npm run set-password` / `npm run setup-2fa` | Security |
-| `npm run icons` | Re-render the home-screen icons from the pet sprite |
+| `npm run check` | Type-check (UI + Worker) and unit tests |
+| `npm run test:api` | 60+ end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`) |
+| `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
+| `npm run versions` / `npm run rollback` | Deployments |
+| `npm run backup` | SQL dump of the account database |
+| `npm run set-password` / `npm run setup-2fa` | Setup password (for claiming the owner account) |
+| `npm run reset-owner` | Set a new owner password (`-- --local` for dev) |
+| `npm run icons` | Re-render the home-screen icons |
 
-The local database lives in `.wrangler/state` (git-ignored). Delete that folder and re-run `npm run db:migrate:local` for a fresh one.
-
----
-
-## 12. Project structure
-
-```
-├── migrations/          D1 (SQLite) schema — additive migrations only
-├── worker/              Cloudflare Worker API (Hono)
-│   ├── index.ts         routes, auth gate, CSRF + security headers
-│   ├── auth.ts          password, TOTP, sessions, lock-out
-│   ├── game.ts          engine: rewards, crits, quests, trackers, closing days, fainting
-│   ├── economy.ts       shop, vouchers, bag, calorie court, chests
-│   ├── progress.ts      goals, milestones, sprints
-│   ├── achievements.ts  stats + achievement rules
-│   ├── state.ts         builds the full game state for the UI
-│   ├── crud.ts          whitelisted create/update/delete for all config
-│   ├── backup.ts        save points, export/import, New Game+, factory reset
-│   └── seed.ts          starter quests, trackers, shop, vouchers, achievements
-├── shared/              logic used by both sides (levels, dates, pricing, BMI/EMA, rules)
-├── src/                 React UI (pages/, components/, pixel sprites, sounds, effects)
-├── public/              icons, manifest, security headers, robots.txt
-├── scripts/             setup, password, 2FA, backup, icon generator
-└── tests/               unit tests (vitest)
-```
+Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm run db:migrate:local` for a fresh start.
 
 ---
 
-## 13. Troubleshooting
+## 16. Project structure
+
+```
+├── migrations/            account database (D1): 0001 = v1 game tables (kept), 0002 = accounts
+├── worker/
+│   ├── index.ts           accounts, invites, admin, v1 import, secure proxy to characters
+│   ├── auth.ts            passwords, TOTP, sessions, lock-outs
+│   ├── accounts.ts        users, invites, character registry
+│   ├── character.ts       the per-character Durable Object (own SQLite, self-migrating)
+│   ├── schema/            character database migrations (0002 = pictures & links)
+│   ├── do-db.ts           D1-style adapter over Durable Object SQL
+│   ├── game/api.ts        the game API for one character (+ pictures)
+│   ├── game.ts            engine: rewards, crits, quests, trackers, closing days, fainting
+│   ├── economy.ts         shop, vouchers, bag, calorie court, chests
+│   ├── progress.ts        goals, milestones, sprints
+│   ├── achievements.ts    stats + achievement rules
+│   ├── state.ts           the full game state for the UI
+│   ├── crud.ts            whitelisted create/update/delete for everything editable
+│   ├── backup.ts          save points (built inside SQLite), export/import, resets
+│   └── seed.ts            templates: Healthy-life starter, Anson's original, Blank
+├── shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules
+├── src/                   React UI (pages/, components/, account flow, pictures, effects)
+├── public/                icons, manifest, security headers
+├── scripts/               setup, passwords, 2FA, owner reset, backup, icons
+└── tests/                 unit tests + end-to-end API checks
+```
+
+---
+
+## 17. Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| "No password set yet" on the login page | `npm run set-password` (live) or `npm run set-password -- --local` (dev) |
-| Locked out after wrong passwords | Wait 15 minutes. |
-| Forgot password | `npm run set-password` sets a new one (needs your Cloudflare login on the PC). |
-| Lost the 2FA device | `npm run setup-2fa -- --off`, log in, then `npm run setup-2fa` again. |
-| Lost/stolen phone | Settings → Log out everywhere (from the laptop), then change the password. |
-| A day was scored unfairly (sick, public holiday) | Log → void the penalty entry. For planned rest, buy a 🏖️ Rest Day Pass. |
-| Something broke after an update | `npm run rollback` (code) and/or Settings → Save points → Load (data). |
-| `npm run deploy` fails on migrations | Make sure `wrangler.jsonc` has your real `database_id` (run `npm run setup` once). |
-| Away for weeks | Only the last 14 days are scored when you return, so it won't be a total wipe-out. |
+| "Almost there: no owner yet" | Run `npm run set-password` (or `-- --local`), then reload |
+| Locked out after wrong passwords | Wait 15 minutes |
+| Member forgot password / lost 2FA | Owner: **Admin → Reset password** (also removes their 2FA) |
+| Owner forgot password / lost 2FA | `npm run reset-owner` |
+| Lost or stolen phone | Account → **Log out everywhere** (from another device), then change your password |
+| A day was scored unfairly | Log → void the penalty. For planned rest days, buy a 🏖️ Rest Day Pass |
+| Something broke after an update | `npm run rollback` (code) and/or Save points → Load (data) |
+| Picture won't upload | Max 1.5 MB after compression; JPEG, PNG, WebP or GIF; 150 MB per character |
 
 ---
 
-*Fonts: [Jersey 10](https://fonts.google.com/specimen/Jersey+10) and [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P), SIL Open Font License. Pixel art, sounds and game design made for this project.*
+*Fonts: [Jersey 10](https://fonts.google.com/specimen/Jersey+10) and [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) (SIL Open Font License). QR codes: [uqr](https://github.com/unjs/uqr) (MIT). Pixel art, sounds and game design made for this project.*
