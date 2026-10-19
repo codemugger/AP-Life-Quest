@@ -285,6 +285,7 @@ Useful commands:
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and run unit tests |
 | `npm run test` | Unit tests only (`tests/`) |
+| `npm run test:api` | 30 end-to-end API checks against `npm run dev` (resets the **local** game) |
 | `npm run build` | Production build into `dist/` |
 | `npm run deploy` | check → build → migrate remote DB → deploy |
 | `npm run versions` / `npm run rollback` | List / roll back deployments |

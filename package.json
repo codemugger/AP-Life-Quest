@@ -37,7 +37,8 @@
     "backup": "node scripts/backup.mjs",
     "versions": "wrangler deployments list",
     "rollback": "wrangler rollback",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "test:api": "node tests/api-regression.mjs"
   },
   "engines": {
     "node": ">=20"
