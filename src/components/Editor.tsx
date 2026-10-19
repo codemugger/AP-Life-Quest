@@ -101,7 +101,13 @@ function specs(s: GameState): Record<string, Spec> {
         { k: "notes", label: "Notes", type: "textarea" },
         { k: "active", label: "Active", type: "bool" },
       ],
-      toBody: (d) => ({ ...d, metric_key: d.metric_key || null, metric_op: d.metric_key ? d.metric_op || "logged" : null, polarity: Number(d.polarity) }),
+      toBody: (d) => ({
+        ...d,
+        metric_key: d.metric_key || null,
+        metric_op: d.metric_key ? d.metric_op || "logged" : null,
+        // only habits show the good/bad choice; other quests keep the default (good)
+        ...(d.polarity !== undefined && d.polarity !== null ? { polarity: Number(d.polarity) } : {}),
+      }),
     },
     metrics: {
       title: "Tracker",
