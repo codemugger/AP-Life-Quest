@@ -1,9 +1,10 @@
 // App shell: auth gate → account (choose your save) → game, with hash routing and
 // a side nav (laptop) / tab bar (phone).
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api, setCharacter } from "./api";
 import { AccountProvider, useAccount, type Me } from "./account";
-import { FxProvider } from "./fx";
+import { FxProvider, useFx } from "./fx";
+import { reminderDue } from "./notes";
 import { GameProvider, useGame } from "./store";
 import { Pet } from "./sprites";
 import { Hud } from "./components/Hud";
@@ -12,6 +13,7 @@ import { Join, Login, Setup } from "./pages/Login";
 import Quests from "./pages/Quests";
 
 const Body = lazy(() => import("./pages/Body"));
+const Notes = lazy(() => import("./pages/Notes"));
 const Shop = lazy(() => import("./pages/Shop"));
 const Journey = lazy(() => import("./pages/Journey"));
 const Trophies = lazy(() => import("./pages/Trophies"));
@@ -54,6 +56,7 @@ function Splash({ text = "Loading your save…" }: { text?: string }) {
 const GAME_NAV = [
   { id: "camp", label: "Camp", ico: "🏕️" },
   { id: "quests", label: "Quests", ico: "⚔️" },
+  { id: "notes", label: "Notes", ico: "📒" },
   { id: "body", label: "Body", ico: "💗" },
   { id: "shop", label: "Shop", ico: "🛒" },
   { id: "journey", label: "Journey", ico: "🗺️" },
@@ -61,6 +64,8 @@ const GAME_NAV = [
   { id: "log", label: "Log", ico: "📜" },
   { id: "settings", label: "Settings", ico: "⚙️" },
 ];
+/** How many of GAME_NAV fit in the phone tab bar (the rest live under ☰ More). */
+const TABBAR = 5;
 const ACCOUNT_PAGES = ["characters", "account", "admin"];
 const MORE = ["journey", "trophies", "log", "settings", "more", ...ACCOUNT_PAGES];
 
@@ -109,6 +114,24 @@ function AccountShell({ page }: { page: string }) {
   );
 }
 
+/** Ticks every 30 s and announces note reminders as they come due (in-app nudges). Returns "now". */
+function useReminders() {
+  const { state } = useGame();
+  const fx = useFx();
+  const [now, setNow] = useState(() => Date.now());
+  const told = useRef(new Set<string>());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    const fresh = state.notes.filter((n) => reminderDue(n.remind_at, now) && !told.current.has(`${n.id}@${n.remind_at}`));
+    fresh.forEach((n) => told.current.add(`${n.id}@${n.remind_at}`));
+    for (const n of fresh.slice(0, 3)) fx.toast(`Reminder: ${n.title || "a note"}`, "⏰");
+  }, [state.notes, now, fx]);
+  return now;
+}
+
 function GameShell() {
   const { state } = useGame();
   const { account } = useAccount();
@@ -119,12 +142,20 @@ function GameShell() {
     else document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  const badges: Record<string, number> = { camp: state.chests.length, shop: state.obligations.length };
+  const now = useReminders();
+  const badges: Record<string, number> = {
+    camp: state.chests.length,
+    shop: state.obligations.length,
+    notes: state.notes.filter((n) => reminderDue(n.remind_at, now)).length,
+  };
   const extra = accountNav(account.user.role === "owner");
   let content: ReactNode;
   switch (page) {
     case "quests":
       content = <Quests />;
+      break;
+    case "notes":
+      content = <Notes sub={sub} />;
       break;
     case "body":
       content = <Body />;
@@ -181,7 +212,7 @@ function GameShell() {
         <Suspense fallback={<div className="empty">Loading…</div>}>{content}</Suspense>
       </main>
       <nav className="tabbar" aria-label="Main">
-        {[GAME_NAV[0], GAME_NAV[1], GAME_NAV[2], GAME_NAV[3], { id: "more", label: "More", ico: "☰" }].map((n) => {
+        {[...GAME_NAV.slice(0, TABBAR), { id: "more", label: "More", ico: "☰" }].map((n) => {
           const on = n.id === "more" ? MORE.includes(page) : isOn(n.id);
           return (
             <button key={n.id} className={on ? "on" : ""} onClick={() => go(n.id)} aria-current={on ? "page" : undefined}>
@@ -204,7 +235,7 @@ function More() {
         <h1>☰ More</h1>
       </div>
       <div className="cards">
-        {[...GAME_NAV.slice(4), ...accountNav(account.user.role === "owner")].map((n) => (
+        {[...GAME_NAV.slice(TABBAR), ...accountNav(account.user.role === "owner")].map((n) => (
           <a key={n.id} href={`#/${n.id}`} className="panel trophy" style={{ textDecoration: "none", color: "inherit", margin: 4 }}>
             <span className="t-emoji">{n.ico}</span>
             <span className="t-name">{n.label}</span>

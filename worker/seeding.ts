@@ -1,6 +1,6 @@
 // Writes starter content into an empty character database (new character / factory reset).
 import { first, insertStmt, stmt } from "./db";
-import { seedSettings, templateContent, TEMPLATES, type TemplateContent } from "./seed";
+import { SEED_NOTEBOOKS, seedSettings, templateContent, TEMPLATES, type TemplateContent } from "./seed";
 
 /** True when this character may use owner-only templates (a trusted flag set only by the Worker at creation). */
 export async function ownerTemplatesAllowed(db: D1Database) {
@@ -31,6 +31,15 @@ export async function seedAll(db: D1Database, keep: Record<string, unknown> = {}
     ...tpl.achievements.map((r) => insertStmt(db, "achievements", r)),
     ...tpl.goals.map((r) => insertStmt(db, "goals", r)),
     ...(tpl.milestones ?? []).map((r) => insertStmt(db, "milestones", r)),
+    // starter binders, unless the notebook survived a factory reset
+    stmt(
+      db,
+      `INSERT INTO notebooks (name, emoji, color, kind, sort)
+       SELECT json_extract(j.value, '$.name'), json_extract(j.value, '$.emoji'), json_extract(j.value, '$.color'),
+              json_extract(j.value, '$.kind'), json_extract(j.value, '$.sort') FROM json_each(?) j
+       WHERE NOT EXISTS (SELECT 1 FROM notebooks)`,
+      JSON.stringify(SEED_NOTEBOOKS),
+    ),
   ];
   await db.batch(batch);
 }

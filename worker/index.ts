@@ -409,7 +409,7 @@ app.all("/api/c/:cid/*", async (c) => {
   if (payload && payload.byteLength > MAX_BODY) throw new HttpError(413, "That's too big (max 8 MB)");
   // Forward only what the game needs; x-aplq-owner can only ever come from here (never the client).
   const headers = new Headers();
-  for (const h of ["content-type", "x-width", "x-height", "if-none-match"]) {
+  for (const h of ["content-type", "x-width", "x-height", "if-none-match", "range"]) {
     const v = c.req.header(h);
     if (v) headers.set(h, v);
   }

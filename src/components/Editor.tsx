@@ -50,6 +50,8 @@ const ACH_RULES: [string, string, "n" | "metric+n" | "metric" | "none"][] = [
   ["metric_total", "Tracker all-time total ≥ N", "metric+n"],
   ["metric_week_sum", "Tracker total in one week ≥ N", "metric+n"],
   ["under_target_streak", "N days in a row at/under tracker target", "metric+n"],
+  ["metric_streak", "Log a tracker N days in a row", "metric+n"],
+  ["notes", "Keep N notes in the notebook", "n"],
   ["metric_target", "Reach the tracker's target", "metric"],
   ["weight_lost", "Lose N kg from first weigh-in", "n"],
   ["bmi_below", "BMI below N", "n"],

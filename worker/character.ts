@@ -4,6 +4,7 @@ import { DurableObject } from "cloudflare:workers";
 import { levelInfo, petStage, titleFor } from "../shared/levels";
 import schema1 from "../migrations/0001_init.sql?raw";
 import schema2 from "./schema/0002_media.sql?raw";
+import schema3 from "./schema/0003_notes.sql?raw";
 import { importAll, type Backup } from "./backup";
 import { all, first } from "./db";
 import { DoDb, splitSql } from "./do-db";
@@ -13,7 +14,7 @@ import type { TemplateContent } from "./seed";
 import { seedAll } from "./seeding";
 
 /** Character database schema, applied in order. Only ever append. */
-const SCHEMA = [schema1, schema2];
+const SCHEMA = [schema1, schema2, schema3];
 
 /** Config tables that "copy setup from another character" brings across (no progress). */
 const CONFIG_TABLES = ["metrics", "quests", "shop_items", "vouchers", "achievements", "goals", "milestones"] as const;
@@ -91,7 +92,7 @@ export class CharacterDO extends DurableObject {
       this.writes.push(now);
       // Storage budget: when full, only things that free space are allowed.
       const budget = req.headers.get("x-aplq-owner") === "1" ? BUDGET.owner : BUDGET.member;
-      const freesSpace = req.method === "DELETE" || /\/api\/(media\/cleanup|reset\/factory)$/.test(url.pathname);
+      const freesSpace = req.method === "DELETE" || /\/api\/(media\/cleanup|reset\/factory|notes\/empty-trash|notes\/\d+\/trash)$/.test(url.pathname);
       if (this.ctx.storage.sql.databaseSize > budget && !freesSpace)
         return json({ error: `This character's storage is full (${Math.round(budget / MB)} MB). Delete old save points or unused pictures in Settings.` }, 507);
     }

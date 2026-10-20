@@ -46,6 +46,24 @@ export default function Journey({ sub }: { sub?: string }) {
 
 type Open = (entity: string, row?: object) => void;
 
+/** Notes linked to a goal / sprint / event, plus a shortcut to write a new one. */
+function LinkedNotes({ k, id }: { k: "goal_id" | "sprint_id" | "event_id"; id: number }) {
+  const { state } = useGame();
+  const notes = state.notes.filter((n) => n[k] === id);
+  return (
+    <div className="row wrap linked-notes">
+      {notes.map((n) => (
+        <a key={n.id} className="chip note-link" href={`#/notes/${n.id}`}>
+          📝 {n.title || "Untitled note"}
+        </a>
+      ))}
+      <a className="linkbtn" href={`#/notes/new?${k}=${id}`}>
+        ＋ note
+      </a>
+    </div>
+  );
+}
+
 function Goals({ open }: { open: Open }) {
   const { state } = useGame();
   const active = state.goals.filter((g) => g.status === "active");
@@ -165,6 +183,7 @@ function GoalCard({ g, open }: { g: Goal; open: Open }) {
           </div>
         </div>
       )}
+      <LinkedNotes k="goal_id" id={g.id} />
       <div className="row between" style={{ marginTop: 10 }}>
         <span className="small ink2">
           Reward: {g.ap} AP · {g.xp} XP · legendary chest
@@ -289,6 +308,7 @@ function BossCard({ sp, open }: { sp: Sprint; open: Open }) {
           </button>
         </div>
       </div>
+      <LinkedNotes k="sprint_id" id={sp.id} />
     </Panel>
   );
 }
@@ -330,6 +350,7 @@ function EventCard({ e, onClose, onEdit }: { e: LifeEvent; onClose: () => void; 
         </div>
       )}
       {!e.notes && !ids.length && <p className="small muted">Add photos and the story by editing this event: it becomes a memory in your timeline.</p>}
+      <LinkedNotes k="event_id" id={e.id} />
     </Modal>
   );
 }

@@ -2,7 +2,7 @@
 import { addDays, monthStart } from "../shared/dates";
 import { levelInfo, petStage, titleFor } from "../shared/levels";
 import { checkRule, limitPeriodStart, parseRule, streakMultiplier, type RuleInputs } from "../shared/rules";
-import type { Achievement, GameState, Goal, LedgerRow, Sprint } from "../shared/types";
+import type { Achievement, GameState, Goal, LedgerRow, NoteRef, Sprint } from "../shared/types";
 import { rows, stmt } from "./db";
 import { progressFor, seasonStats } from "./achievements";
 import type { Ctx } from "./game";
@@ -62,6 +62,13 @@ export async function buildState(ctx: Ctx, version: string): Promise<GameState> 
       `SELECT m.metric_key, m.value FROM metric_values m
        JOIN (SELECT metric_key AS k, MIN(date) AS d FROM metric_values GROUP BY metric_key) f ON m.metric_key = f.k AND m.date = f.d`,
     ), // 23
+    db.prepare(
+      `SELECT id, title, color, paper, font, CASE WHEN pin_today = 1 AND archived = 0 THEN preview END AS preview, cover, pin_today, archived,
+              remind_at, remind_repeat, goal_id, sprint_id, event_id, journal_date
+       FROM notes WHERE trashed_at IS NULL
+         AND ((pin_today = 1 AND archived = 0) OR remind_at IS NOT NULL OR goal_id IS NOT NULL OR sprint_id IS NOT NULL OR event_id IS NOT NULL)
+       ORDER BY pinned DESC, updated_at DESC LIMIT 300`,
+    ), // 24
   ]);
 
   const tot = res[21].results[0] as { ap: number; xp: number; today: number; month: number };
@@ -161,6 +168,8 @@ export async function buildState(ctx: Ctx, version: string): Promise<GameState> 
       purchases: stats.purchases,
       sprints_won: stats.sprints_won,
       goals_done: stats.goals_done,
+      notes: stats.notes,
     },
+    notes: rows<NoteRef>(res[24]),
   };
 }

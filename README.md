@@ -12,19 +12,20 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
 2. [A day in the life](#2-a-day-in-the-life)
 3. [Accounts, characters and invites](#3-accounts-characters-and-invites)
 4. [Make it yours: looks, pictures, notes and links](#4-make-it-yours-looks-pictures-notes-and-links)
-5. [First-time setup (≈10 minutes)](#5-first-time-setup)
-6. [Upgrading from v1](#6-upgrading-from-v1)
-7. [Install on your iPhone](#7-install-on-your-iphone)
-8. [Updating the app](#8-updating-the-app)
-9. [Rolling back: code, data, or both](#9-rolling-back)
-10. [Resets: New Game+ and Factory reset](#10-resets)
-11. [Adding new things](#11-adding-new-things)
-12. [Security](#12-security)
-13. [Costs and free-tier limits](#13-costs-and-limits)
-14. [Thinking of going commercial?](#14-thinking-of-going-commercial)
-15. [Local development](#15-local-development)
-16. [Project structure](#16-project-structure)
-17. [Troubleshooting](#17-troubleshooting)
+5. [Notebook & journal](#5-notebook--journal)
+6. [First-time setup (≈10 minutes)](#6-first-time-setup)
+7. [Upgrading from v1](#7-upgrading-from-v1)
+8. [Install on your iPhone](#8-install-on-your-iphone)
+9. [Updating the app](#9-updating-the-app)
+10. [Rolling back: code, data, or both](#10-rolling-back)
+11. [Resets: New Game+ and Factory reset](#11-resets)
+12. [Adding new things](#12-adding-new-things)
+13. [Security](#13-security)
+14. [Costs and free-tier limits](#14-costs-and-limits)
+15. [Thinking of going commercial?](#15-thinking-of-going-commercial)
+16. [Local development](#16-local-development)
+17. [Project structure](#17-project-structure)
+18. [Troubleshooting](#18-troubleshooting)
 
 ---
 
@@ -115,7 +116,50 @@ The first picture is the icon or cover; tap ⭐ on another to make it the cover.
 
 ---
 
-## 5. First-time setup
+## 5. Notebook & journal
+
+**📒 Notes** (tab bar) is your Google Keep + OneNote inside the game.
+
+- **Binders:** coloured tabs at the top (📒 Notes and 📔 Journal to start). Make more with **＋**, for example ⏰ CET, 💼 Work or 💡 Ideas. Tap an open tab again to rename, recolour, move or delete it. Deleting a binder moves its notes; nothing is lost.
+- **The board:** Keep-style cards with 📌 **pinned** notes first. Every note has a **card colour** 🎨 and a **paper** 📄 (plain, lined, grid or dots).
+- **Labels** 🏷 work across binders, like tags. Tap a label chip to filter.
+- **Search** looks inside every note, not just titles.
+- **🗄️ Archive** puts notes out of the way. **🗑️ Trash** keeps them for 30 days.
+- **"Take a note…"** starts a note. The buttons next to it start a checklist ☑, a sketch ✏️, a voice memo 🎙️ or a photo note 📷.
+
+**Writing** (the toolbar scrolls sideways on a phone):
+
+| | |
+|---|---|
+| Text | **bold**, *italic*, underline, ~~strike~~, 9 text colours, 6 highlighter pens, 4 sizes |
+| Fonts | Pixel, Arcade, Clean, Serif, Mono, Handwritten (per selection, or 🔤 for the whole note) |
+| Blocks | headings, bullet / numbered lists, ☑ checklists, quotes, code, dividers, alignment |
+| Tables | ＋ → Table, then add/remove rows and columns, header row, merge cells (handy for a CET timetable) |
+| Media | 📷 photos, 👾 pixel art, ✏️ **sketches** (finger, mouse or Apple Pencil with pressure; tap a sketch to draw on it again), 🎙️ **voice memos** (up to ~5 min, or pick an audio file) |
+| Extras | 🔗 links, 🕐 time stamp, 📅 today's date, paste or drag pictures straight in |
+
+Typing shortcuts also work: `# ` heading, `- ` list, `[ ] ` checklist, `> ` quote, `---` divider, Ctrl/⌘+B / I / U.
+
+**Notes save themselves** as you type ("Saved ✓"). If the same note was changed on another device, you'll be asked which version to keep.
+
+**In the game:**
+
+- **📔 Journal:** entries are dated (one tap: **✍️ Today's entry**), with a mood row and optional **✨ Prompts** (wins, gratitude, lessons, tomorrow's to-dos). The words you write each day go into the 📔 *Journal* tracker. Writing **30+ words** ticks the daily quest **"Write in your journal"** (+5 AP, +15 XP, no HP penalty), and your writing streak 🔥 shows on the Journal tab. Trophies: *Dear Diary*, *Scribe* (7 days in a row), *Chronicler* (30 days), *Wordsmith* (10,000 words), *Bookworm* (25 notes). Change the target or the penalty like any other quest or tracker.
+- **☀️ Show on Camp:** pin a note (today's timetable, your rules) to the Camp page.
+- **🔗 Link to a goal, sprint or event:** the note shows on that card in Journey, and **＋ note** there writes a new linked one.
+- **⏰ Reminders:** a date and time, optionally repeating daily, weekly or monthly. When one is due, the app shows a nudge on Camp, a toast and a badge on 📒 Notes (in the app only, no push notifications). **✓ Done** clears it, or moves a repeating one to its next time.
+
+**Your notebook is life, not game progress:**
+
+- loading a save point leaves it alone unless you choose to roll it back too;
+- a factory reset keeps it unless you tick *Also delete my notebook*;
+- New Game+ never touches it.
+
+Pictures and voice memos share the character's media storage (**Settings → Pictures & voice memos**).
+
+---
+
+## 6. First-time setup
 
 You need **Node.js 20+** (already on this PC) and a free **Cloudflare account** (<https://dash.cloudflare.com/sign-up>). In a terminal in this folder:
 
@@ -130,7 +174,7 @@ Open the site address it prints (`https://ap-life-quest.<you>.workers.dev`). The
 
 ---
 
-## 6. Upgrading from v1
+## 7. Upgrading from v1
 
 If v1 is already deployed and you've been logging in it:
 
@@ -141,16 +185,16 @@ If v1 is already deployed and you've been logging in it:
 
 ---
 
-## 7. Install on your iPhone
+## 8. Install on your iPhone
 
 Open the site in **Safari** → **Share** → **Add to Home Screen**. It opens full-screen, stays logged in for 30 days (refreshed as you use it), and iPhone can save your password and 2FA codes (Settings → Passwords).
 
 ---
 
-## 8. Updating the app
+## 9. Updating the app
 
 ```bash
-npm run dev              # try changes locally (section 15)
+npm run dev              # try changes locally (section 16)
 git add -A && git commit -m "Describe the change"
 git tag v2.1.0           # optional: easy rollback point
 npm run deploy           # typecheck + tests → build → migrate DB → deploy
@@ -163,7 +207,7 @@ npm run deploy           # typecheck + tests → build → migrate DB → deploy
 
 ---
 
-## 9. Rolling back
+## 10. Rolling back
 
 **Undo one mistake:**
 
@@ -173,7 +217,7 @@ npm run deploy           # typecheck + tests → build → migrate DB → deploy
 
 **Roll back a character's data:**
 
-- **Settings → Save points → Load**. A save point is made weekly and before every reset, import or load.
+- **Settings → Save points → Load**. A save point is made weekly and before every reset, import or load. You choose whether your notebook goes back in time too (default: keep today's notes).
 - **⬇ Download backup** / **⬆ Import backup** (a JSON file; pictures aren't included in the file).
 
 **Roll back the code:**
@@ -193,7 +237,7 @@ npx wrangler d1 time-travel restore ap-life-quest-db --timestamp=<time>
 
 ---
 
-## 10. Resets
+## 11. Resets
 
 Both are in **Settings → Danger zone** (per character). Both need you to type a confirmation and make a save point first.
 
@@ -202,17 +246,19 @@ Both are in **Settings → Danger zone** (per character). Both need you to type 
 | AP, XP, level, HP, streak, inventory, achievements | reset | reset |
 | Quests, trackers, shop, vouchers, rules | **kept** | back to the template |
 | Tracker history | **kept** | wiped |
+| Notebook (notes, journal, labels) | **kept** | **kept**, unless you tick *Also delete my notebook* |
 | Old season | archived in the 🏛️ Hall of Fame | gone (except in the save point) |
 
 To start over completely, create a new character (or delete one under **Characters**).
 
 ---
 
-## 11. Adding new things
+## 12. Adding new things
 
 **In the app (no code):**
 
-- quests, trackers, shop items, vouchers, achievements (19 rule types or "claim manually"), goals, sprints and events, all with pictures, notes and links;
+- quests, trackers, shop items, vouchers, achievements (21 rule types or "claim manually"), goals, sprints and events, all with pictures, notes and links;
+- notebooks, labels and notes (see [Notebook & journal](#5-notebook--journal));
 - game rules (crit chance, streak bonus, HP, faint penalty, day start, grace hours);
 - profile and looks.
 
@@ -237,10 +283,11 @@ To start over completely, create a new character (or delete one under **Characte
 - Make a new column editable: add it in a migration, then to the whitelist in `worker/crud.ts` and the field list in `src/components/Editor.tsx`.
 - New pet hats or faces: `shared/petgrid.ts` (pixel grids) and `shared/levels.ts` (unlock rules).
 - New templates: `worker/seed.ts`.
+- Notebook: server in `worker/notes.ts`; what a note may contain (nodes, marks, fonts, colours) in `shared/notedoc.ts`; the editor in `src/components/notes/NoteEditor.tsx`. A new formatting option needs all three: the editor extension, the whitelist entry, and a case in `src/components/NoteView.tsx` (cards).
 
 ---
 
-## 12. Security
+## 13. Security
 
 - **Invite-only:** the owner is created once with the setup password; everyone else needs a single-use, expiring invite code (stored hashed).
 - **Passwords:** salted PBKDF2-SHA256 hashes. **Optional 2FA** (TOTP) per user, set up with a QR code under Account. Each code works only once. Turning 2FA on or off, changing your password and deleting your account all re-ask for your password.
@@ -252,10 +299,11 @@ To start over completely, create a new character (or delete one under **Characte
   Devices you've logged in from before skip the per-username and global limits, so a stranger spamming wrong passwords can't lock you out. Login timing doesn't reveal which usernames exist.
 - **Sessions:** random 256-bit tokens in `HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` cookies, stored hashed, with a 30-day sliding expiry. Changing your password logs out your other devices; **Log out everywhere** is in Account. Disabled accounts are locked out immediately.
 - **Isolation:** each character is its own Durable Object database. Every request is checked for login and ownership before it's forwarded. Only the headers the game needs are passed on, and the internal operations can't be reached from the internet. Owner-only templates are protected by a flag that backups can't change.
-- **Fair use:** per character, members get 200 MB of storage with 50 MB of pictures (owner: 1 GB / 150 MB). Other limits: 12 manual save points, 120 changes a minute, 8 MB per upload or import. Character creation can't exceed each person's limit.
+- **Fair use:** per character, members get 200 MB of storage with 50 MB of pictures and voice memos (owner: 1 GB / 150 MB). Other limits: 12 manual save points, 120 changes a minute, 8 MB per upload or import, 5,000 notes of up to ~15,000 words each. Character creation can't exceed each person's limit.
 - **Pictures:** only JPEG, PNG, WebP or GIF, checked by their actual bytes (no SVG or HTML), max 1.5 MB, served with `nosniff` and a locked-down Content-Security-Policy. Access is re-checked against your login on every view (nothing readable from the browser cache after logging out).
-- **Imports** are validated like typed input: bad links and picture lists are dropped, sizes are capped.
-- **Notes** are rendered without HTML, and links must be `http(s)`.
+- **Voice memos:** M4A/MP4, MP3, WebM, OGG or WAV, also checked by their bytes, max ~1.9 MB. The microphone is only used while you're recording and is allowed for this site alone.
+- **Imports** are validated like typed input: bad links and picture lists are dropped, sizes are capped, and imported notes are cleaned like typed ones.
+- **Notes** are rendered without HTML. Rich notes are stored as editor JSON, and the server keeps only whitelisted formatting (fonts, colours and sizes from fixed lists; links only `http(s)`, `mailto:` and `tel:`; pictures only by their id in your own storage), so a note can't carry scripts or outside content.
 - **CSRF guard** (custom header + same-origin check), strict security headers, and `noindex` so search engines stay away.
 - **Secrets never committed:** `.dev.vars`, `backups/` and your `.xlsx` files are git-ignored.
 
@@ -266,7 +314,7 @@ To start over completely, create a new character (or delete one under **Characte
 
 ---
 
-## 13. Costs and limits
+## 14. Costs and limits
 
 Everything fits Cloudflare's **free** plan for you plus a handful of invited people:
 
@@ -281,7 +329,7 @@ Beyond roughly 20–50 active players, move to **Workers Paid (US$5/month)**. No
 
 ---
 
-## 14. Thinking of going commercial?
+## 15. Thinking of going commercial?
 
 The architecture is already multi-tenant (a private database per character), so scaling up is mostly *product* and *legal* work rather than a rewrite. Before taking strangers or payments:
 
@@ -299,7 +347,7 @@ The architecture is already multi-tenant (a private database per character), so 
 
 ---
 
-## 15. Local development
+## 16. Local development
 
 ```bash
 npm install
@@ -311,7 +359,7 @@ npm run dev                       # http://localhost:5173 (UI + API + character 
 | Command | What it does |
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and unit tests |
-| `npm run test:api` | 75 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`) |
+| `npm run test:api` | 108 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`) |
 | `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
 | `npm run versions` / `npm run rollback` | Deployments |
 | `npm run backup` | SQL dump of the account database |
@@ -323,7 +371,7 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 
 ---
 
-## 16. Project structure
+## 17. Project structure
 
 ```
 ├── migrations/            account database (D1): 0001 = v1 game tables (kept), 0002 = accounts
@@ -332,7 +380,7 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── auth.ts            passwords, TOTP, sessions, lock-outs
 │   ├── accounts.ts        users, invites, character registry
 │   ├── character.ts       the per-character Durable Object (own SQLite, self-migrating)
-│   ├── schema/            character database migrations (0002 = pictures & links)
+│   ├── schema/            character database migrations (0002 = pictures & links, 0003 = notebook)
 │   ├── do-db.ts           D1-style adapter over Durable Object SQL
 │   ├── game/api.ts        the game API for one character (+ pictures)
 │   ├── game.ts            engine: rewards, crits, quests, trackers, closing days, fainting
@@ -342,9 +390,13 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── state.ts           the full game state for the UI
 │   ├── crud.ts            whitelisted create/update/delete for everything editable
 │   ├── backup.ts          save points (built inside SQLite), export/import, resets
+│   ├── notes.ts           notebook: notes, binders, labels, reminders, journal → game
 │   └── seed.ts            templates: Healthy-life starter, Anson's original, Blank
-├── shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules
+├── shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules,
+│                          notedoc (what a rich note may contain + previews/word counts)
 ├── src/                   React UI (pages/, components/, account flow, pictures, effects)
+│   ├── pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
+│   └── components/notes/  editor (TipTap, loaded on demand), sketch pad, voice recorder
 ├── public/                icons, manifest, security headers
 ├── scripts/               setup, passwords, 2FA, owner reset, backup, icons
 └── tests/                 unit tests + end-to-end API checks
@@ -352,7 +404,7 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 
 ---
 
-## 17. Troubleshooting
+## 18. Troubleshooting
 
 | Problem | Fix |
 |---|---|
@@ -364,8 +416,11 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 | A day was scored unfairly | Log → void the penalty. For planned rest days, buy a 🏖️ Rest Day Pass |
 | Something broke after an update | `npm run rollback` (code) and/or Save points → Load (data) |
 | Picture won't upload | Max 1.5 MB after compression; JPEG, PNG, WebP or GIF; 50 MB per character for members, 150 MB for the owner |
-| "Storage is full" | Settings → delete old save points or remove unused pictures |
+| "Storage is full" | Settings → delete old save points or remove unused pictures; empty the notebook trash |
+| Voice memo says the microphone is blocked | iPhone: Settings → Safari (or the home-screen app) → Microphone → Allow. Laptop: click the 🔒 in the address bar → Microphone → Allow |
+| "This note was changed on another device" | Choose **Load theirs** (keep the other device's version) or **Keep mine** (overwrite with this one) |
+| Journal quest didn't tick | It needs 30+ words in that day's entries (change the threshold in Quests). Entries for days already closed still count toward the tracker and trophies |
 
 ---
 
-*Fonts: [Jersey 10](https://fonts.google.com/specimen/Jersey+10) and [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) (SIL Open Font License). QR codes: [uqr](https://github.com/unjs/uqr) (MIT). Pixel art, sounds and game design made for this project.*
+*Fonts: [Jersey 10](https://fonts.google.com/specimen/Jersey+10), [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) and [Patrick Hand](https://fonts.google.com/specimen/Patrick+Hand) (SIL Open Font License). Note editor: [Tiptap](https://tiptap.dev) / ProseMirror (MIT). QR codes: [uqr](https://github.com/unjs/uqr) (MIT). Pixel art, sounds and game design made for this project.*
