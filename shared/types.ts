@@ -230,6 +230,73 @@ export interface LifeEvent {
   link: string | null;
 }
 
+export interface Notebook {
+  id: number;
+  name: string;
+  emoji: string;
+  color: string;
+  kind: "notes" | "journal";
+  sort: number;
+}
+
+export interface NoteLabel {
+  id: number;
+  name: string;
+  color: string | null;
+}
+
+/** A note as shown on the board (no full doc). */
+export interface NoteCard {
+  id: number;
+  notebook_id: number | null;
+  title: string;
+  preview: string | null; // JSON doc
+  words: number;
+  cover: number | null;
+  extras: string | null; // JSON {audio, tasks:[done,total], images}
+  color: string | null;
+  paper: string;
+  font: string;
+  mood: string | null;
+  labels: string | null; // JSON ids
+  pinned: number;
+  pin_today: number;
+  archived: number;
+  trashed_at: string | null;
+  journal_date: string | null;
+  goal_id: number | null;
+  sprint_id: number | null;
+  event_id: number | null;
+  remind_at: string | null;
+  remind_repeat: string | null;
+  rev: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Note extends NoteCard {
+  doc: string | null;
+}
+
+/** Notes the rest of the game needs to know about (Camp pins, reminders, links on goals…). */
+export interface NoteRef {
+  id: number;
+  title: string;
+  color: string | null;
+  paper: string;
+  font: string;
+  preview: string | null; // only for Today pins
+  cover: number | null;
+  pin_today: number;
+  archived: number;
+  remind_at: string | null;
+  remind_repeat: string | null;
+  goal_id: number | null;
+  sprint_id: number | null;
+  event_id: number | null;
+  journal_date: string | null;
+}
+
 export interface LedgerRow {
   id: number;
   ts: string;
@@ -310,4 +377,5 @@ export interface GameState {
   ledger: LedgerRow[];
   rest_days: string[];
   stats: Record<string, number>;
+  notes: NoteRef[];
 }

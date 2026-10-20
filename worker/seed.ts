@@ -3,6 +3,16 @@ import { DEFAULT_SETTINGS } from "../shared/rules";
 
 type Row = Record<string, unknown>;
 
+/** Words written in journal entries each day (filled in by the notebook, see worker/notes.ts). */
+export const JOURNAL_METRIC = { key: "journal", name: "Journal", emoji: "📔", unit: "words", mode: "set", direction: "up", target: 30, decimals: 0, builtin: 1, active: 1, sort: 50 };
+const JOURNAL_QUEST: Row = { type: "daily", title: "Write in your journal", emoji: "📔", area: "mind", difficulty: "easy", ap: 5, xp: 15, hp_penalty: 0, metric_key: "journal", metric_op: ">=", sort: 40 };
+
+/** Binders every character starts with. */
+export const SEED_NOTEBOOKS: Row[] = [
+  { name: "Notes", emoji: "📒", color: "lemon", kind: "notes", sort: 1 },
+  { name: "Journal", emoji: "📔", color: "pink", kind: "journal", sort: 2 },
+];
+
 export const SEED_METRICS: Row[] = [
   { key: "weight", name: "Weight", emoji: "⚖️", unit: "kg", mode: "set", direction: "down", target: 55, decimals: 1, quick: null, builtin: 1, sort: 1 },
   { key: "calories", name: "Calories", emoji: "🍱", unit: "kcal", mode: "set", direction: "down", target: 1800, decimals: 0, quick: null, builtin: 1, sort: 2 },
@@ -12,6 +22,7 @@ export const SEED_METRICS: Row[] = [
   { key: "bp_dia", name: "BP diastolic", emoji: "🩺", unit: "mmHg", mode: "set", direction: "down", target: 80, decimals: 0, quick: null, builtin: 0, sort: 6 },
   { key: "sleep", name: "Sleep", emoji: "😴", unit: "h", mode: "set", direction: "up", target: 7, decimals: 1, quick: null, builtin: 0, active: 0, sort: 7 },
   { key: "water", name: "Water", emoji: "💧", unit: "glasses", mode: "add", direction: "up", target: 8, decimals: 0, quick: "1,2", builtin: 0, active: 0, sort: 8 },
+  JOURNAL_METRIC,
 ];
 
 export const SEED_QUESTS: Row[] = [
@@ -31,6 +42,7 @@ export const SEED_QUESTS: Row[] = [
   { type: "habit", title: "Bonus workout", emoji: "🏋️", area: "body", difficulty: "medium", ap: 10, xp: 20, hp_penalty: 0, polarity: 1, sort: 22 },
   { type: "habit", title: "Sugary drink / bubble tea", emoji: "🧋", area: "body", difficulty: "easy", ap: 5, xp: 0, hp_penalty: 3, polarity: -1, sort: 23 },
   { type: "habit", title: "Late-night supper", emoji: "🍜", area: "body", difficulty: "medium", ap: 10, xp: 0, hp_penalty: 5, polarity: -1, sort: 24 },
+  JOURNAL_QUEST,
 ];
 
 export const SEED_SHOP: Row[] = [
@@ -113,6 +125,12 @@ export const SEED_ACHIEVEMENTS: Row[] = [
   A("boss_1", "Boss Slayer", "⚔️", "Win your first sprint", { t: "sprints_won", n: 1 }, "silver"),
   A("goal_1", "Dream Achiever", "🎯", "Complete a life goal", { t: "goals_done", n: 1 }, "gold"),
   A("phoenix", "Phoenix", "🐣", "Get back up after fainting", { t: "revives", n: 1 }, "silver", { hidden: 1 }),
+  // writing (the 📔 tracker counts journal words; keep in step with worker/schema/0003_notes.sql)
+  A("journal_first", "Dear Diary", "📔", "Write your first journal entry", { t: "metric_days", metric: "journal", n: 1 }, "bronze", { sort: 60 }),
+  A("journal_7", "Scribe", "✍️", "Journal 7 days in a row", { t: "metric_streak", metric: "journal", n: 7 }, "silver", { sort: 61 }),
+  A("journal_30", "Chronicler", "📜", "Journal 30 days in a row", { t: "metric_streak", metric: "journal", n: 30 }, "gold", { sort: 62 }),
+  A("journal_words", "Wordsmith", "🖋️", "Write 10,000 words in your journal", { t: "metric_total", metric: "journal", n: 10000 }, "gold", { sort: 63 }),
+  A("notes_25", "Bookworm", "🗒️", "Keep 25 notes in your notebook", { t: "notes", n: 25 }, "bronze", { sort: 64 }),
 ];
 
 export const SEED_GOALS: Row[] = [
@@ -150,6 +168,7 @@ const STARTER_METRICS: Row[] = [
   { key: "sleep", name: "Sleep", emoji: "😴", unit: "h", mode: "set", direction: "up", target: 7, decimals: 1, sort: 4 },
   { key: "focus", name: "Focus time", emoji: "🧠", unit: "h", mode: "add", direction: "up", target: 2, decimals: 2, quick: "0.5,1", sort: 5 },
   { key: "steps", name: "Steps", emoji: "👟", unit: "steps", mode: "set", direction: "up", target: 8000, decimals: 0, sort: 6 },
+  JOURNAL_METRIC,
 ];
 
 const STARTER: TemplateContent = {
@@ -161,6 +180,7 @@ const STARTER: TemplateContent = {
     { type: "daily", title: "Move for 30 minutes", emoji: "💪", area: "body", difficulty: "medium", ap: 10, xp: 20, hp_penalty: 5, sort: 4 },
     { type: "daily", title: "Deep focus for 2 hours", emoji: "🧠", area: "mind", difficulty: "hard", ap: 20, xp: 35, hp_penalty: 8, metric_key: "focus", metric_op: ">=", days: "1111100", sort: 5 },
     { type: "daily", title: "Tidy up for 10 minutes", emoji: "🧹", area: "home", difficulty: "trivial", ap: 3, xp: 5, hp_penalty: 2, sort: 6 },
+    { ...JOURNAL_QUEST, sort: 7 },
     { type: "weekly", title: "Workout", emoji: "🏃", area: "body", difficulty: "hard", ap: 20, xp: 35, hp_penalty: 8, weekly_target: 3, sort: 10 },
     { type: "weekly", title: "Call a friend or family", emoji: "📞", area: "family", difficulty: "easy", ap: 5, xp: 10, hp_penalty: 3, weekly_target: 1, sort: 11 },
     { type: "habit", title: "Read 20 pages", emoji: "📖", area: "mind", difficulty: "easy", ap: 5, xp: 10, hp_penalty: 0, polarity: 1, sort: 20 },
@@ -197,11 +217,11 @@ const STARTER: TemplateContent = {
 };
 
 const BLANK: TemplateContent = {
-  metrics: SEED_METRICS.filter((m) => m.key === "weight" || m.key === "calories").map((m) => ({ ...m, target: m.key === "calories" ? 2000 : null })),
+  metrics: [...SEED_METRICS.filter((m) => m.key === "weight" || m.key === "calories").map((m) => ({ ...m, target: m.key === "calories" ? 2000 : null })), JOURNAL_METRIC],
   quests: [],
   shop: GAME_ITEMS,
   vouchers: [],
-  achievements: SEED_ACHIEVEMENTS.filter((a) => usesMetric(a, ["weight", "calories"]) && a.key !== "goal_weight" && a.key !== "bmi_healthy"),
+  achievements: SEED_ACHIEVEMENTS.filter((a) => usesMetric(a, ["weight", "calories", "journal"]) && a.key !== "goal_weight" && a.key !== "bmi_healthy"),
   goals: [],
   settings: { height_m: 1.7 },
 };

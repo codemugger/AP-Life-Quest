@@ -17,9 +17,21 @@ export interface Stats {
   level: number;
   ap_balance: number;
   streak: number;
+  notes: number;
   metric: Record<
     string,
-    { days: number; total: number; first?: number; latest?: number; bestWeek: number; bestUnderRun: number; target: number | null; direction: string }
+    {
+      days: number;
+      total: number;
+      first?: number;
+      latest?: number;
+      bestWeek: number;
+      bestUnderRun: number;
+      /** longest run of consecutive days with something logged */
+      bestRun?: number;
+      target: number | null;
+      direction: string;
+    }
   >;
 }
 
@@ -42,6 +54,7 @@ export async function seasonStats(ctx: Ctx, tot: { ap: number; xp: number }): Pr
     stmt(db, "SELECT COUNT(*) AS c FROM purchases WHERE season_id = ? AND ledger_id IS NOT NULL", S),
     stmt(db, "SELECT COUNT(*) AS c FROM chests WHERE season_id = ? AND opened_at IS NOT NULL", S),
     stmt(db, "SELECT key, target, direction FROM metrics"),
+    db.prepare("SELECT COUNT(*) AS c FROM notes WHERE trashed_at IS NULL"),
   ]);
   const c = (i: number) => one<{ c: number }>(res[i])?.c ?? 0;
   const L = one<{ perfect: number; crits: number; sprints: number; goals: number; revives: number }>(res[1])!;
@@ -52,12 +65,17 @@ export async function seasonStats(ctx: Ctx, tot: { ap: number; xp: number }): Pr
     const weeks: Record<string, number> = {};
     let run = 0;
     let best = 0;
+    let logRun = 0;
+    let bestRun = 0;
     let prev: string | null = null;
     for (const v of vs) {
       weeks[weekStart(v.date)] = (weeks[weekStart(v.date)] ?? 0) + v.value;
+      const next = !!prev && addDays(prev, 1) === v.date;
       const good = m.target !== null && v.value <= m.target;
-      run = good ? (prev && addDays(prev, 1) === v.date ? run + 1 : 1) : 0;
+      run = good ? (next ? run + 1 : 1) : 0;
       best = Math.max(best, run);
+      logRun = next ? logRun + 1 : 1;
+      bestRun = Math.max(bestRun, logRun);
       prev = v.date;
     }
     metric[m.key] = {
@@ -67,6 +85,7 @@ export async function seasonStats(ctx: Ctx, tot: { ap: number; xp: number }): Pr
       latest: vs.at(-1)?.value,
       bestWeek: Math.max(0, ...Object.values(weeks)),
       bestUnderRun: best,
+      bestRun,
       target: m.target,
       direction: m.direction,
     };
@@ -83,6 +102,7 @@ export async function seasonStats(ctx: Ctx, tot: { ap: number; xp: number }): Pr
     level: levelInfo(tot.xp).level,
     ap_balance: tot.ap,
     streak: Math.max(ctx.player.streak, ctx.player.best_streak),
+    notes: c(6),
     metric,
   };
 }
@@ -110,7 +130,8 @@ export function progressFor(ruleRaw: string | Rule, st: Stats, heightM: number):
     case "revives":
     case "level":
     case "streak":
-      return [st[r.t], n];
+    case "notes":
+      return [st[r.t] ?? 0, n];
     case "ap_balance":
       return [Math.max(0, st.ap_balance), n];
     case "metric_days":
@@ -121,6 +142,8 @@ export function progressFor(ruleRaw: string | Rule, st: Stats, heightM: number):
       return [Math.round((m?.bestWeek ?? 0) * 10) / 10, n];
     case "under_target_streak":
       return [m?.bestUnderRun ?? 0, n];
+    case "metric_streak":
+      return [m?.bestRun ?? 0, n];
     case "weight_lost": {
       const w = st.metric.weight;
       const lost = w?.first !== undefined && w.latest !== undefined ? w.first - w.latest : 0;

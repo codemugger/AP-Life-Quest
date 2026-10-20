@@ -4,9 +4,10 @@
 // 500 rows of one table, so saving and loading cost the Worker almost no CPU however big the game gets.
 import { addDays } from "../shared/dates";
 import { levelInfo } from "../shared/levels";
+import { MAX_DOC_CHARS, sanitizeDoc } from "../shared/notedoc";
 import { all, bad, first, HttpError, notFound, stmt } from "./db";
 import { savePlayer, settingStmt, totals, type Ctx } from "./game";
-
+import { contentCols, journalRebuildStmts } from "./notes";
 import { ownerTemplatesAllowed, seedAll } from "./seeding";
 
 /** Every table that holds game data (sessions/login attempts/snapshots are deliberately excluded). */
@@ -34,11 +35,24 @@ export const DATA_TABLES = [
   "sprints",
   "sprint_tasks",
   "events",
+  "notebooks",
+  "note_labels",
+  "notes",
 ] as const;
+
+/**
+ * Your notebook is life data, not game progress: loading a save point or a factory reset leaves it
+ * alone unless you ask, and a backup file only replaces it if the file contains notes.
+ */
+export const NOTE_TABLES: readonly string[] = ["notebooks", "note_labels", "notes"];
 
 const isDataTable = (t: string) => (DATA_TABLES as readonly string[]).includes(t);
 const IDENT = /^[a-z_][a-z0-9_]*$/;
 const PART = 500;
+/** Rows per chunk: notes are big, and a single value in a character database must stay under 2 MB. */
+const partOf = (t: string) => (t === "notes" ? 10 : PART);
+/** Columns left out of downloaded backups (rebuilt from the doc on import, keeps files small). */
+const EXPORT_SKIP: Record<string, string[]> = { notes: ["preview", "text"] };
 const MAX_IMPORT_ROWS = 60_000;
 const MAX_MANUAL_SNAPSHOTS = 12;
 /** Newest snapshots kept per automatic kind. */
@@ -62,14 +76,19 @@ async function tableColumns(db: D1Database) {
 /** One statement per chunk; with a snapshot id they INSERT the chunk, without they just SELECT it. */
 async function chunkStatements(db: D1Database, snapId: number | null) {
   const cols = await tableColumns(db);
-  const counts = await db.batch(DATA_TABLES.map((t) => db.prepare(`SELECT COUNT(*) AS n FROM ${t}`)));
+  const tables = DATA_TABLES.filter((t) => cols[t].length); // the v1 database has no notebook tables
+  const counts = await db.batch(tables.map((t) => db.prepare(`SELECT COUNT(*) AS n FROM ${t}`)));
   const out: D1PreparedStatement[] = [];
   let idx = 0;
-  DATA_TABLES.forEach((t, i) => {
+  tables.forEach((t, i) => {
     const n = (counts[i].results[0] as { n: number }).n;
-    const obj = cols[t].map((c) => `'${c}', "${c}"`).join(", ");
-    for (let off = 0; off < Math.max(n, 1); off += PART) {
-      const sel = `SELECT json_group_array(json_object(${obj})) FROM (SELECT * FROM ${t} ORDER BY rowid LIMIT ${PART} OFFSET ${off})`;
+    const obj = cols[t]
+      .filter((c) => snapId !== null || !EXPORT_SKIP[t]?.includes(c))
+      .map((c) => `'${c}', "${c}"`)
+      .join(", ");
+    const part = partOf(t);
+    for (let off = 0; off < Math.max(n, 1); off += part) {
+      const sel = `SELECT json_group_array(json_object(${obj})) FROM (SELECT * FROM ${t} ORDER BY rowid LIMIT ${part} OFFSET ${off})`;
       out.push(
         snapId === null
           ? stmt(db, `SELECT ? AS tbl, (${sel}) AS data`, t)
@@ -125,15 +144,21 @@ export async function createSnapshot(db: D1Database, label: string, kind = "manu
   return id;
 }
 
-/** Loads a save point (after saving the current game), entirely inside SQLite, in one atomic batch. */
-export async function restoreSnapshot(db: D1Database, id: number) {
+/**
+ * Loads a save point (after saving the current game), entirely inside SQLite, in one atomic batch.
+ * The notebook only goes back in time too with `notes`.
+ */
+export async function restoreSnapshot(db: D1Database, id: number, opts: { notes?: boolean } = {}) {
   const chunks = await all<{ idx: number; tbl: string; cols: string }>(db, "SELECT idx, tbl, cols FROM snapshot_chunks WHERE snapshot_id = ? ORDER BY idx", id);
   if (!chunks.length) throw notFound("Save point not found");
   await createSnapshot(db, "Before loading a save point", "pre-restore");
   const live = await tableColumns(db);
-  const batch: D1PreparedStatement[] = DATA_TABLES.map((t) => db.prepare(`DELETE FROM ${t}`));
+  // (save points from before the notebook existed have no notes: the current ones stay then too)
+  const keepNotes = !opts.notes || !chunks.some((ch) => ch.tbl === "notes");
+  const replace = (t: string) => isDataTable(t) && !(keepNotes && NOTE_TABLES.includes(t));
+  const batch: D1PreparedStatement[] = DATA_TABLES.filter(replace).map((t) => db.prepare(`DELETE FROM ${t}`));
   for (const ch of chunks) {
-    if (!isDataTable(ch.tbl)) continue;
+    if (!replace(ch.tbl)) continue;
     let saved: string[] = [];
     try {
       saved = JSON.parse(ch.cols);
@@ -151,25 +176,42 @@ export async function restoreSnapshot(db: D1Database, id: number) {
       ),
     );
   }
+  batch.push(...journalRebuildStmts(db));
   await db.batch(batch);
 }
 
 /** Imported values get the same safety rules as things typed into the app. */
-function sanitise(col: string, v: unknown): unknown {
+function sanitise(t: string, col: string, v: unknown): unknown {
   if (v === null || v === undefined) return null;
   if (typeof v === "boolean") return v ? 1 : 0;
   if (typeof v === "object") return null; // backups only contain scalars
   if (col === "link") return typeof v === "string" && /^https?:\/\//i.test(v) && v.length <= 1000 ? v : null;
-  if (col === "images") {
+  const ids = (max: number) => {
     try {
       const a = JSON.parse(String(v));
-      return Array.isArray(a) && a.length <= 12 && a.every((x) => Number.isInteger(x) && x > 0) ? JSON.stringify(a) : null;
+      return Array.isArray(a) && a.length <= max && a.every((x) => Number.isInteger(x) && x > 0) ? JSON.stringify(a) : null;
     } catch {
       return null;
     }
+  };
+  if (col === "images") return ids(12);
+  if (t === "notes") {
+    if (col === "media_ids") return ids(5000);
+    if (col === "labels") return ids(30);
+    // already rebuilt from a sanitised doc by notesRow()
+    if (col === "doc" || col === "preview" || col === "text" || col === "extras") return typeof v === "string" && v.length <= MAX_DOC_CHARS * 2 ? v : null;
   }
   if (typeof v === "string" && v.length > 10_000) return v.slice(0, 10_000);
   return v;
+}
+
+/** A note from a backup file: its text, preview and media list are rebuilt from its (sanitised) doc. */
+function notesRow(r: Record<string, unknown>): Record<string, unknown> {
+  try {
+    return { ...r, ...contentCols(JSON.parse(String(r.doc))) };
+  } catch {
+    return { ...r, ...contentCols(sanitizeDoc(null)) };
+  }
 }
 
 /**
@@ -190,9 +232,13 @@ export async function importAll(db: D1Database, data: Backup, opts: { keepTempla
   DATA_TABLES.forEach((t, i) => {
     required[t] = new Set((info[i].results as { name: string; notnull: number; dflt_value: unknown }[]).filter((c) => c.notnull && c.dflt_value !== null).map((c) => c.name));
   });
-  const batch: D1PreparedStatement[] = DATA_TABLES.map((t) => db.prepare(`DELETE FROM ${t}`));
+  // Files from before the notebook existed don't touch it.
+  const replace = (t: string) => !NOTE_TABLES.includes(t) || Array.isArray(data.tables[t]);
+  const batch: D1PreparedStatement[] = DATA_TABLES.filter(replace).map((t) => db.prepare(`DELETE FROM ${t}`));
   for (const t of DATA_TABLES) {
-    const list = Array.isArray(data.tables[t]) ? data.tables[t].filter((r) => r && typeof r === "object") : [];
+    if (!replace(t)) continue;
+    let list = Array.isArray(data.tables[t]) ? data.tables[t].filter((r) => r && typeof r === "object") : [];
+    if (t === "notes") list = list.map(notesRow);
     if (!list.length) continue;
     // Group rows by which columns they have, so a missing field gets its normal default
     // (normal exports are a single group; hand-edited files may have several).
@@ -209,11 +255,12 @@ export async function importAll(db: D1Database, data: Backup, opts: { keepTempla
       for (let j = 0; j < grp.length; j += perStmt) {
         const chunk = grp.slice(j, j + perStmt);
         const sql = `INSERT INTO ${t} (${cols.map((c) => `"${c}"`).join(",")}) VALUES ${chunk.map(() => `(${cols.map(() => "?").join(",")})`).join(",")}`;
-        batch.push(stmt(db, sql, ...chunk.flatMap((r) => cols.map((c) => sanitise(c, r[c])))));
+        batch.push(stmt(db, sql, ...chunk.flatMap((r) => cols.map((c) => sanitise(t, c, r[c])))));
       }
     }
   }
   if (opts.keepTemplate) batch.push(stmt(db, "INSERT OR REPLACE INTO settings (key, value) VALUES ('template', ?)", current?.value ?? JSON.stringify("starter")));
+  batch.push(...journalRebuildStmts(db));
   await db.batch(batch);
 }
 
@@ -282,14 +329,15 @@ export async function seasonReset(ctx: Ctx, name: string) {
   ctx.fx.push({ t: "toast", msg: "New Game+ started. Fresh season, same you — let's go!", emoji: "🌱" });
 }
 
-/** Wipes everything (a save point is made first) and reloads the starter content. */
-export async function factoryReset(db: D1Database, keepProfile: Record<string, unknown>) {
+/** Wipes everything (a save point is made first) and reloads the starter content. The notebook stays unless `notes`. */
+export async function factoryReset(db: D1Database, keepProfile: Record<string, unknown>, opts: { notes?: boolean } = {}) {
   const allowOwnerOnly = await ownerTemplatesAllowed(db);
   await createSnapshot(db, "Before factory reset", "pre-reset");
-  await db.batch(DATA_TABLES.map((t) => db.prepare(`DELETE FROM ${t}`)));
+  await db.batch(DATA_TABLES.filter((t) => opts.notes || !NOTE_TABLES.includes(t)).map((t) => db.prepare(`DELETE FROM ${t}`)));
   try {
     await seedAll(db, keepProfile, undefined, allowOwnerOnly);
   } catch (e) {
     throw new HttpError(500, `Reset failed while seeding: ${(e as Error).message}`);
   }
+  await db.batch(journalRebuildStmts(db));
 }

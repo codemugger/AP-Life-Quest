@@ -24,10 +24,30 @@ import {
   voidLedger,
   type Ctx,
 } from "../game";
+import {
+  createLabel,
+  createNote,
+  createNotebook,
+  deleteLabel,
+  deleteNote,
+  deleteNotebook,
+  duplicateNote,
+  emptyTrash,
+  getNote,
+  listNotes,
+  reminderDone,
+  searchNotes,
+  syncJournal,
+  trashNote,
+  updateLabel,
+  updateNote,
+  updateNotebook,
+  type NoteResult,
+} from "../notes";
 import { setGoalStatus, toggleMilestone, toggleTask } from "../progress";
 import { buildState } from "../state";
 
-export const VERSION = "2.0.0";
+export const VERSION = "2.1.0";
 
 type GameEnv = { Bindings: { DB: D1Database } };
 type C = Context<GameEnv>;
@@ -194,28 +214,67 @@ gameApp.put("/api/data/:entity/:pk", (c) => act(c, (ctx, b) => updateRow(ctx, c.
 gameApp.delete("/api/data/:entity/:pk", (c) => act(c, (ctx) => deleteRow(ctx, c.req.param("entity"), c.req.param("pk"))));
 gameApp.get("/api/data", (c) => c.json(Object.keys(ENTITIES)));
 
-// ---------- pictures ----------
+// ---------- notebook ----------
+/** Note writes skip the game engine, unless a journal entry's word count has to reach it. */
+async function noteAct(c: C, fn: (db: D1Database, b: Record<string, any>) => Promise<NoteResult>) {
+  const b = c.req.method === "DELETE" ? {} : await c.req.json<Record<string, any>>().catch(() => ({}));
+  const r = await fn(c.env.DB, b ?? {});
+  const fx = await syncJournal(c.env.DB, r.dates ?? [], r.force ?? !!b?.sync);
+  return c.json({ ok: true, fx, data: r.data ?? null });
+}
+
+gameApp.get("/api/notes", async (c) => c.json(await listNotes(c.env.DB)));
+gameApp.get("/api/notes/search", async (c) => c.json(await searchNotes(c.env.DB, c.req.query("q") ?? "")));
+gameApp.get("/api/notes/:id", async (c) => c.json(await getNote(c.env.DB, id(c))));
+gameApp.post("/api/notes", (c) => noteAct(c, (db, b) => createNote(db, b)));
+gameApp.post("/api/notes/empty-trash", (c) => noteAct(c, (db) => emptyTrash(db)));
+gameApp.put("/api/notes/:id", (c) => noteAct(c, (db, b) => updateNote(db, id(c), b)));
+gameApp.post("/api/notes/:id/trash", (c) => noteAct(c, (db) => trashNote(db, id(c), true)));
+gameApp.post("/api/notes/:id/restore", (c) => noteAct(c, (db) => trashNote(db, id(c), false)));
+gameApp.post("/api/notes/:id/duplicate", (c) => noteAct(c, (db) => duplicateNote(db, id(c))));
+gameApp.post("/api/notes/:id/remind-done", (c) => noteAct(c, (db) => reminderDone(db, id(c))));
+gameApp.delete("/api/notes/:id", (c) => noteAct(c, (db) => deleteNote(db, id(c))));
+gameApp.post("/api/notebooks", (c) => noteAct(c, (db, b) => createNotebook(db, b)));
+gameApp.put("/api/notebooks/:id", (c) => noteAct(c, (db, b) => updateNotebook(db, id(c), b)));
+gameApp.delete("/api/notebooks/:id", (c) => noteAct(c, (db) => deleteNotebook(db, id(c))));
+gameApp.post("/api/note-labels", (c) => noteAct(c, (db, b) => createLabel(db, b)));
+gameApp.put("/api/note-labels/:id", (c) => noteAct(c, (db, b) => updateLabel(db, id(c), b)));
+gameApp.delete("/api/note-labels/:id", (c) => noteAct(c, (db) => deleteLabel(db, id(c))));
+
+// ---------- pictures & voice memos ----------
 const MAX_PICTURE = 1_500_000;
-/** Picture storage per character (owner / invited members). */
+const MAX_AUDIO = 1_900_000; // character databases hold values up to 2 MB
+/** Media storage per character (owner / invited members). */
 const pictureLimit = (c: C) => (c.req.header("x-aplq-owner") === "1" ? 150 : 50) * 1024 * 1024;
+const ascii = (b: Uint8Array, from: number, to: number) => String.fromCharCode(...b.slice(from, to));
 const MAGIC: Record<string, (b: Uint8Array) => boolean> = {
   "image/jpeg": (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
   "image/png": (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47,
   "image/gif": (b) => b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46,
-  "image/webp": (b) => String.fromCharCode(...b.slice(0, 4)) === "RIFF" && String.fromCharCode(...b.slice(8, 12)) === "WEBP",
+  "image/webp": (b) => ascii(b, 0, 4) === "RIFF" && ascii(b, 8, 12) === "WEBP",
+  "audio/mp4": (b) => ascii(b, 4, 8) === "ftyp",
+  "audio/webm": (b) => b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3,
+  "audio/ogg": (b) => ascii(b, 0, 4) === "OggS",
+  "audio/mpeg": (b) => ascii(b, 0, 3) === "ID3" || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0),
+  "audio/wav": (b) => ascii(b, 0, 4) === "RIFF" && ascii(b, 8, 12) === "WAVE",
 };
+const MIME_ALIAS: Record<string, string> = { "audio/x-m4a": "audio/mp4", "audio/m4a": "audio/mp4", "audio/mp3": "audio/mpeg", "audio/x-wav": "audio/wav", "audio/wave": "audio/wav" };
 const IMAGE_COLUMNS = ["quests", "events", "goals", "shop_items", "vouchers", "achievements", "sprints"];
+/** Every column that points at media (JSON arrays of media ids). */
+const MEDIA_REFS: [string, string][] = [...IMAGE_COLUMNS.map((t): [string, string] => [t, "images"]), ["notes", "media_ids"]];
 
 gameApp.post("/api/media", async (c) => {
-  const mime = (c.req.header("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  const raw = (c.req.header("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  const mime = MIME_ALIAS[raw] ?? raw;
   const check = MAGIC[mime];
-  if (!check) throw bad("Pictures must be JPEG, PNG, WebP or GIF");
+  if (!check) throw bad("Pictures must be JPEG, PNG, WebP or GIF; voice memos M4A, MP3, WebM, OGG or WAV");
+  const audio = mime.startsWith("audio/");
   const buf = await c.req.arrayBuffer();
   if (buf.byteLength < 24) throw bad("That file is empty");
-  if (buf.byteLength > MAX_PICTURE) throw bad("Picture too big (max 1.5 MB after compression)");
-  if (!check(new Uint8Array(buf, 0, 12))) throw bad("That file isn't really a picture");
+  if (buf.byteLength > (audio ? MAX_AUDIO : MAX_PICTURE)) throw bad(audio ? "Voice memo too long (max about 5 minutes)" : "Picture too big (max 1.5 MB after compression)");
+  if (!check(new Uint8Array(buf, 0, 12))) throw bad(audio ? "That file isn't really audio" : "That file isn't really a picture");
   const used = (await first<{ s: number }>(c.env.DB, "SELECT COALESCE(SUM(size), 0) AS s FROM media"))?.s ?? 0;
-  if (used + buf.byteLength > pictureLimit(c)) throw bad(`Picture storage is full (${pictureLimit(c) / 1024 / 1024} MB). Remove unused pictures in Settings.`);
+  if (used + buf.byteLength > pictureLimit(c)) throw bad(`Picture & voice memo storage is full (${pictureLimit(c) / 1024 / 1024} MB). Remove unused ones in Settings.`);
   const dim = (h: string) => Math.max(0, Math.min(10000, Math.round(Number(c.req.header(h)) || 0))) || null;
   const row = await stmt(c.env.DB, "INSERT INTO media (mime, width, height, size, data) VALUES (?,?,?,?,?) RETURNING id", mime, dim("x-width"), dim("x-height"), buf.byteLength, buf).first<{ id: number }>();
   return c.json({ ok: true, id: row!.id });
@@ -231,21 +290,30 @@ gameApp.get("/api/media/:id", async (c) => {
   }
   const row = await first<{ mime: string; data: ArrayBuffer }>(c.env.DB, "SELECT mime, data FROM media WHERE id = ?", id(c));
   if (!row || !MAGIC[row.mime]) throw notFound("Picture not found");
-  return new Response(row.data, {
-    headers: {
-      "Content-Type": row.mime,
-      ETag: etag,
-      "Cache-Control": "private, no-cache",
-      "Content-Security-Policy": "default-src 'none'",
-      "Content-Disposition": "inline",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": row.mime,
+    ETag: etag,
+    "Cache-Control": "private, no-cache",
+    "Content-Security-Policy": "default-src 'none'",
+    "Content-Disposition": "inline",
+    "X-Content-Type-Options": "nosniff",
+    "Accept-Ranges": "bytes",
+  };
+  // Audio players (Safari especially) ask for byte ranges.
+  const size = row.data.byteLength;
+  const range = /^bytes=(\d*)-(\d*)$/.exec(c.req.header("range")?.trim() ?? "");
+  if (range && (range[1] || range[2])) {
+    const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+    const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+    if (start >= size || start > end) return new Response(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${size}` } });
+    return new Response(row.data.slice(start, end + 1), { status: 206, headers: { ...headers, "Content-Range": `bytes ${start}-${end}/${size}` } });
+  }
+  return new Response(row.data, { headers });
 });
 
-// "Nothing points at this picture" — one NOT EXISTS per table (character databases cap compound SELECTs).
-const unusedSql = IMAGE_COLUMNS.map(
-  (t) => `NOT EXISTS (SELECT 1 FROM ${t} x, json_each(x.images) j WHERE x.images IS NOT NULL AND json_valid(x.images) AND CAST(j.value AS INTEGER) = media.id)`,
+// "Nothing points at this file" — one NOT EXISTS per column (character databases cap compound SELECTs).
+const unusedSql = MEDIA_REFS.map(
+  ([t, col]) => `NOT EXISTS (SELECT 1 FROM ${t} x, json_each(x.${col}) j WHERE x.${col} IS NOT NULL AND json_valid(x.${col}) AND CAST(j.value AS INTEGER) = media.id)`,
 ).join(" AND ");
 
 gameApp.get("/api/media", async (c) => {
@@ -260,7 +328,7 @@ gameApp.get("/api/media", async (c) => {
 /** Deletes pictures nothing points at (older save points may then show a placeholder). */
 gameApp.post("/api/media/cleanup", async (c) => {
   const r = await run(c.env.DB, `DELETE FROM media WHERE ${unusedSql} AND created_at < datetime('now', '-1 hour')`);
-  return c.json({ ok: true, removed: r.meta.changes, fx: [{ t: "toast", msg: `Removed ${r.meta.changes} unused picture(s)`, emoji: "🧹" }] });
+  return c.json({ ok: true, removed: r.meta.changes, fx: [{ t: "toast", msg: `Removed ${r.meta.changes} unused picture(s) / voice memo(s)`, emoji: "🧹" }] });
 });
 
 // ---------- save points, export/import, resets ----------
@@ -271,7 +339,8 @@ gameApp.post("/api/snapshots", async (c) => {
   return c.json({ ok: true, id: snapId });
 });
 gameApp.post("/api/snapshots/:id/restore", async (c) => {
-  await restoreSnapshot(c.env.DB, id(c));
+  const b = await c.req.json<{ notes?: boolean }>().catch(() => ({}) as { notes?: boolean });
+  await restoreSnapshot(c.env.DB, id(c), { notes: !!b.notes });
   return c.json({ ok: true, fx: [{ t: "toast", msg: "Save point loaded", emoji: "💾" }] });
 });
 gameApp.get("/api/snapshots/:id/download", async (c) => {
@@ -307,7 +376,7 @@ gameApp.post("/api/reset/season", (c) =>
   }),
 );
 gameApp.post("/api/reset/factory", async (c) => {
-  const b = await c.req.json<{ confirm?: string }>().catch(() => ({}) as { confirm?: string });
+  const b = await c.req.json<{ confirm?: string; notes?: boolean }>().catch(() => ({}) as { confirm?: string; notes?: boolean });
   if (b.confirm !== "RESET EVERYTHING") throw bad('Type "RESET EVERYTHING" to confirm');
   const ctx = await loadCtx(c.env.DB);
   const s = ctx.s;
@@ -322,8 +391,8 @@ gameApp.post("/api/reset/factory", async (c) => {
     pet_species: s.pet_species,
     pet_eyes: s.pet_eyes,
   };
-  await factoryReset(c.env.DB, keep);
-  return c.json({ ok: true, fx: [{ t: "toast", msg: "Factory reset complete. A save point was made first.", emoji: "💥" }] });
+  await factoryReset(c.env.DB, keep, { notes: !!b.notes });
+  return c.json({ ok: true, fx: [{ t: "toast", msg: `Factory reset complete${b.notes ? "" : " (your notebook was kept)"}. A save point was made first.`, emoji: "💥" }] });
 });
 
 gameApp.all("/api/*", () => {

@@ -53,7 +53,7 @@ function client() {
     post: (p, b, o) => call("POST", p, b, o),
     put: (p, b) => call("PUT", p, b),
     del: (p, b) => call("DELETE", p, b),
-    get: (p) => call("GET", p),
+    get: (p, o) => call("GET", p, undefined, o),
   };
 }
 
@@ -198,6 +198,96 @@ const before = await state();
 await post("/ledger/adjust", { ap: 999, description: "after snapshot" });
 ok((await post(`/snapshots/${snap}/restore`)).status === 200 && (await state()).player.ap === before.player.ap, "save point restores the character");
 
+// ================= notebook =================
+const words = (n) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: Array.from({ length: n }, (_, i) => `word${i}`).join(" ") }] }] });
+const nbs = (await owner.get(g("/notes"))).data;
+ok(nbs.notebooks.length === 2 && nbs.notebooks.some((b) => b.kind === "journal"), "every character starts with a Notes and a Journal binder");
+const notesBook = nbs.notebooks.find((b) => b.kind === "notes");
+const journalBook = nbs.notebooks.find((b) => b.kind === "journal");
+const richDoc = {
+  type: "doc",
+  content: [
+    { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "CET 20 Oct" }] },
+    { type: "paragraph", content: [{ type: "text", text: "Gym 7pm", marks: [{ type: "bold" }, { type: "link", attrs: { href: "javascript:alert(1)" } }] }] },
+    { type: "image", attrs: { media: up.data.id, size: "m", onerror: "alert(1)" } },
+    { type: "script", content: [{ type: "text", text: "alert(1)" }] },
+  ],
+};
+const n1 = await post("/notes", { notebook_id: notesBook.id, title: "CET", doc: richDoc, color: "mint", paper: "grid", font: "hand" });
+ok(n1.status === 200 && n1.data.data.id > 0, "note with formatting and a picture saves");
+const N = n1.data.data;
+ok(!N.doc.includes("javascript") && !N.doc.includes("script") && !N.doc.includes("onerror") && N.doc.includes('"bold"'), "note content is sanitised (no scripts, handlers or javascript: links)");
+ok(N.cover === up.data.id && N.font === "hand" && N.paper === "grid", "cover picture, font and paper are kept");
+ok((await post("/notes", { title: "x", color: "hotpink" })).status === 400, "unknown note colour rejected");
+const e1 = await owner.put(g(`/notes/${N.id}`), { title: "CET v2", rev: N.rev });
+ok(e1.status === 200 && e1.data.data.rev === N.rev + 1, "editing bumps the note's revision");
+ok((await owner.put(g(`/notes/${N.id}`), { title: "stale", rev: N.rev })).status === 409, "a stale edit from another device is caught (409)");
+const lab = (await post("/note-labels", { name: "Work" })).data.data;
+ok((await post("/note-labels", { name: "work" })).status === 400, "duplicate labels rejected (any case)");
+s = await state();
+await owner.put(g(`/notes/${N.id}`), { labels: [lab.id, 99999], pinned: 1, pin_today: 1, goal_id: s.goals[0].id });
+s = await state();
+ok(s.notes.some((n) => n.id === N.id && n.pin_today && n.preview && n.goal_id === s.goals[0].id), "Camp pins and goal links reach the game state");
+let card = (await owner.get(g("/notes"))).data.notes.find((n) => n.id === N.id);
+ok(JSON.parse(card.labels).join() === String(lab.id) && card.pinned === 1, "labels keep only real ids; pin saved");
+ok((await owner.get(g("/notes/search?q=gym"))).data.some((h) => h.id === N.id), "search finds words inside notes");
+ok((await owner.put(g(`/notes/${N.id}`), { goal_id: 987654 })).status === 400, "linking to a goal that doesn't exist is rejected");
+
+// journal → quest, trophy, undo
+const jq = s.quests.find((q) => q.metric_key === "journal");
+ok(!!jq && s.metrics.some((m) => m.key === "journal"), "the journal tracker and quest exist");
+const j1 = await post("/notes", { notebook_id: journalBook.id, doc: words(10) });
+ok(j1.status === 200 && j1.data.data.journal_date === s.today, "journal entry is dated today");
+s = await state();
+const jv = () => s.values.find((v) => v.metric_key === "journal" && v.date === s.today)?.value ?? null;
+const jdone = () => s.log.some((l) => l.quest_id === jq.id && l.date === s.today);
+ok(jv() === 10 && !jdone(), "10 words are logged; the quest isn't done yet (needs 30)");
+await owner.put(g(`/notes/${j1.data.data.id}`), { doc: words(20) });
+s = await state();
+ok(jv() === 20 && !jdone(), "autosaves update the word count quietly");
+const j2 = await owner.put(g(`/notes/${j1.data.data.id}`), { doc: words(35) });
+s = await state();
+ok(j2.data.fx.some((f) => f.t === "xp") && jdone(), "crossing 30 words ticks the journal quest (+XP)");
+ok(!!s.achievements.find((a) => a.key === "journal_first")?.unlocked_at, "“Dear Diary” trophy unlocks");
+await post(`/notes/${j1.data.data.id}/trash`);
+s = await state();
+ok(jv() === null && !jdone(), "trashing the entry takes its words and the quest back");
+await post(`/notes/${j1.data.data.id}/restore`);
+s = await state();
+ok(jv() === 35 && jdone(), "restoring it brings them back");
+ok((await post("/notes", { notebook_id: journalBook.id, journal_date: "2099-01-01", doc: words(5) })).status === 400, "can't journal for a future day");
+
+// reminders, binders, save points, backups
+await owner.put(g(`/notes/${N.id}`), { remind_at: new Date(Date.now() - 60_000).toISOString(), remind_repeat: "daily" });
+const rd = await post(`/notes/${N.id}/remind-done`);
+ok(Date.parse(rd.data.data.remind_at) > Date.now(), "a repeating reminder moves to its next time when done");
+const work = (await post("/notebooks", { name: "Work", emoji: "💼", color: "sky" })).data.data;
+const n2 = (await post("/notes", { notebook_id: work.id, title: "minutes", doc: words(3) })).data.data;
+ok((await owner.del(g(`/notebooks/${work.id}`))).status === 200 && (await owner.get(g(`/notes/${n2.id}`))).data.notebook_id === notesBook.id, "deleting a notebook moves its notes (nothing lost)");
+const snap2 = (await post("/snapshots", { label: "notes" })).data.id;
+const n3 = (await post("/notes", { title: "after the save point", doc: words(4) })).data.data;
+await post(`/snapshots/${snap2}/restore`);
+ok((await owner.get(g(`/notes/${n3.id}`))).status === 200, "loading a save point keeps today's notes by default");
+await post(`/snapshots/${snap2}/restore`, { notes: true });
+ok((await owner.get(g(`/notes/${n3.id}`))).status === 404, "…or rolls the notebook back too when asked");
+const exp2 = (await owner.get(g("/export"))).data;
+ok(exp2.tables.notes?.length > 0 && !("text" in exp2.tables.notes[0]), "backups include notes (without rebuildable columns)");
+const target = exp2.tables.notes[0];
+target.doc = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "evil", marks: [{ type: "link", attrs: { href: "javascript:x" } }] }] }] });
+ok((await post("/import", exp2)).status === 200, "a backup with notes imports");
+const back2 = (await owner.get(g(`/notes/${target.id}`))).data;
+ok(!back2.doc.includes("javascript") && back2.words === 1 && !!back2.preview, "imported notes are sanitised and rebuilt");
+
+// voice memos
+const M4A = new Uint8Array(64);
+M4A.set([0, 0, 0, 0x18], 0);
+M4A.set(new TextEncoder().encode("ftypM4A "), 4);
+const au = await owner.post(g("/media"), null, { raw: M4A, headers: { "content-type": "audio/x-m4a" } });
+ok(au.status === 200 && au.data.id > 0, "voice memo upload works (m4a)");
+const part = await owner.get(g(`/media/${au.data.id}`), { headers: { range: "bytes=4-11" } });
+ok(part.status === 206 && part.data.length === 8 && part.type === "audio/mp4", "voice memos stream in ranges (iPhone players need this)");
+ok((await owner.post(g("/media"), null, { raw: new TextEncoder().encode("<html>".padEnd(40)), headers: { "content-type": "audio/webm" } })).status === 400, "fake audio rejected");
+
 // ================= copy, limits, delete =================
 const c2 = await owner.post("/characters", { name: "Anson Test", copy_from: A });
 ok(c2.status === 200, "copy setup from another character");
@@ -242,9 +332,14 @@ ok((await again.post(`/c/${M}/import`, mexp)).status === 200, "member imports a 
 let mstate = (await again.get(`/c/${M}/state`)).data;
 const evil = mstate.quests.find((q) => q.title === "evil link");
 ok(mstate.settings.template === "starter" && evil && evil.link === null && evil.images === null, "import keeps the template and strips bad links/pictures");
+const kept = (await again.post(`/c/${M}/notes`, { title: "my diary", doc: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }] } })).data.data;
 await again.post(`/c/${M}/reset/factory`, { confirm: "RESET EVERYTHING" });
 mstate = (await again.get(`/c/${M}/state`)).data;
 ok(!mstate.shop.some((i) => i.name.includes("Calorie Waiver")) && mstate.settings.template === "starter", "factory reset can't produce the owner's template");
+const mnotes = (await again.get(`/c/${M}/notes`)).data;
+ok(mnotes.notes.some((n) => n.id === kept.id) && mnotes.notebooks.length === 2, "factory reset keeps the notebook (no duplicate binders)");
+await again.post(`/c/${M}/reset/factory`, { confirm: "RESET EVERYTHING", notes: true });
+ok((await again.get(`/c/${M}/notes`)).data.notes.length === 0, "…unless you ask to delete it too");
 // (2) save-point cap
 let last = 0;
 for (let i = 0; i < 13; i++) last = (await again.post(`/c/${M}/snapshots`, { label: `s${i}` })).status;

@@ -8,6 +8,7 @@ import { buildPet, isPetColor, PET_COLORS, petPalette } from "../shared/petgrid"
 import { EYES, isUnlocked, SPECIES } from "../shared/levels";
 import { TEMPLATES } from "../worker/seed";
 import { progressFor, type Stats } from "../worker/achievements";
+import { countWords, emptyDoc, NOTE_FONTS, sanitizeDoc, summarize } from "../shared/notedoc";
 
 describe("levels", () => {
   it("follows the XP curve", () => {
@@ -138,10 +139,11 @@ describe("health", () => {
 describe("achievement progress", () => {
   const st: Stats = {
     quests_done: 12, perfect_days: 2, purchases: 1, chests_opened: 3, crits: 4, sprints_won: 0, goals_done: 0, revives: 0,
-    level: 4, ap_balance: 300, streak: 5,
+    level: 4, ap_balance: 300, streak: 5, notes: 7,
     metric: {
       weight: { days: 10, total: 650, first: 67, latest: 64.5, bestWeek: 0, bestUnderRun: 0, target: 55, direction: "down" },
       calories: { days: 9, total: 17000, bestWeek: 0, bestUnderRun: 6, target: 1800, direction: "down", first: 2000, latest: 1700 },
+      journal: { days: 4, total: 1200, bestWeek: 900, bestUnderRun: 0, bestRun: 3, target: 30, direction: "up" },
     },
   };
   it("reports [current, target]", () => {
@@ -151,6 +153,60 @@ describe("achievement progress", () => {
     expect(progressFor({ t: "metric_target", metric: "weight" }, st, 1.62)).toEqual([0, 1]);
     expect(progressFor('{"t":"metric_days","metric":"weight","n":30}', st, 1.62)).toEqual([10, 30]);
     expect(progressFor({ t: "manual" }, st, 1.62)).toEqual([0, 1]);
+    expect(progressFor({ t: "metric_streak", metric: "journal", n: 7 }, st, 1.62)).toEqual([3, 7]);
+    expect(progressFor({ t: "metric_total", metric: "journal", n: 10000 }, st, 1.62)).toEqual([1200, 10000]);
+    expect(progressFor({ t: "notes", n: 25 }, st, 1.62)).toEqual([7, 25]);
+  });
+});
+
+describe("notes", () => {
+  const p = (text: string, marks?: object[]) => ({ type: "paragraph", content: [{ type: "text", text, ...(marks ? { marks } : {}) }] });
+  it("keeps only whitelisted nodes, marks and styles", () => {
+    const doc = sanitizeDoc({
+      type: "doc",
+      content: [
+        p("hi", [{ type: "bold" }, { type: "evil" }, { type: "textStyle", attrs: { color: "red; background:url(x)", fontFamily: '"Patrick Hand", cursive', fontSize: "99px" } }]),
+        { type: "script", content: [{ type: "text", text: "alert(1)" }] },
+        p("x", [{ type: "link", attrs: { href: "javascript:alert(1)" } }]),
+        p("y", [{ type: "link", attrs: { href: "https://example.com", onclick: "x" } }]),
+        { type: "image", attrs: { media: 5, size: "huge", onerror: "x" } },
+        { type: "image", attrs: { src: "https://evil/x.png" } },
+        { type: "paragraph", content: [{ type: "text", text: "" }] },
+        { type: "taskList", content: [{ type: "taskItem", attrs: { checked: true }, content: [p("done")] }] },
+      ],
+    });
+    const json = JSON.stringify(doc);
+    expect(json).not.toMatch(/evil|script|alert|javascript|onerror|onclick|99px|url\(/);
+    expect(doc.content![0].content![0].marks).toEqual([{ type: "bold" }, { type: "textStyle", attrs: { fontFamily: NOTE_FONTS.find((f) => f.id === "hand")!.css } }]);
+    expect(doc.content![1].content![0].marks).toBeUndefined(); // unsafe link dropped, text kept
+    expect(doc.content![2].content![0].marks).toEqual([{ type: "link", attrs: { href: "https://example.com" } }]);
+    expect(doc.content![3]).toEqual({ type: "image", attrs: { media: 5 } }); // bad size dropped; src-only image removed
+    expect(sanitizeDoc("nope")).toEqual(emptyDoc());
+    expect(sanitizeDoc({ type: "doc", content: [] })).toEqual(emptyDoc());
+  });
+  it("summarises text, words, media, tasks and a short preview", () => {
+    const doc = sanitizeDoc({
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "CET 20 Oct" }] },
+        p("Gym at 7pm, then aikido. It’s fine"),
+        { type: "image", attrs: { media: 3 } },
+        { type: "audio", attrs: { media: 4, duration: 12 } },
+        { type: "taskList", content: [1, 2, 3].map((i) => ({ type: "taskItem", attrs: { checked: i === 1 }, content: [p(`task ${i}`)] })) },
+        ...Array.from({ length: 20 }, (_, i) => p(`line ${i} ${"word ".repeat(30)}`)),
+      ],
+    });
+    const s = summarize(doc);
+    expect(s.media).toEqual([3, 4]);
+    expect(s.images).toEqual([3]);
+    expect(s.audio).toBe(1);
+    expect(s.tasks).toEqual([1, 3]);
+    expect(s.text.startsWith("CET 20 Oct\nGym at 7pm")).toBe(true);
+    expect(s.words).toBe(3 + 7 + 6 + 20 * 32);
+    const prev = JSON.stringify(s.preview);
+    expect(prev).not.toMatch(/"image"|"audio"/);
+    expect(prev.length).toBeLessThan(JSON.stringify(doc).length / 3);
+    expect(countWords("Dear diary, today was GREAT!")).toBe(5);
   });
 });
 

@@ -5,8 +5,11 @@ import { useGame } from "../store";
 import { Chest, Coin } from "../sprites";
 import { PetStage } from "../components/Hud";
 import { LogValue, QuestRow } from "../components/QuestRow";
-import { IconOrEmoji } from "../components/Media";
+import { IconOrEmoji, MediaImg } from "../components/Media";
+import { NoteView } from "../components/NoteView";
 import { Bar, Panel, Seg } from "../components/ui";
+import { useFx } from "../fx";
+import { notesApi, parseDoc, reminderDue, reminderLabel } from "../notes";
 import { dailiesFor, doneOn, fmt, fmtAP, relDay, valueOn } from "../util";
 
 export default function Camp() {
@@ -62,6 +65,7 @@ export default function Camp() {
           </div>
         </Panel>
         <Alerts />
+        <PinnedNotes />
       </div>
 
       <div>
@@ -88,6 +92,11 @@ export default function Camp() {
             {!dailies.length && <div className="empty">No dailies today. Add some in Quests!</div>}
           </div>
           <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
+            {state.quests.some((q) => q.metric_key === "journal" && q.active) && (
+              <a className="linkbtn" href="#/notes/journal">
+                ✍️ Write today's journal
+              </a>
+            )}
             <a className="linkbtn" href="#/quests">
               All quests →
             </a>
@@ -129,11 +138,64 @@ export default function Camp() {
   );
 }
 
+/** Notes you pinned to Camp (e.g. today's timetable). */
+function PinnedNotes() {
+  const { state } = useGame();
+  const pins = state.notes.filter((n) => n.pin_today && !n.archived);
+  if (!pins.length) return null;
+  return (
+    <Panel title="📌 Pinned notes" right={<a className="linkbtn" href="#/notes">Notebook →</a>}>
+      <div className="camp-notes">
+        {pins.map((n) => (
+          <a key={n.id} href={`#/notes/${n.id}`} className={`note-card mini nc-${n.color ?? "none"} paper-${n.paper}`}>
+            {n.cover && (
+              <div className="nc-cover">
+                <MediaImg id={n.cover} size="100%" />
+              </div>
+            )}
+            {n.title && <h3 className={`nc-title font-${n.font}`}>{n.title}</h3>}
+            <NoteView doc={parseDoc(n.preview)} compact font={n.font} className="nc-body" />
+          </a>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
 function Alerts() {
-  const { state, act, busy } = useGame();
+  const { state, act, busy, refresh } = useGame();
+  const fx = useFx();
   const p = state.player;
+  const reminders = state.notes.filter((n) => reminderDue(n.remind_at));
   return (
     <>
+      {reminders.map((n) => (
+        <div className="alert violet" key={`r${n.id}`}>
+          <span className="big">⏰</span>
+          <div className="grow">
+            <b>{n.title || "Note reminder"}</b>
+            <div className="small">
+              {reminderLabel(n.remind_at!)}
+              {n.remind_repeat ? " · repeats" : ""}
+            </div>
+          </div>
+          <a className="btn sm" href={`#/notes/${n.id}`}>
+            Open
+          </a>
+          <button
+            className="btn sm good"
+            aria-label="Mark reminder done"
+            onClick={() =>
+              notesApi
+                .write(`notes/${n.id}/remind-done`)
+                .then(refresh)
+                .catch((e) => fx.error((e as Error).message))
+            }
+          >
+            ✓
+          </button>
+        </div>
+      ))}
       {p.fainted ? (
         <div className="alert">
           <span className="big">😵</span>

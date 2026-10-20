@@ -159,7 +159,7 @@ export const ENTITIES: Record<string, Entity> = {
       images: IMG,
       link: URL_,
     },
-    onDelete: ["DELETE FROM milestones WHERE goal_id = ?"],
+    onDelete: ["DELETE FROM milestones WHERE goal_id = ?", "UPDATE notes SET goal_id = NULL WHERE goal_id = ?"],
   },
   milestones: {
     table: "milestones",
@@ -182,7 +182,7 @@ export const ENTITIES: Record<string, Entity> = {
       xp: ["int", { min: 0, max: 100000 }],
       images: IMG,
     },
-    onDelete: ["DELETE FROM sprint_tasks WHERE sprint_id = ?"],
+    onDelete: ["DELETE FROM sprint_tasks WHERE sprint_id = ?", "UPDATE notes SET sprint_id = NULL WHERE sprint_id = ?"],
   },
   sprint_tasks: {
     table: "sprint_tasks",
@@ -204,6 +204,7 @@ export const ENTITIES: Record<string, Entity> = {
       images: IMG,
       link: URL_,
     },
+    onDelete: ["UPDATE notes SET event_id = NULL WHERE event_id = ?"],
   },
 };
 

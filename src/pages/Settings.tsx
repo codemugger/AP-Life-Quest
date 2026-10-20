@@ -210,8 +210,9 @@ function SavePoints() {
               className="btn xs gold"
               onClick={async () => {
                 if (!confirm(`Load “${sp.label}”? Your current game is saved first, then replaced.`)) return;
+                const notes = confirm("Roll your notebook (notes & journal) back to this save point too?\n\nOK = yes, roll notes back · Cancel = keep today's notes");
                 try {
-                  await act(`snapshots/${sp.id}/restore`);
+                  await act(`snapshots/${sp.id}/restore`, { notes });
                   void load();
                 } catch {}
               }}
@@ -253,11 +254,11 @@ function Pictures() {
   const load = () => api<MediaStats>(g("media")).then(setM).catch(() => setM(null));
   useEffect(() => void load(), []);
   return (
-    <Panel title="🖼️ Pictures">
+    <Panel title="🖼️ Pictures & voice memos">
       {m ? (
         <>
           <p className="small">
-            {m.count} picture(s) · {fmt(m.bytes / 1024 / 1024, 1)} MB of {fmt(m.limit / 1024 / 1024, 0)} MB
+            {m.count} file(s) · {fmt(m.bytes / 1024 / 1024, 1)} MB of {fmt(m.limit / 1024 / 1024, 0)} MB
           </p>
           <Bar value={m.bytes} max={m.limit} kind="gold" thin seg={false} />
           <div className="row wrap" style={{ marginTop: 10 }}>
@@ -265,7 +266,7 @@ function Pictures() {
               className="btn sm"
               disabled={!m.unused}
               onClick={() =>
-                confirm(`Delete ${m.unused} picture(s) that nothing uses any more? (Older save points may then show a placeholder.)`) &&
+                confirm(`Delete ${m.unused} picture(s) / voice memo(s) that nothing uses any more (notes in the trash still count as using them)? Older save points may then show a placeholder.`) &&
                 act("media/cleanup").then(load).catch((e) => fx.error(e.message))
               }
             >
@@ -276,7 +277,7 @@ function Pictures() {
       ) : (
         <p className="small muted">Loading…</p>
       )}
-      <p className="tiny muted">Add pictures to quests, events, goals, shop items, vouchers, achievements and sprint bosses from their edit screens.</p>
+      <p className="tiny muted">Add pictures to quests, events, goals, shop items, vouchers, achievements and sprint bosses from their edit screens, and pictures, sketches and voice memos to notes.</p>
     </Panel>
   );
 }
@@ -285,6 +286,7 @@ function ResetModal({ kind, onClose }: { kind: "season" | "factory"; onClose: ()
   const { act } = useGame();
   const [typed, setTyped] = useState("");
   const [name, setName] = useState("");
+  const [notes, setNotes] = useState(false);
   const phrase = kind === "season" ? "NEW GAME" : "RESET EVERYTHING";
   return (
     <Modal
@@ -299,7 +301,7 @@ function ResetModal({ kind, onClose }: { kind: "season" | "factory"; onClose: ()
             className={`btn ${kind === "season" ? "gold" : "danger"}`}
             disabled={typed !== phrase}
             onClick={() =>
-              act(kind === "season" ? "reset/season" : "reset/factory", { confirm: typed, name })
+              act(kind === "season" ? "reset/season" : "reset/factory", { confirm: typed, name, notes })
                 .then(() => {
                   onClose();
                   location.hash = "#/";
@@ -320,7 +322,13 @@ function ResetModal({ kind, onClose }: { kind: "season" | "factory"; onClose: ()
           </Field>
         </>
       ) : (
-        <p>Everything goes back to the starter content. A save point is created first.</p>
+        <>
+          <p>Everything goes back to the starter content. A save point is created first.</p>
+          <p className="small ink2">Your notebook (notes & journal) is life, not game progress, so it stays unless you tick this:</p>
+          <label className="check">
+            <input type="checkbox" checked={notes} onChange={(e) => setNotes(e.target.checked)} /> Also delete my notebook
+          </label>
+        </>
       )}
       <Field label={`Type ${phrase} to confirm`}>
         <input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoCapitalize="characters" />
