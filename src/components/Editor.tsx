@@ -1,5 +1,6 @@
 // One editor for every configurable thing. Field specs live here; the server whitelists columns.
 import { useMemo, useState, type ReactElement } from "react";
+import { PRIORITIES, PRIORITY_ORDER, priorityOf } from "../../shared/priority";
 import { DIFFICULTY } from "../../shared/rules";
 import type { GameState } from "../../shared/types";
 import { useGame } from "../store";
@@ -88,17 +89,38 @@ function specs(s: GameState): Record<string, Spec> {
       fields: [
         { k: "type", label: "Type", type: "select", options: [["daily", "Daily — due every (chosen) day"], ["weekly", "Weekly — N times a week"], ["habit", "Habit — tap any time, good or bad"], ["todo", "To-do — one-off"]] },
         { k: "title", label: "Title", type: "text" },
+        // to-dos: how pressing it is comes first
+        {
+          k: "priority",
+          label: "Priority (Eisenhower matrix)",
+          type: "select",
+          options: [["", "— not sorted (no penalty) —"], ...PRIORITY_ORDER.map((p): [string, string] => [p, `${PRIORITIES[p].emoji} ${PRIORITIES[p].label} · ${PRIORITIES[p].quadrant}`])],
+          help: "Sets what a missed deadline costs. 🔥 −HP and its AP, then keeps hurting · 📅 −HP, keeps hurting, +25% AP if early · ⚡ −HP once · 🧹 nothing. Late = half pay.",
+          show: (d) => d.type === "todo",
+        },
+        {
+          k: "due_date",
+          label: "Due date",
+          type: "date",
+          help: "Deadline penalties need a due date (🔥 Do now defaults to today).",
+          show: (d) => d.type === "todo",
+        },
         { k: "emoji", label: "Icon", type: "emoji" },
         { k: "images", label: "Picture (optional, replaces the icon)", type: "images", max: 3 },
         { k: "difficulty", label: "Difficulty (sets rewards)", type: "select", options: Object.entries(DIFFICULTY).map(([k, v]) => [k, `${v.label} · ${v.ap} AP · ${v.xp} XP`]) },
         { k: "polarity", label: "Good or bad habit?", type: "select", options: [["1", "😇 Good (+AP)"], ["-1", "😈 Bad (−AP, −HP)"]], show: (d) => d.type === "habit" },
         { k: "ap", label: "AP", type: "number", help: "Per completion (per unit if the habit has a unit)" },
         { k: "xp", label: "XP", type: "number" },
-        { k: "hp_penalty", label: "HP damage", type: "number", help: "Dailies/weeklies: when missed. Bad habits: per tap.", show: (d) => d.type !== "todo" && !(d.type === "habit" && Number(d.polarity) > 0) },
+        {
+          k: "hp_penalty",
+          label: "HP damage",
+          type: "number",
+          help: "Dailies/weeklies: when missed. Bad habits: per tap. To-dos: when the deadline passes (half of it each extra late day for 🔥/📅).",
+          show: (d) => (d.type === "todo" ? !!d.priority && d.priority !== "later" : !(d.type === "habit" && Number(d.polarity) > 0)),
+        },
         { k: "unit", label: "Unit (optional)", type: "text", help: "e.g. h — then you'll be asked how many (coaching hours)", show: (d) => d.type === "habit" },
         { k: "days", label: "Due on", type: "days", show: (d) => d.type === "daily" },
         { k: "weekly_target", label: "Times per week", type: "number", show: (d) => d.type === "weekly" },
-        { k: "due_date", label: "Due date (optional)", type: "date", show: (d) => d.type === "todo" },
         { k: "metric_key", label: "Auto-complete from a tracker", type: "select", options: [["", "— no, I'll tick it —"], ...metricOpts], show: (d) => d.type === "daily" || d.type === "todo" },
         { k: "metric_op", label: "Complete when…", type: "select", options: [["logged", "anything is logged"], ["<=", "value ≤ threshold"], [">=", "value ≥ threshold"]], show: (d) => !!d.metric_key },
         { k: "metric_value", label: "Threshold", type: "number", help: "Leave empty to follow the tracker's target", show: (d) => !!d.metric_key && d.metric_op !== "logged" },
@@ -111,6 +133,7 @@ function specs(s: GameState): Record<string, Spec> {
         ...d,
         metric_key: d.metric_key || null,
         metric_op: d.metric_key ? d.metric_op || "logged" : null,
+        ...("priority" in d ? { priority: d.priority || null } : {}),
         // only habits show the good/bad choice; other quests keep the default (good)
         ...(d.polarity !== undefined && d.polarity !== null ? { polarity: Number(d.polarity) } : {}),
       }),
@@ -313,13 +336,22 @@ export function Editor({ entity, row, onClose }: { entity: string; row?: Record<
   const existing = !!row && row[spec.pk] !== undefined;
   const [d, setD] = useState<Record<string, any>>(() => {
     const base = { ...spec.defaults, ...(row ? (spec.fromRow ? spec.fromRow(row) : row) : {}) };
+    // new to-dos start as 📅 Schedule (important, not urgent)
+    if (entity === "quests" && !existing && base.type === "todo" && base.priority === undefined) Object.assign(base, { priority: "schedule", hp_penalty: PRIORITIES.schedule.hp });
     return { ...base, __existing: existing };
   });
   const [saving, setSaving] = useState(false);
   const set = (k: string, v: any) =>
     setD((prev) => {
       const next = { ...prev, [k]: v };
-      if (entity === "quests" && k === "difficulty" && DIFFICULTY[v]) Object.assign(next, { ap: DIFFICULTY[v].ap, xp: DIFFICULTY[v].xp, hp_penalty: DIFFICULTY[v].hp });
+      if (entity === "quests" && k === "difficulty" && DIFFICULTY[v])
+        Object.assign(next, { ap: DIFFICULTY[v].ap, xp: DIFFICULTY[v].xp, hp_penalty: next.type === "todo" ? (priorityOf(next.priority)?.hp ?? 0) : DIFFICULTY[v].hp });
+      // a to-do's priority sets its deadline damage; "Do now" is due today unless you pick a date
+      if (entity === "quests" && k === "priority") {
+        next.hp_penalty = priorityOf(v)?.hp ?? 0;
+        if (v === "do" && !next.due_date) next.due_date = state.today;
+      }
+      if (entity === "quests" && k === "type" && v === "todo" && next.priority === undefined) Object.assign(next, { priority: "schedule", hp_penalty: PRIORITIES.schedule.hp });
       return next;
     });
 

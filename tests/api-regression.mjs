@@ -43,6 +43,12 @@ function client() {
       if (tries > 1) return call(method, path, body, { raw, headers }, tries - 1); // stale keep-alive socket
       throw e;
     }
+    // the suite makes more changes a minute than the per-character limit allows: wait it out
+    if (r.status === 429 && tries > -20) {
+      await r.arrayBuffer();
+      await new Promise((ok) => setTimeout(ok, 5000));
+      return call(method, path, body, { raw, headers }, Math.min(tries, 1) - 1);
+    }
     const sc = r.headers.get("set-cookie");
     if (sc && sc.includes("aplq_session=")) cookie = sc.includes("Max-Age=0") ? "" : sc.split(";")[0];
     const type = r.headers.get("content-type") ?? "";
@@ -161,6 +167,47 @@ s = await state();
 ok(s.obligations.length === 1, "3500 kcal opens a calorie-court case");
 await post("/shop/buy", { item_id: item(s, "3000").id, use_now: true });
 ok((await state()).obligations.length === 0, "buying + using the ticket settles it");
+
+// ================= to-do priorities (Eisenhower) =================
+s = await state();
+const dayOf = (n) => new Date(Date.parse(s.closed + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
+const todo = async (title, priority, due, extra = {}) =>
+  (await post("/data/quests", { type: "todo", title, emoji: "📌", priority, due_date: due, created_at: dayOf(-3), ap: 15, xp: 20, ...extra })).data.data.id;
+await todo("Urgent report", "do", dayOf(-1), { hp_penalty: 10 });
+await todo("Reply to email", "delegate", dayOf(-1), { hp_penalty: 3 });
+await todo("Book dentist", "schedule", dayOf(0), { hp_penalty: 6 });
+await todo("Unsorted chore", null, dayOf(-1), { hp_penalty: 5 });
+await todo("Someday idea", "later", dayOf(-1), { hp_penalty: 0 });
+ok((await post("/data/quests", { type: "todo", title: "x", priority: "panic" })).status === 400, "unknown priority rejected");
+const exp3 = (await owner.get(g("/export"))).data;
+exp3.tables.player[0].last_processed = dayOf(-2);
+exp3.tables.day_closures = exp3.tables.day_closures.filter((r) => r.date <= dayOf(-2));
+await post("/import", exp3);
+const proc = [];
+for (let i = 0; i < 5; i++) {
+  const r = await post("/process");
+  proc.push(...r.data.fx);
+  if (!r.data.remaining) break;
+}
+s = await state();
+const dl = s.ledger.filter((l) => l.source === "deadline" && !l.voided);
+const missedDay1 = dl.find((l) => l.date === dayOf(-1) && l.description.startsWith("Missed deadlines"));
+ok(!!missedDay1 && missedDay1.description.includes("Urgent report") && missedDay1.description.includes("Reply to email") && !missedDay1.description.includes("Unsorted") && !missedDay1.description.includes("Someday"), "missed deadlines hit only prioritised to-dos (not unsorted/someday)");
+ok(missedDay1 && missedDay1.ap === -15, `🔥 Do-now also forfeits its AP (${missedDay1?.ap})`);
+const drain = dl.find((l) => l.date === dayOf(0) && l.description.startsWith("Still overdue"));
+ok(!!drain && drain.description.includes("Urgent report") && !drain.description.includes("Reply to email"), "🔥 keeps draining HP the next day; ⚡ quick tasks don't");
+ok(dl.some((l) => l.date === dayOf(0) && l.description.includes("Book dentist")), "📅 scheduled to-do is penalised on its own deadline day");
+ok(proc.some((f) => f.t === "report" && f.late?.some((x) => x.includes("Urgent report"))), "the overnight report lists late to-dos");
+const urgent = s.quests.find((q) => q.title === "Urgent report");
+await post(`/quests/${urgent.id}/complete`, {});
+s = await state();
+ok(s.ledger.some((l) => l.description.includes("Urgent report — late, half pay")), "finishing late pays half");
+const early = await todo("Plan next sprint", "schedule", dayOf(5));
+await post(`/quests/${early}/complete`, {});
+s = await state();
+ok(s.ledger.some((l) => l.description.includes("Plan next sprint — early bird!")), "📅 finished early gets the early-bird bonus");
+const now2 = (await post("/data/quests", { type: "todo", title: "Do it now", priority: "do" })).data.data.id;
+ok((await state()).quests.find((q) => q.id === now2).due_date === s.today, "🔥 Do-now without a date is due today");
 
 // ================= looks =================
 const put = (b) => owner.put(g("/settings"), b);

@@ -44,6 +44,12 @@ export function dailiesFor(s: GameState, date: string): Quest[] {
   return s.quests.filter((q) => q.type === "daily" && q.active && isDue(q.days, date));
 }
 
+/** To-dos, most pressing first: 🔥 Do now, 📅 Schedule, ⚡ Quick, unsorted, 🧹 Someday; then by due date. */
+export function sortTodos(list: Quest[]) {
+  const rank = (q: Quest) => ({ do: 0, schedule: 1, delegate: 2, later: 4 })[q.priority ?? ""] ?? 3;
+  return [...list].sort((a, b) => rank(a) - rank(b) || (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999") || a.sort - b.sort || a.id - b.id);
+}
+
 export function inventoryOf(s: GameState, itemId: number) {
   return Math.max(0, Math.round((s.inventory[itemId] ?? 0) * 100) / 100);
 }

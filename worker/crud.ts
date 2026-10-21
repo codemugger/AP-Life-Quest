@@ -49,6 +49,7 @@ export const ENTITIES: Record<string, Entity> = {
       metric_op: ["text", { enum: ["logged", "<=", ">="], nullable: true }],
       metric_value: N,
       due_date: D,
+      priority: ["text", { enum: ["do", "schedule", "delegate", "later"], nullable: true }],
       active: B,
       sort: I,
       created_at: D,
@@ -311,6 +312,8 @@ export async function createRow(ctx: Ctx, name: string, body: Record<string, unk
   const e = entity(name);
   const row = clean(e, body, true);
   if (e.table === "quests" && !row.created_at) row.created_at = ctx.today;
+  // "Do now" is urgent by definition: no date means today
+  if (e.table === "quests" && row.type === "todo" && row.priority === "do" && !row.due_date) row.due_date = ctx.today;
   const cols = Object.keys(row);
   const r = await stmt(
     ctx.db,

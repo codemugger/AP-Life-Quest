@@ -9,6 +9,7 @@ import { EYES, isUnlocked, SPECIES } from "../shared/levels";
 import { TEMPLATES } from "../worker/seed";
 import { progressFor, type Stats } from "../worker/achievements";
 import { countWords, emptyDoc, NOTE_FONTS, sanitizeDoc, summarize } from "../shared/notedoc";
+import { drainHp, PRIORITIES, PRIORITY_ORDER, priorityOf, todoPay } from "../shared/priority";
 
 describe("levels", () => {
   it("follows the XP curve", () => {
@@ -156,6 +157,22 @@ describe("achievement progress", () => {
     expect(progressFor({ t: "metric_streak", metric: "journal", n: 7 }, st, 1.62)).toEqual([3, 7]);
     expect(progressFor({ t: "metric_total", metric: "journal", n: 10000 }, st, 1.62)).toEqual([1200, 10000]);
     expect(progressFor({ t: "notes", n: 25 }, st, 1.62)).toEqual([7, 25]);
+  });
+});
+
+describe("to-do priorities", () => {
+  it("pays half when late and a bonus for scheduled work done early", () => {
+    expect(todoPay("do", "2026-10-22", "2026-10-23")).toMatchObject({ mult: 0.5 });
+    expect(todoPay("schedule", "2026-10-25", "2026-10-22")).toMatchObject({ mult: 1.25 });
+    expect(todoPay("do", "2026-10-25", "2026-10-22")).toMatchObject({ mult: 1 }); // no early bonus for urgent work
+    expect(todoPay("schedule", "2026-10-22", "2026-10-22")).toMatchObject({ mult: 1 });
+    expect(todoPay(null, null, "2026-10-22")).toMatchObject({ mult: 1 });
+  });
+  it("defines the four quadrants", () => {
+    expect(PRIORITY_ORDER.map((p) => PRIORITIES[p].hp)).toEqual([10, 6, 3, 0]);
+    expect(priorityOf("nope")).toBeNull();
+    expect(drainHp(10)).toBe(5);
+    expect(drainHp(3)).toBe(2);
   });
 });
 
