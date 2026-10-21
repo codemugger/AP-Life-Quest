@@ -10,7 +10,9 @@ import { NoteView } from "../components/NoteView";
 import { Bar, Panel, Seg } from "../components/ui";
 import { useFx } from "../fx";
 import { notesApi, parseDoc, reminderDue, reminderLabel } from "../notes";
-import { dailiesFor, doneOn, fmt, fmtAP, relDay, valueOn } from "../util";
+import { dailiesFor, doneOn, fmt, fmtAP, relDay, sortTodos, valueOn } from "../util";
+import { Editor } from "../components/Editor";
+import type { Quest } from "../../shared/types";
 
 export default function Camp() {
   const { state, logDate, setLogDate } = useGame();
@@ -102,6 +104,7 @@ export default function Camp() {
             </a>
           </div>
         </Panel>
+        <Todos />
       </div>
 
       {(upcoming.length > 0 || sprints.length > 0) && (
@@ -135,6 +138,48 @@ export default function Camp() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Open to-dos, most pressing first (plus the ones you ticked today). */
+function Todos() {
+  const { state, logDate } = useGame();
+  const [edit, setEdit] = useState<Partial<Quest> | null>(null);
+  const todos = state.quests.filter((q) => q.type === "todo" && q.active);
+  const done = new Set(state.log.map((l) => l.quest_id));
+  const open = sortTodos(todos.filter((q) => !done.has(q.id)));
+  const doneToday = todos.filter((q) => state.log.some((l) => l.quest_id === q.id && l.date === logDate));
+  const overdue = open.filter((q) => q.due_date && q.due_date < state.today && q.priority && q.priority !== "later").length;
+  const SHOW = 8;
+  return (
+    <Panel
+      title={<>📋 To-do list</>}
+      right={
+        <span className="row" style={{ gap: 4 }}>
+          {overdue > 0 && <span className="chip bad">⏰ {overdue} late</span>}
+          <span className="chip">{open.length} open</span>
+        </span>
+      }
+    >
+      <div className="qlist">
+        {open.slice(0, SHOW).map((q) => (
+          <QuestRow key={q.id} q={q} date={logDate} onEdit={() => setEdit(q)} />
+        ))}
+        {doneToday.map((q) => (
+          <QuestRow key={q.id} q={q} date={logDate} />
+        ))}
+        {!open.length && !doneToday.length && <div className="empty">No to-dos. Add one when something needs doing: 🔥 urgent ones cost HP if you miss the deadline.</div>}
+      </div>
+      <div className="row between" style={{ marginTop: 8 }}>
+        <button className="btn sm" onClick={() => setEdit({ type: "todo" })}>
+          ＋ To-do
+        </button>
+        <a className="linkbtn" href="#/quests/todo">
+          {open.length > SHOW ? `All ${open.length} to-dos →` : "Priority matrix →"}
+        </a>
+      </div>
+      {edit && <Editor entity="quests" row={edit as Record<string, unknown>} onClose={() => setEdit(null)} />}
+    </Panel>
   );
 }
 

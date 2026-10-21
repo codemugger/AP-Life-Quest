@@ -348,11 +348,12 @@ function ModalBody({ m, close }: { m: Modal; close: () => void }) {
           <div className="list">
             {m.days.map((d) => (
               <div className="li" key={d.date} style={{ alignItems: "flex-start" }}>
-                <div style={{ fontSize: 24 }}>{d.rest ? "🏖️" : d.perfect ? "🌟" : d.missed.length ? "😿" : "✅"}</div>
+                <div style={{ fontSize: 24 }}>{d.rest ? "🏖️" : d.perfect && !d.late?.length ? "🌟" : d.missed.length || d.late?.length ? "😿" : "✅"}</div>
                 <div className="grow">
                   <b>{prettyDate(d.date)}</b>{" "}
                   <span className="muted small">{d.rest ? "rest day" : `${d.done}/${d.due} dailies`}</span>
                   {d.missed.length > 0 && !d.rest && <div className="small ink2">Missed: {d.missed.join(", ")}</div>}
+                  {!!d.late?.length && !d.rest && <div className="small neg">⏰ To-dos late: {d.late.join(", ")}</div>}
                   {d.billed.length > 0 && <div className="small neg">Auto-billed: {d.billed.join(", ")}</div>}
                 </div>
                 <div className="small num" style={{ textAlign: "right" }}>

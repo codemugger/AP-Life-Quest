@@ -152,7 +152,7 @@ function GameShell() {
   let content: ReactNode;
   switch (page) {
     case "quests":
-      content = <Quests />;
+      content = <Quests sub={sub} key={sub} />;
       break;
     case "notes":
       content = <Notes sub={sub} />;

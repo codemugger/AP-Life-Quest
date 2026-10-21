@@ -1,6 +1,7 @@
 // Core game engine: context, rewards, quests, trackers and the nightly "close the day" pass.
 import { addDays, closedThrough, daysBetween, gameDate, isDue, weekday, weekStart } from "../shared/dates";
 import { LEVEL_HATS, levelInfo, titleFor, type Rarity } from "../shared/levels";
+import { drainHp, OVERDUE_DAYS, priorityOf, todoPay } from "../shared/priority";
 import { DEFAULT_SETTINGS, streakMultiplier, type Settings } from "../shared/rules";
 import { unitPrice } from "../shared/pricing";
 import type { Fx } from "../shared/types";
@@ -48,6 +49,8 @@ export interface QuestRow {
   metric_key: string | null;
   metric_op: string | null;
   metric_value: number | null;
+  due_date: string | null;
+  priority: string | null;
   active: number;
   created_at: string;
 }
@@ -316,17 +319,19 @@ export async function completeQuest(ctx: Ctx, id: number, opts: { date?: string;
       const p = ctx.player;
       const mult = streakMultiplier(ctx.s, p.streak) * (p.fainted ? ctx.s.fainted_earn_mult : 1);
       const crit = q.ap > 0 && hashFloat(`${q.id}|${date}|${count}`) < ctx.s.crit_chance;
-      const ap = Math.round(q.ap * qty * mult * (crit ? ctx.s.crit_mult : 1));
+      // to-dos: late = half pay; important ones finished early get a bonus
+      const pay = q.type === "todo" ? todoPay(q.priority, q.due_date, date) : { mult: 1, tag: "" };
+      const ap = Math.round(q.ap * qty * mult * pay.mult * (crit ? ctx.s.crit_mult : 1));
       ledgerId = await award(ctx, {
         kind: "earn",
         ap,
-        xp: q.xp * qty,
+        xp: Math.round(q.xp * qty * Math.min(1, pay.mult)),
         hp: q.type === "habit" ? 0 : ctx.s.complete_heal,
         source: "quest",
         ref_id: q.id,
         date,
         crit,
-        description: `${q.emoji} ${q.title}${qtyLabel}${crit ? " — CRITICAL!" : ""}`,
+        description: `${q.emoji} ${q.title}${qtyLabel}${pay.tag}${crit ? " — CRITICAL!" : ""}`,
       });
       if (p.fainted) {
         p.revive_progress++;
@@ -620,7 +625,7 @@ async function processDay(ctx: Ctx, d: string) {
   const db = ctx.db;
   const ws = weekStart(d);
   const sunday = weekday(d) === 6;
-  const [restR, dailyR, doneR, weeklyR, obR, sprintR, shieldR] = await db.batch([
+  const [restR, dailyR, doneR, weeklyR, obR, sprintR, shieldR, todoR] = await db.batch([
     stmt(db, "SELECT date FROM rest_days WHERE date = ?", d),
     stmt(db, "SELECT id, title, emoji, hp_penalty, days FROM quests WHERE type = 'daily' AND active = 1 AND created_at <= ?", d),
     stmt(db, "SELECT DISTINCT quest_id FROM quest_log WHERE date = ?", d),
@@ -650,6 +655,18 @@ async function processDay(ctx: Ctx, d: string) {
       ctx.season,
       ctx.season,
     ),
+    // prioritised to-dos due today or still overdue (not done by the end of this day)
+    stmt(
+      db,
+      `SELECT q.id, q.title, q.emoji, q.ap, q.hp_penalty, q.priority, q.due_date FROM quests q
+       WHERE q.type = 'todo' AND q.active = 1 AND q.priority IN ('do', 'schedule', 'delegate')
+         AND q.due_date IS NOT NULL AND q.due_date <= ? AND q.due_date >= ? AND q.created_at <= ?
+         AND NOT EXISTS (SELECT 1 FROM quest_log l WHERE l.quest_id = q.id AND l.date <= ?)`,
+      d,
+      addDays(d, -OVERDUE_DAYS),
+      d,
+      d,
+    ),
   ]);
 
   const p = ctx.player;
@@ -664,8 +681,42 @@ async function processDay(ctx: Ctx, d: string) {
   const batch: D1PreparedStatement[] = [claimDay];
   const hpBefore = p.hp;
   let perfect = false;
+  const late: string[] = [];
 
   if (!rest) {
+    // To-do deadlines (Eisenhower priorities): a missed deadline hurts once (urgent+important ones
+    // also forfeit their AP); important ones keep draining a little each day they stay late.
+    const todos = rows<{ id: number; title: string; emoji: string; ap: number; hp_penalty: number; priority: string; due_date: string }>(todoR);
+    const missedNow = todos.filter((t) => t.due_date === d);
+    const overdue = todos.filter((t) => t.due_date < d && priorityOf(t.priority)?.drain);
+    if (missedNow.length) {
+      batch.push(
+        ledgerStmt(ctx, {
+          kind: "penalty",
+          hp: -missedNow.reduce((a, t) => a + t.hp_penalty, 0),
+          ap: -missedNow.filter((t) => priorityOf(t.priority)?.fine).reduce((a, t) => a + t.ap, 0),
+          source: "deadline",
+          date: d,
+          description: `Missed deadlines: ${missedNow.map((t) => t.title).join(", ")}`,
+          fx: false,
+        }),
+      );
+      late.push(...missedNow.map((t) => `${t.emoji} ${t.title} (deadline)`));
+    }
+    if (overdue.length) {
+      batch.push(
+        ledgerStmt(ctx, {
+          kind: "penalty",
+          hp: -overdue.reduce((a, t) => a + drainHp(t.hp_penalty), 0),
+          source: "deadline",
+          date: d,
+          description: `Still overdue: ${overdue.map((t) => `${t.title} (${daysBetween(t.due_date, d)}d late)`).join(", ")}`,
+          fx: false,
+        }),
+      );
+      late.push(...overdue.map((t) => `${t.emoji} ${t.title} (${daysBetween(t.due_date, d)}d late)`));
+    }
+
     if (missed.length) {
       batch.push(
         ledgerStmt(ctx, {
@@ -767,6 +818,7 @@ async function processDay(ctx: Ctx, d: string) {
     due: due.length,
     done: due.length - missed.length,
     missed: missed.map((q) => `${q.emoji} ${q.title}`),
+    late,
     hp: p.hp - hpBefore,
     streak: p.streak,
     perfect,

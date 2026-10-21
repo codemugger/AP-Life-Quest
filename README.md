@@ -1,4 +1,4 @@
-# 🐣 AP Life Quest
+# ðŸ£ AP Life Quest
 
 A cute pixel-RPG for your real life. Log your weight, calories, focus hours and habits, clear daily quests, earn **AP** (Achievement Points) and **XP**, raise a pet that evolves as you level up, and spend AP on real-life rewards in the AP Shop. Slack off and you lose HP, and the Calorie Court sends you a bill.
 
@@ -13,7 +13,7 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
 3. [Accounts, characters and invites](#3-accounts-characters-and-invites)
 4. [Make it yours: looks, pictures, notes and links](#4-make-it-yours-looks-pictures-notes-and-links)
 5. [Notebook & journal](#5-notebook--journal)
-6. [First-time setup (≈10 minutes)](#6-first-time-setup)
+6. [First-time setup (â‰ˆ10 minutes)](#6-first-time-setup)
 7. [Upgrading from v1](#7-upgrading-from-v1)
 8. [Install on your iPhone](#8-install-on-your-iphone)
 9. [Updating the app](#9-updating-the-app)
@@ -33,26 +33,35 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
 
 | Thing | What it means |
 |---|---|
-| **AP** 🪙 | Your currency. Earned from quests, chests, achievements, goals and sprints. Spent in the AP Shop. |
-| **XP** ⭐ | Never spent. Fills your level bar. Level 1→2 needs 100 XP, then +50 more per level. |
-| **HP** ❤️ | Your discipline health (max 100). Missed dailies hurt; completing quests heals a little; a perfect day heals 10; levelling up fully heals. |
-| **Level & title** | Sprout → Wanderer → Apprentice → Adventurer → Knight → Ranger → Champion → Hero → Guardian → Legend → Mythic… |
+| **AP** ðŸª™ | Your currency. Earned from quests, chests, achievements, goals and sprints. Spent in the AP Shop. |
+| **XP** â­ | Never spent. Fills your level bar. Level 1â†’2 needs 100 XP, then +50 more per level. |
+| **HP** â¤ï¸ | Your discipline health (max 100). Missed dailies hurt; completing quests heals a little; a perfect day heals 10; levelling up fully heals. |
+| **Level & title** | Sprout â†’ Wanderer â†’ Apprentice â†’ Adventurer â†’ Knight â†’ Ranger â†’ Champion â†’ Hero â†’ Guardian â†’ Legend â†’ Mythicâ€¦ |
 | **Pet** | Hatches from an egg and evolves at levels 3, 10, 20 and 35. Mood follows your HP and today's effort. |
-| **Streak** 🔥 | +1 for each day you finish ≥ 80% of your dailies. Each streak day adds +2% AP to every quest (max +50%). Milestones (3, 7, 14, 30, 60, 100) drop chests. |
+| **Streak** ðŸ”¥ | +1 for each day you finish â‰¥ 80% of your dailies. Each streak day adds +2% AP to every quest (max +50%). Milestones (3, 7, 14, 30, 60, 100) drop chests. |
 | **Critical hits** | 10% of quest completions pay **double AP** (fixed per quest per day, so undo/redo can't re-roll it). |
-| **Chests** 🎁 | Drop on level-ups, perfect days, streak milestones, gold/platinum achievements, sprint wins and goals. Open them for AP, XP, hats, scenes and free items. Level-up and goal rewards are paid once per season, so undo/redo can't farm them. |
-| **Fainting** 😵 | If HP hits 0 your pet faints: you lose 10% of your AP (min 20), your streak resets, and quests pay half until you complete **3 quests** to revive. Undoing whatever knocked you out undoes the faint. |
+| **Chests** ðŸŽ | Drop on level-ups, perfect days, streak milestones, gold/platinum achievements, sprint wins and goals. Open them for AP, XP, hats, scenes and free items. Level-up and goal rewards are paid once per season, so undo/redo can't farm them. |
+| **Fainting** ðŸ˜µ | If HP hits 0 your pet faints: you lose 10% of your AP (min 20), your streak resets, and quests pay half until you complete **3 quests** to revive. Undoing whatever knocked you out undoes the faint. |
 
 **Quest types**
 
-- **Dailies:** due on chosen weekdays; missing one costs HP when the day closes. Many tick themselves when you log a tracker (weigh-in, calories ≤ budget, CSD ≥ 6 h…).
+- **Dailies:** due on chosen weekdays; missing one costs HP when the day closes. Many tick themselves when you log a tracker (weigh-in, calories â‰¤ budget, CSD â‰¥ 6 hâ€¦).
 - **Weeklies:** do N times a week.
 - **Habits:** tap any time. Good ones pay (e.g. *coaching* pays per hour); bad ones cost AP + HP.
-- **To-dos:** one-offs.
+- **To-dos:** one-offs, sorted by the **Eisenhower matrix** (Quests â†’ To-dos shows the four squares; Camp shows the most pressing ones under your dailies). Penalties need a due date:
+
+  | Priority | Deadline missed | Each extra day late (up to 7) | Pay |
+  |---|---|---|---|
+  | ðŸ”¥ **Do now** (urgent + important) | âˆ’HP (default 10) **and** its AP | âˆ’half the HP | half if late |
+  | ðŸ“… **Schedule** (important, not urgent) | âˆ’HP (default 6) | âˆ’half the HP | **+25% if done early**, half if late |
+  | âš¡ **Quick task** (urgent, not important) | âˆ’HP (default 3) | none | half if late |
+  | ðŸ§¹ **Someday** (neither) | none | none | normal |
+
+  "Do now" without a date is due today. Unsorted to-dos (like ones made before priorities existed) have no penalty. Rest days skip deadline damage too.
 
 **When does a day close?** The game day starts at **4 am**. Yesterday stays open until **4 pm** (12 h grace) so you can catch up in the morning. Closing applies missed-quest damage, the streak, perfect-day healing, Calorie Court auto-billing and sprint deadlines, then shows a "While you were away" report. Each day can only ever be scored once, even if your phone and laptop open the app at the same moment.
 
-**⚖️ Calorie Court:** a day in a waiver band (3000–3999, 4000–4999…) requires that Calorie Waiver Ticket (×3 tax). Settle it in **Shop → Court**:
+**âš–ï¸ Calorie Court:** a day in a waiver band (3000â€“3999, 4000â€“4999â€¦) requires that Calorie Waiver Ticket (Ã—3 tax). Settle it in **Shop â†’ Court**:
 
 - use a ticket from your bag,
 - buy one (vouchers allowed). Buying and using a waiver ticket from the Shop also settles the case, or
@@ -60,13 +69,13 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
 
 If you ignore it, it's auto-billed at full price.
 
-**Vouchers** can have automatic checks (AP earned this month, CSD this week, fasting total, weight + 30-day calorie EMA, recent calories, birthday…) or use the honour system.
+**Vouchers** can have automatic checks (AP earned this month, CSD this week, fasting total, weight + 30-day calorie EMA, recent calories, birthdayâ€¦) or use the honour system.
 
 ---
 
 ## 2. A day in the life
 
-1. **Morning:** open the app and read the overnight report. Weigh in (Camp → Quick log); the weigh-in quest ticks itself.
+1. **Morning:** open the app and read the overnight report. Weigh in (Camp â†’ Quick log); the weigh-in quest ticks itself.
 2. **During the day:** tap **+0.5 / +1 / +2** for focus or CSD hours, start the **fasting timer**, and tap habits as they happen.
 3. **Evening:** enter the day's calories (one box), tick what you did, open chests.
 4. **Treat yourself** in the Shop, and use rewards from your Bag when you enjoy them.
@@ -78,19 +87,19 @@ If you ignore it, it's auto-billed at full price.
 
 - **Your account** = your login (username + password, optional 2FA). Manage it under **Account**.
 - **Characters** = separate games, like save files. Each has its own name, pet, looks, quests, shop, trackers, history, pictures and save points. Switch with **Characters** ("Choose your save"). You can have up to 10; members get 3 by default.
-- **New character wizard:** name → design your pet → pick a starting template:
+- **New character wizard:** name â†’ design your pet â†’ pick a starting template:
   - **Healthy-life starter**: water, sleep, movement, focus, and everyday rewards. For anyone.
   - **Anson's original**: your full v1 setup (CSD, calorie court, your 15 vouchers). Owner only.
   - **Copy one of your characters**: the same quests, trackers, shop and vouchers, with fresh progress.
   - **Blank**: build everything yourself.
-- **Inviting someone (owner):** **Admin → Invite someone** → send the link. Each invite works once and expires (default 14 days). In Admin you can also set someone's character limit, disable an account, or give them a temporary password.
+- **Inviting someone (owner):** **Admin â†’ Invite someone** â†’ send the link. Each invite works once and expires (default 14 days). In Admin you can also set someone's character limit, disable an account, or give them a temporary password.
 - **Privacy:** every character lives in its **own separate database**. Nobody, including you as owner, can open someone else's characters through the app.
 
 ---
 
 ## 4. Make it yours: looks, pictures, notes and links
 
-**🎀 Wardrobe** (tap your pet on the Camp page):
+**ðŸŽ€ Wardrobe** (tap your pet on the Camp page):
 
 | | Options | How to get them |
 |---|---|---|
@@ -103,51 +112,51 @@ If you ignore it, it's auto-billed at full price.
 
 Chests can drop locked items early.
 
-**🖼️ Pictures:** you can add pictures to quests, events, goals, shop items, vouchers, achievements and sprint bosses. When adding one you choose:
+**ðŸ–¼ï¸ Pictures:** you can add pictures to quests, events, goals, shop items, vouchers, achievements and sprint bosses. When adding one you choose:
 
-- **📷 Photo**: resized on your phone to keep it small, or
-- **👾 Pixel art**: turns any picture into a crunchy 8-bit icon that matches the game.
+- **ðŸ“· Photo**: resized on your phone to keep it small, or
+- **ðŸ‘¾ Pixel art**: turns any picture into a crunchy 8-bit icon that matches the game.
 
-The first picture is the icon or cover; tap ⭐ on another to make it the cover. Events become a photo **timeline of memories**, and goals get a **vision board**. Each character can store 150 MB of pictures, and **Settings → Pictures** shows usage and can remove unused ones.
+The first picture is the icon or cover; tap â­ on another to make it the cover. Events become a photo **timeline of memories**, and goals get a **vision board**. Each character can store 150 MB of pictures, and **Settings â†’ Pictures** shows usage and can remove unused ones.
 
-**📝 Notes** support `**bold**`, `*italic*`, `- lists` and links.
+**ðŸ“ Notes** support `**bold**`, `*italic*`, `- lists` and links.
 
-**🔗 Links** (workout videos, maps, booking pages…) show as a button on the quest, event or goal card.
+**ðŸ”— Links** (workout videos, maps, booking pagesâ€¦) show as a button on the quest, event or goal card.
 
 ---
 
 ## 5. Notebook & journal
 
-**📒 Notes** (tab bar) is your Google Keep + OneNote inside the game.
+**ðŸ“’ Notes** (tab bar) is your Google Keep + OneNote inside the game.
 
-- **Binders:** coloured tabs at the top (📒 Notes and 📔 Journal to start). Make more with **＋**, for example ⏰ CET, 💼 Work or 💡 Ideas. Tap an open tab again to rename, recolour, move or delete it. Deleting a binder moves its notes; nothing is lost.
-- **The board:** Keep-style cards with 📌 **pinned** notes first. Every note has a **card colour** 🎨 and a **paper** 📄 (plain, lined, grid or dots).
-- **Labels** 🏷 work across binders, like tags. Tap a label chip to filter.
+- **Binders:** coloured tabs at the top (ðŸ“’ Notes and ðŸ“” Journal to start). Make more with **ï¼‹**, for example â° CET, ðŸ’¼ Work or ðŸ’¡ Ideas. Tap an open tab again to rename, recolour, move or delete it. Deleting a binder moves its notes; nothing is lost.
+- **The board:** Keep-style cards with ðŸ“Œ **pinned** notes first. Every note has a **card colour** ðŸŽ¨ and a **paper** ðŸ“„ (plain, lined, grid or dots).
+- **Labels** ðŸ· work across binders, like tags. Tap a label chip to filter.
 - **Search** looks inside every note, not just titles.
-- **🗄️ Archive** puts notes out of the way. **🗑️ Trash** keeps them for 30 days.
-- **"Take a note…"** starts a note. The buttons next to it start a checklist ☑, a sketch ✏️, a voice memo 🎙️ or a photo note 📷.
+- **ðŸ—„ï¸ Archive** puts notes out of the way. **ðŸ—‘ï¸ Trash** keeps them for 30 days.
+- **"Take a noteâ€¦"** starts a note. The buttons next to it start a checklist â˜‘, a sketch âœï¸, a voice memo ðŸŽ™ï¸ or a photo note ðŸ“·.
 
 **Writing** (the toolbar scrolls sideways on a phone):
 
 | | |
 |---|---|
 | Text | **bold**, *italic*, underline, ~~strike~~, 9 text colours, 6 highlighter pens, 4 sizes |
-| Fonts | Pixel, Arcade, Clean, Serif, Mono, Handwritten (per selection, or 🔤 for the whole note) |
-| Blocks | headings, bullet / numbered lists, ☑ checklists, quotes, code, dividers, alignment |
-| Tables | ＋ → Table, then add/remove rows and columns, header row, merge cells (handy for a CET timetable) |
-| Media | 📷 photos, 👾 pixel art, ✏️ **sketches** (finger, mouse or Apple Pencil with pressure; tap a sketch to draw on it again), 🎙️ **voice memos** (up to ~5 min, or pick an audio file) |
-| Extras | 🔗 links, 🕐 time stamp, 📅 today's date, paste or drag pictures straight in |
+| Fonts | Pixel, Arcade, Clean, Serif, Mono, Handwritten (per selection, or ðŸ”¤ for the whole note) |
+| Blocks | headings, bullet / numbered lists, â˜‘ checklists, quotes, code, dividers, alignment |
+| Tables | ï¼‹ â†’ Table, then add/remove rows and columns, header row, merge cells (handy for a CET timetable) |
+| Media | ðŸ“· photos, ðŸ‘¾ pixel art, âœï¸ **sketches** (finger, mouse or Apple Pencil with pressure; tap a sketch to draw on it again), ðŸŽ™ï¸ **voice memos** (up to ~5 min, or pick an audio file) |
+| Extras | ðŸ”— links, ðŸ• time stamp, ðŸ“… today's date, paste or drag pictures straight in |
 
-Typing shortcuts also work: `# ` heading, `- ` list, `[ ] ` checklist, `> ` quote, `---` divider, Ctrl/⌘+B / I / U.
+Typing shortcuts also work: `# ` heading, `- ` list, `[ ] ` checklist, `> ` quote, `---` divider, Ctrl/âŒ˜+B / I / U.
 
-**Notes save themselves** as you type ("Saved ✓"). If the same note was changed on another device, you'll be asked which version to keep.
+**Notes save themselves** as you type ("Saved âœ“"). If the same note was changed on another device, you'll be asked which version to keep.
 
 **In the game:**
 
-- **📔 Journal:** entries are dated (one tap: **✍️ Today's entry**), with a mood row and optional **✨ Prompts** (wins, gratitude, lessons, tomorrow's to-dos). The words you write each day go into the 📔 *Journal* tracker. Writing **30+ words** ticks the daily quest **"Write in your journal"** (+5 AP, +15 XP, no HP penalty), and your writing streak 🔥 shows on the Journal tab. Trophies: *Dear Diary*, *Scribe* (7 days in a row), *Chronicler* (30 days), *Wordsmith* (10,000 words), *Bookworm* (25 notes). Change the target or the penalty like any other quest or tracker.
-- **☀️ Show on Camp:** pin a note (today's timetable, your rules) to the Camp page.
-- **🔗 Link to a goal, sprint or event:** the note shows on that card in Journey, and **＋ note** there writes a new linked one.
-- **⏰ Reminders:** a date and time, optionally repeating daily, weekly or monthly. When one is due, the app shows a nudge on Camp, a toast and a badge on 📒 Notes (in the app only, no push notifications). **✓ Done** clears it, or moves a repeating one to its next time.
+- **ðŸ“” Journal:** entries are dated (one tap: **âœï¸ Today's entry**), with a mood row and optional **âœ¨ Prompts** (wins, gratitude, lessons, tomorrow's to-dos). The words you write each day go into the ðŸ“” *Journal* tracker. Writing **30+ words** ticks the daily quest **"Write in your journal"** (+5 AP, +15 XP, no HP penalty), and your writing streak ðŸ”¥ shows on the Journal tab. Trophies: *Dear Diary*, *Scribe* (7 days in a row), *Chronicler* (30 days), *Wordsmith* (10,000 words), *Bookworm* (25 notes). Change the target or the penalty like any other quest or tracker.
+- **â˜€ï¸ Show on Camp:** pin a note (today's timetable, your rules) to the Camp page.
+- **ðŸ”— Link to a goal, sprint or event:** the note shows on that card in Journey, and **ï¼‹ note** there writes a new linked one.
+- **â° Reminders:** a date and time, optionally repeating daily, weekly or monthly. When one is due, the app shows a nudge on Camp, a toast and a badge on ðŸ“’ Notes (in the app only, no push notifications). **âœ“ Done** clears it, or moves a repeating one to its next time.
 
 **Your notebook is life, not game progress:**
 
@@ -155,7 +164,7 @@ Typing shortcuts also work: `# ` heading, `- ` list, `[ ] ` checklist, `> ` quot
 - a factory reset keeps it unless you tick *Also delete my notebook*;
 - New Game+ never touches it.
 
-Pictures and voice memos share the character's media storage (**Settings → Pictures & voice memos**).
+Pictures and voice memos share the character's media storage (**Settings â†’ Pictures & voice memos**).
 
 ---
 
@@ -187,7 +196,7 @@ If v1 is already deployed and you've been logging in it:
 
 ## 8. Install on your iPhone
 
-Open the site in **Safari** → **Share** → **Add to Home Screen**. It opens full-screen, stays logged in for 30 days (refreshed as you use it), and iPhone can save your password and 2FA codes (Settings → Passwords).
+Open the site in **Safari** â†’ **Share** â†’ **Add to Home Screen**. It opens full-screen, stays logged in for 30 days (refreshed as you use it), and iPhone can save your password and 2FA codes (Settings â†’ Passwords).
 
 ---
 
@@ -197,7 +206,7 @@ Open the site in **Safari** → **Share** → **Add to Home Screen**. It opens f
 npm run dev              # try changes locally (section 16)
 git add -A && git commit -m "Describe the change"
 git tag v2.1.0           # optional: easy rollback point
-npm run deploy           # typecheck + tests → build → migrate DB → deploy
+npm run deploy           # typecheck + tests â†’ build â†’ migrate DB â†’ deploy
 ```
 
 **Database changes:** only ever **add** tables or columns (with defaults); never drop or rename. That keeps code rollbacks safe.
@@ -212,13 +221,13 @@ npm run deploy           # typecheck + tests → build → migrate DB → deploy
 **Undo one mistake:**
 
 - tap the quest again, or
-- **📜 Log → ↩ Void** (AP/XP/HP reversed), or
-- **± Adjust** for manual corrections.
+- **ðŸ“œ Log â†’ â†© Void** (AP/XP/HP reversed), or
+- **Â± Adjust** for manual corrections.
 
 **Roll back a character's data:**
 
-- **Settings → Save points → Load**. A save point is made weekly and before every reset, import or load. You choose whether your notebook goes back in time too (default: keep today's notes).
-- **⬇ Download backup** / **⬆ Import backup** (a JSON file; pictures aren't included in the file).
+- **Settings â†’ Save points â†’ Load**. A save point is made weekly and before every reset, import or load. You choose whether your notebook goes back in time too (default: keep today's notes).
+- **â¬‡ Download backup** / **â¬† Import backup** (a JSON file; pictures aren't included in the file).
 
 **Roll back the code:**
 
@@ -227,7 +236,7 @@ npm run versions         # recent deployments
 npm run rollback         # back to the previous version
 ```
 
-Or use the Cloudflare dashboard: **Workers & Pages → ap-life-quest → Deployments → Rollback**. Rolling back code never touches data. To redeploy an older tag: `git checkout v1.0.0 && npm run deploy`.
+Or use the Cloudflare dashboard: **Workers & Pages â†’ ap-life-quest â†’ Deployments â†’ Rollback**. Rolling back code never touches data. To redeploy an older tag: `git checkout v1.0.0 && npm run deploy`.
 
 **Account database:** `npm run backup` saves a SQL dump. For a point-in-time restore over the last 7 days:
 
@@ -239,15 +248,15 @@ npx wrangler d1 time-travel restore ap-life-quest-db --timestamp=<time>
 
 ## 11. Resets
 
-Both are in **Settings → Danger zone** (per character). Both need you to type a confirmation and make a save point first.
+Both are in **Settings â†’ Danger zone** (per character). Both need you to type a confirmation and make a save point first.
 
-| | 🌱 **New Game+** | 🧨 **Factory reset** |
+| | ðŸŒ± **New Game+** | ðŸ§¨ **Factory reset** |
 |---|---|---|
 | AP, XP, level, HP, streak, inventory, achievements | reset | reset |
 | Quests, trackers, shop, vouchers, rules | **kept** | back to the template |
 | Tracker history | **kept** | wiped |
 | Notebook (notes, journal, labels) | **kept** | **kept**, unless you tick *Also delete my notebook* |
-| Old season | archived in the 🏛️ Hall of Fame | gone (except in the save point) |
+| Old season | archived in the ðŸ›ï¸ Hall of Fame | gone (except in the save point) |
 
 To start over completely, create a new character (or delete one under **Characters**).
 
@@ -272,7 +281,7 @@ To start over completely, create a new character (or delete one under **Characte
 {"t":"metric_latest","metric":"weight","max":55}
 {"t":"metric_ema","metric":"calories","period":30,"max":1800}
 {"t":"birthday"}
-{"t":"all","rules":[…]}
+{"t":"all","rules":[â€¦]}
 ```
 
 **Shop item effects:** `heal:30`, `rest_day`, `streak_freeze`.
@@ -309,8 +318,8 @@ To start over completely, create a new character (or delete one under **Characte
 
 **Recovery:**
 
-- A member forgot their password → **Admin → Reset password**.
-- You (owner) forgot yours, or lost your 2FA phone → `npm run reset-owner` (needs your Cloudflare login on this PC).
+- A member forgot their password â†’ **Admin â†’ Reset password**.
+- You (owner) forgot yours, or lost your 2FA phone â†’ `npm run reset-owner` (needs your Cloudflare login on this PC).
 
 ---
 
@@ -325,7 +334,7 @@ Everything fits Cloudflare's **free** plan for you plus a handful of invited peo
 | Account DB rows read / written | 5 M / 100 k per day |
 | Per character (app limit) | members 200 MB incl. 50 MB pictures; owner 1 GB incl. 150 MB |
 
-Beyond roughly 20–50 active players, move to **Workers Paid (US$5/month)**. No code changes are needed.
+Beyond roughly 20â€“50 active players, move to **Workers Paid (US$5/month)**. No code changes are needed.
 
 ---
 
@@ -359,8 +368,8 @@ npm run dev                       # http://localhost:5173 (UI + API + character 
 | Command | What it does |
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and unit tests |
-| `npm run test:api` | 108 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`) |
-| `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
+| `npm run test:api` | 117 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`) |
+| `npm run build` / `npm run deploy` | Production build / check â†’ build â†’ migrate â†’ deploy |
 | `npm run versions` / `npm run rollback` | Deployments |
 | `npm run backup` | SQL dump of the account database |
 | `npm run set-password` / `npm run setup-2fa` | Setup password (for claiming the owner account) |
@@ -374,32 +383,32 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 ## 17. Project structure
 
 ```
-├── migrations/            account database (D1): 0001 = v1 game tables (kept), 0002 = accounts
-├── worker/
-│   ├── index.ts           accounts, invites, admin, v1 import, secure proxy to characters
-│   ├── auth.ts            passwords, TOTP, sessions, lock-outs
-│   ├── accounts.ts        users, invites, character registry
-│   ├── character.ts       the per-character Durable Object (own SQLite, self-migrating)
-│   ├── schema/            character database migrations (0002 = pictures & links, 0003 = notebook)
-│   ├── do-db.ts           D1-style adapter over Durable Object SQL
-│   ├── game/api.ts        the game API for one character (+ pictures)
-│   ├── game.ts            engine: rewards, crits, quests, trackers, closing days, fainting
-│   ├── economy.ts         shop, vouchers, bag, calorie court, chests
-│   ├── progress.ts        goals, milestones, sprints
-│   ├── achievements.ts    stats + achievement rules
-│   ├── state.ts           the full game state for the UI
-│   ├── crud.ts            whitelisted create/update/delete for everything editable
-│   ├── backup.ts          save points (built inside SQLite), export/import, resets
-│   ├── notes.ts           notebook: notes, binders, labels, reminders, journal → game
-│   └── seed.ts            templates: Healthy-life starter, Anson's original, Blank
-├── shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules,
-│                          notedoc (what a rich note may contain + previews/word counts)
-├── src/                   React UI (pages/, components/, account flow, pictures, effects)
-│   ├── pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
-│   └── components/notes/  editor (TipTap, loaded on demand), sketch pad, voice recorder
-├── public/                icons, manifest, security headers
-├── scripts/               setup, passwords, 2FA, owner reset, backup, icons
-└── tests/                 unit tests + end-to-end API checks
+â”œâ”€â”€ migrations/            account database (D1): 0001 = v1 game tables (kept), 0002 = accounts
+â”œâ”€â”€ worker/
+â”‚   â”œâ”€â”€ index.ts           accounts, invites, admin, v1 import, secure proxy to characters
+â”‚   â”œâ”€â”€ auth.ts            passwords, TOTP, sessions, lock-outs
+â”‚   â”œâ”€â”€ accounts.ts        users, invites, character registry
+â”‚   â”œâ”€â”€ character.ts       the per-character Durable Object (own SQLite, self-migrating)
+â”‚   â”œâ”€â”€ schema/            character database migrations (0002 = pictures & links, 0003 = notebook)
+â”‚   â”œâ”€â”€ do-db.ts           D1-style adapter over Durable Object SQL
+â”‚   â”œâ”€â”€ game/api.ts        the game API for one character (+ pictures)
+â”‚   â”œâ”€â”€ game.ts            engine: rewards, crits, quests, trackers, closing days, fainting
+â”‚   â”œâ”€â”€ economy.ts         shop, vouchers, bag, calorie court, chests
+â”‚   â”œâ”€â”€ progress.ts        goals, milestones, sprints
+â”‚   â”œâ”€â”€ achievements.ts    stats + achievement rules
+â”‚   â”œâ”€â”€ state.ts           the full game state for the UI
+â”‚   â”œâ”€â”€ crud.ts            whitelisted create/update/delete for everything editable
+â”‚   â”œâ”€â”€ backup.ts          save points (built inside SQLite), export/import, resets
+â”‚   â”œâ”€â”€ notes.ts           notebook: notes, binders, labels, reminders, journal â†’ game
+â”‚   â””â”€â”€ seed.ts            templates: Healthy-life starter, Anson's original, Blank
+â”œâ”€â”€ shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules,
+â”‚                          notedoc (what a rich note may contain + previews/word counts)
+â”œâ”€â”€ src/                   React UI (pages/, components/, account flow, pictures, effects)
+â”‚   â”œâ”€â”€ pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
+â”‚   â””â”€â”€ components/notes/  editor (TipTap, loaded on demand), sketch pad, voice recorder
+â”œâ”€â”€ public/                icons, manifest, security headers
+â”œâ”€â”€ scripts/               setup, passwords, 2FA, owner reset, backup, icons
+â””â”€â”€ tests/                 unit tests + end-to-end API checks
 ```
 
 ---
@@ -410,14 +419,14 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 |---|---|
 | "Almost there: no owner yet" | Run `npm run set-password` (or `-- --local`), then reload |
 | Locked out after wrong passwords | Wait 15 minutes |
-| Member forgot password / lost 2FA | Owner: **Admin → Reset password** (also removes their 2FA) |
+| Member forgot password / lost 2FA | Owner: **Admin â†’ Reset password** (also removes their 2FA) |
 | Owner forgot password / lost 2FA | `npm run reset-owner` |
-| Lost or stolen phone | Account → **Log out everywhere** (from another device), then change your password |
-| A day was scored unfairly | Log → void the penalty. For planned rest days, buy a 🏖️ Rest Day Pass |
-| Something broke after an update | `npm run rollback` (code) and/or Save points → Load (data) |
+| Lost or stolen phone | Account â†’ **Log out everywhere** (from another device), then change your password |
+| A day was scored unfairly | Log â†’ void the penalty. For planned rest days, buy a ðŸ–ï¸ Rest Day Pass |
+| Something broke after an update | `npm run rollback` (code) and/or Save points â†’ Load (data) |
 | Picture won't upload | Max 1.5 MB after compression; JPEG, PNG, WebP or GIF; 50 MB per character for members, 150 MB for the owner |
-| "Storage is full" | Settings → delete old save points or remove unused pictures; empty the notebook trash |
-| Voice memo says the microphone is blocked | iPhone: Settings → Safari (or the home-screen app) → Microphone → Allow. Laptop: click the 🔒 in the address bar → Microphone → Allow |
+| "Storage is full" | Settings â†’ delete old save points or remove unused pictures; empty the notebook trash |
+| Voice memo says the microphone is blocked | iPhone: Settings â†’ Safari (or the home-screen app) â†’ Microphone â†’ Allow. Laptop: click the ðŸ”’ in the address bar â†’ Microphone â†’ Allow |
 | "This note was changed on another device" | Choose **Load theirs** (keep the other device's version) or **Keep mine** (overwrite with this one) |
 | Journal quest didn't tick | It needs 30+ words in that day's entries (change the threshold in Quests). Entries for days already closed still count toward the tracker and trophies |
 

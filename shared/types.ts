@@ -22,6 +22,8 @@ export type Fx =
       due: number;
       done: number;
       missed: string[];
+      /** to-dos past their deadline (missed today, or still overdue) */
+      late?: string[];
       hp: number;
       streak: number;
       perfect: boolean;
@@ -49,6 +51,7 @@ export interface Quest {
   metric_op: string | null;
   metric_value: number | null;
   due_date: string | null;
+  priority: string | null; // to-dos: do | schedule | delegate | later (see shared/priority.ts)
   active: number;
   sort: number;
   created_at: string;

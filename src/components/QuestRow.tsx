@@ -1,6 +1,7 @@
 // A single quest row (daily / weekly / habit / to-do) with the right button for its type.
 import { useState, type ReactElement } from "react";
-import { addDays } from "../../shared/dates";
+import { addDays, daysBetween } from "../../shared/dates";
+import { drainHp, priorityOf } from "../../shared/priority";
 import type { Metric, Quest } from "../../shared/types";
 import { useGame } from "../store";
 import { Check } from "../sprites";
@@ -128,7 +129,7 @@ export function QuestRow({ q, date, onEdit }: { q: Quest; date: string; onEdit?:
           )}
           {q.type === "habit" && logs.length > 0 && <span className="chip">×{logs.reduce((a, l) => a + l.qty, 0)} today</span>}
           {streak >= 2 && <span className="chip warn">🔥{streak}</span>}
-          {q.type === "todo" && q.due_date && !done && <span className={`chip ${q.due_date < state.today ? "bad" : ""}`}>due {relDay(q.due_date, state.today)}</span>}
+          {q.type === "todo" && <TodoChips q={q} done={done} today={state.today} />}
           {onEdit && (
             <button className="linkbtn" onClick={onEdit} aria-label={`Edit ${q.title}`}>
               edit
@@ -153,9 +154,39 @@ export function QuestRow({ q, date, onEdit }: { q: Quest; date: string; onEdit?:
   );
 }
 
+/** Priority, due date and what's at stake for a to-do. */
+function TodoChips({ q, done, today }: { q: Quest; done: boolean; today: string }) {
+  const p = priorityOf(q.priority);
+  const stakes = !done && q.due_date && p && p.hp > 0;
+  const overdue = !done && !!q.due_date && q.due_date < today;
+  return (
+    <>
+      {p && (
+        <span className={`chip prio prio-${q.priority}`} title={p.quadrant}>
+          {p.emoji} {p.label}
+        </span>
+      )}
+      {q.due_date && !done && <span className={`chip ${overdue ? "bad" : q.due_date === today ? "warn" : ""}`}>{overdue ? `⏰ ${-daysBetween(today, q.due_date)}d overdue` : `due ${relDay(q.due_date, today)}`}</span>}
+      {stakes && !overdue && (
+        <span className="chip hp" title="Lost if the deadline passes">
+          −{q.hp_penalty} HP{p.fine ? ` −${q.ap} AP` : ""} if late
+        </span>
+      )}
+      {stakes && overdue && p.drain && <span className="chip hp">−{drainHp(q.hp_penalty)} HP/day · half pay</span>}
+      {!done && q.due_date && p?.early && q.due_date > today && <span className="chip ap">+25% early</span>}
+    </>
+  );
+}
+
 /** The "quest card": picture(s), notes, link and rewards, like a quest log entry in an RPG. */
 function QuestCard({ q, onClose, onEdit }: { q: Quest; onClose: () => void; onEdit?: () => void }) {
-  const kind = { daily: "Daily quest", weekly: `Weekly quest · ${q.weekly_target}× a week`, habit: q.polarity < 0 ? "Bad habit" : "Habit", todo: "To-do" }[q.type];
+  const prio = priorityOf(q.priority);
+  const kind = {
+    daily: "Daily quest",
+    weekly: `Weekly quest · ${q.weekly_target}× a week`,
+    habit: q.polarity < 0 ? "Bad habit" : "Habit",
+    todo: prio ? `To-do · ${prio.emoji} ${prio.label}` : "To-do",
+  }[q.type];
   return (
     <Modal
       title={<>📜 {kind}</>}
