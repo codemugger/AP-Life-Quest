@@ -10,6 +10,8 @@ import { TEMPLATES } from "../worker/seed";
 import { progressFor, type Stats } from "../worker/achievements";
 import { countWords, emptyDoc, NOTE_FONTS, sanitizeDoc, summarize } from "../shared/notedoc";
 import { drainHp, PRIORITIES, PRIORITY_ORDER, priorityOf, todoPay } from "../shared/priority";
+import { describeRepeat, nextOccurrence, occursOn, parseRepeat, questDue, repeatProblem, type Repeat } from "../shared/schedule";
+import { _forTests } from "../src/export";
 
 describe("levels", () => {
   it("follows the XP curve", () => {
@@ -160,6 +162,88 @@ describe("achievement progress", () => {
   });
 });
 
+describe("repeat schedules", () => {
+  const upcoming = (r: Repeat, after: string, n = 4) => {
+    const out: string[] = [];
+    let d: string | null = after;
+    while (out.length < n && (d = nextOccurrence(r, d!))) out.push(d);
+    return out;
+  };
+  it("monthly on the 26th (and the 31st clamps to short months)", () => {
+    expect(upcoming({ t: "monthday", n: 1, day: 26, from: "2026-10-01" }, "2026-10-26")).toEqual(["2026-11-26", "2026-12-26", "2027-01-26", "2027-02-26"]);
+    expect(upcoming({ t: "monthday", n: 1, day: 31, from: "2026-01-01" }, "2027-01-31", 2)).toEqual(["2027-02-28", "2027-03-31"]);
+    expect(upcoming({ t: "monthday", n: 1, day: -1, from: "2028-01-01" }, "2028-01-31", 1)).toEqual(["2028-02-29"]);
+    expect(upcoming({ t: "monthday", n: 3, day: 1, from: "2026-11-01" }, "2026-10-01", 3)).toEqual(["2026-11-01", "2027-02-01", "2027-05-01"]);
+  });
+  it("alternate Sundays and every N days", () => {
+    const alt: Repeat = { t: "weeks", n: 2, days: "0000001", from: "2026-11-01" }; // Sunday 1 Nov
+    expect(upcoming(alt, "2026-10-28")).toEqual(["2026-11-01", "2026-11-15", "2026-11-29", "2026-12-13"]);
+    expect(occursOn(alt, "2026-11-08")).toBe(false);
+    expect(upcoming({ t: "days", n: 3, from: "2026-10-28" }, "2026-10-27", 3)).toEqual(["2026-10-28", "2026-10-31", "2026-11-03"]);
+  });
+  it("Nth / last weekday of the month, and yearly", () => {
+    expect(upcoming({ t: "monthweek", n: 1, week: 2, weekday: 6, from: "2026-10-01" }, "2026-10-01", 2)).toEqual(["2026-10-11", "2026-11-08"]); // 2nd Sunday
+    expect(upcoming({ t: "monthweek", n: 1, week: -1, weekday: 4, from: "2026-10-01" }, "2026-10-01", 2)).toEqual(["2026-10-30", "2026-11-27"]); // last Friday
+    expect(upcoming({ t: "yearly", month: 2, day: 29, from: "2026-01-01" }, "2026-01-01", 2)).toEqual(["2026-02-28", "2027-02-28"]);
+  });
+  it("describes, validates and falls back to weekday masks", () => {
+    expect(describeRepeat({ t: "weeks", n: 2, days: "0000001", from: "2026-11-01" })).toBe("Every other week on Sun");
+    expect(describeRepeat({ t: "monthday", n: 1, day: 26, from: "2026-11-01" })).toBe("Monthly on the 26th");
+    expect(describeRepeat({ t: "monthweek", n: 1, week: 2, weekday: 6, from: "2026-11-01" })).toBe("Monthly on the 2nd Sun");
+    expect(repeatProblem({ t: "weeks", n: 2, days: "0000000", from: "2026-11-01" })).toMatch(/weekday/);
+    expect(repeatProblem({ t: "monthday", n: 1, day: 40, from: "2026-11-01" })).toMatch(/day/);
+    expect(repeatProblem({ t: "nope", from: "2026-11-01" })).toMatch(/unknown/);
+    expect(parseRepeat("{bad json")).toBeNull();
+    expect(questDue({ days: "1111100", repeat_rule: null }, "2026-10-31")).toBe(false); // Saturday, weekdays only
+    expect(questDue({ days: "1111111", repeat_rule: JSON.stringify({ t: "monthday", n: 1, day: 26, from: "2026-01-01" }) }, "2026-10-26")).toBe(true);
+    expect(questDue({ days: "1111111", repeat_rule: JSON.stringify({ t: "monthday", n: 1, day: 26, from: "2026-01-01" }) }, "2026-10-27")).toBe(false);
+  });
+});
+
+describe("spreadsheet export", () => {
+  const { buildSheets, sheetXml, csv, serial, colName } = _forTests;
+  const tables = {
+    settings: [{ key: "player_name", value: '"Anson"' }, { key: "current_season", value: "1" }, { key: "height_m", value: "1.62" }],
+    seasons: [{ id: 1, name: "Season 1", started_at: "2026-10-01" }],
+    player: [{ best_streak: 4 }],
+    metrics: [{ key: "weight", name: "Weight", unit: "kg", sort: 1 }, { key: "calories", name: "Calories", unit: "kcal", sort: 2 }],
+    metric_values: [
+      { metric_key: "weight", date: "2026-10-02", value: 66.5 },
+      { metric_key: "calories", date: "2026-10-02", value: 1800 },
+      { metric_key: "weight", date: "2026-10-01", value: 67 },
+    ],
+    ledger: [
+      { id: 1, date: "2026-10-01", ts: "x", kind: "earn", ap: 10, xp: 20, hp: 0, description: "=HYPERLINK(evil)", voided: 0, season_id: 1 },
+      { id: 2, date: "2026-10-02", ts: "x", kind: "spend", ap: -4, xp: 0, hp: 0, description: 'Bubble tea, "large"', voided: 0, season_id: 1 },
+    ],
+    notes: [{ notebook_id: 1, title: "CET", doc: JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Gym 7pm" }] }] }), labels: null, words: 2 }],
+    notebooks: [{ id: 1, name: "Notes" }],
+  };
+  const sheets = buildSheets(tables as never);
+  const by = (n: string) => sheets.find((s) => s.name === n)!;
+  it("builds friendly sheets (trackers by date with BMI, running AP balance, note text)", () => {
+    expect(by("Trackers").head).toEqual(["Date", "Weight (kg)", "Calories (kcal)", "BMI"]);
+    expect(by("Trackers").rows).toEqual([
+      [{ date: "2026-10-01" }, 67, null, 25.5],
+      [{ date: "2026-10-02" }, 66.5, 1800, 25.3],
+    ]);
+    expect(by("AP ledger").rows.map((r) => r[8])).toEqual([10, 6]);
+    expect(by("Notes").rows[0].at(-1)).toBe("Gym 7pm");
+  });
+  it("writes valid cells and safe CSV", () => {
+    expect(colName(0)).toBe("A");
+    expect(colName(27)).toBe("AB");
+    expect(serial("2026-10-28")).toBe(46323); // Excel's day number for 28 Oct 2026
+    const xml = sheetXml(by("AP ledger"));
+    expect(xml).toContain("&quot;large&quot;");
+    expect(xml).not.toContain("<f>"); // text is never written as a formula
+    const out = csv(by("AP ledger"));
+    expect(out.startsWith("﻿")).toBe(true);
+    expect(out).toContain(`"'=HYPERLINK(evil)"`);
+    expect(out).toContain(`"Bubble tea, ""large"""`);
+  });
+});
+
 describe("to-do priorities", () => {
   it("pays half when late and a bonus for scheduled work done early", () => {
     expect(todoPay("do", "2026-10-22", "2026-10-23")).toMatchObject({ mult: 0.5 });
@@ -242,7 +326,7 @@ describe("pixel pet", () => {
                 for (const row of g) expect(row.length).toBe(24);
                 expect(g.join("")).toMatch(/o/);
               }
-  });
+  }, 30_000); // ~14,000 pets: give slow or busy machines time
   it("derives shades for custom colours", () => {
     expect(petPalette("pink").b).toBe(PET_COLORS.pink.b);
     const c = petPalette("#336699");

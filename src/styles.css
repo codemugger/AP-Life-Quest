@@ -935,6 +935,28 @@ img.media.px-art { image-rendering: pixelated; }
 .rich ul { margin: 6px 0; padding-left: 20px; }
 .rich a { word-break: break-word; }
 
+/* --- guide --- */
+.help-q {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; margin-left: 6px; vertical-align: middle;
+  font-family: var(--font); font-size: 15px; font-weight: 700; text-decoration: none; text-transform: none; letter-spacing: 0;
+  color: var(--ink); background: var(--lemon); box-shadow: 0 0 0 2px var(--line);
+}
+.help-q:hover { background: var(--pink); }
+.guide-index { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 2px 14px; }
+.guide-index .chip-btn { text-decoration: none; }
+.guide-chapter { scroll-margin-top: 90px; }
+.guide-on { box-shadow: 0 -4px 0 0 var(--violet), 0 4px 0 0 var(--violet), -4px 0 0 0 var(--violet), 4px 0 0 0 var(--violet), 0 8px 0 0 var(--shadow); }
+.guide-body { line-height: 1.5; }
+.guide-body ul, .guide-body ol { margin: 0; padding-left: 20px; }
+.guide-body li { margin: 4px 0; }
+.guide-body p { margin: 0 0 8px; }
+
+/* --- repeat schedules --- */
+.repeat-body { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding: 8px; background: var(--panel-2); box-shadow: 0 0 0 2px var(--line); }
+.repeat-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px; color: var(--ink); }
+.repeat-row .input { width: auto; min-height: 36px; padding: 4px 8px; margin: 3px; }
+.repeat-row .num-in { width: 76px; }
+
 /* --- to-do priorities (Eisenhower matrix) --- */
 .prio-do { --q: #ffd0cc; --qd: var(--coral); }
 .prio-schedule { --q: var(--sky-l); --qd: var(--sky); }

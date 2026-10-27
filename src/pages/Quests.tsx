@@ -7,12 +7,12 @@ import type { Quest } from "../../shared/types";
 import { useGame } from "../store";
 import { Editor } from "../components/Editor";
 import { QuestRow } from "../components/QuestRow";
-import { Empty, Panel, Seg, Tabs } from "../components/ui";
+import { Empty, HelpLink, Panel, Seg, Tabs } from "../components/ui";
 
 type Tab = "daily" | "weekly" | "habit" | "todo" | "archived";
 
 const BLURB: Record<Tab, string> = {
-  daily: "Due on chosen days. Missing one costs HP when the day closes. Linked ones tick themselves when you log a tracker.",
+  daily: "Due on chosen days: weekdays, every N days or weeks (e.g. alternate Sundays), monthly (e.g. the 26th or the 2nd Sunday) or yearly. Missing one costs HP when the day closes. Linked ones tick themselves when you log a tracker.",
   weekly: "Do them N times per week. Checked every Sunday night.",
   habit: "Tap any time. Good habits pay out; bad habits cost AP and HP. Habits with a unit (e.g. coaching hours) pay per unit.",
   todo: "One-off quests, sorted by the Eisenhower matrix. Give one a priority and a due date and missing the deadline costs HP (🔥 also its AP, and 🔥/📅 keep hurting each late day). Finishing late pays half; 📅 done early pays +25%.",
@@ -37,7 +37,7 @@ export default function Quests({ sub }: { sub?: string }) {
   return (
     <>
       <div className="page-head">
-        <h1>⚔️ Quest board</h1>
+        <h1>⚔️ Quest board <HelpLink to="quests" /></h1>
         <div className="row">
           {state.editable.length > 1 && (
             <Seg options={state.editable.map((d) => ({ id: d, label: d === state.today ? "Today" : "Yesterday" }))} value={logDate} onChange={setLogDate} />
@@ -79,7 +79,7 @@ export default function Quests({ sub }: { sub?: string }) {
             ) : (
               <div key={q.id}>
                 <QuestRow q={q} date={logDate} onEdit={() => setEdit(q)} />
-                {q.type === "daily" && q.days !== "1111111" && (
+                {q.type === "daily" && !q.repeat_rule && q.days !== "1111111" && (
                   <div className="tiny muted" style={{ margin: "2px 0 0 52px" }}>
                     {WEEKDAY_SHORT.filter((_, i) => q.days[i] === "1").join(" · ")}
                   </div>

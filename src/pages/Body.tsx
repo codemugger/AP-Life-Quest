@@ -8,7 +8,7 @@ import { useGame } from "../store";
 import { BarChart, LineChart, Spark, type Pt } from "../components/charts";
 import { Editor } from "../components/Editor";
 import { LogValue } from "../components/QuestRow";
-import { Empty, Panel, Seg } from "../components/ui";
+import { Empty, HelpLink, Panel, Seg } from "../components/ui";
 import { fmt, latest, series, valueOn } from "../util";
 
 type Range = "30" | "90" | "365" | "all";
@@ -44,7 +44,7 @@ export default function Body() {
   return (
     <>
       <div className="page-head">
-        <h1>💗 Body</h1>
+        <h1>💗 Body <HelpLink to="body" /></h1>
         <span className="small ink2">Height {fmt(s.height_m, 2)} m · BMI uses Singapore (Asian) cut-offs</span>
       </div>
       <div className="grid3" style={{ marginBottom: 6 }}>

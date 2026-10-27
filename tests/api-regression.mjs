@@ -1,6 +1,9 @@
 // End-to-end API checks against a FRESH local dev server (v2: accounts + characters).
 //   1. rm -rf .wrangler/state && npm run db:migrate:local && npm run dev
 //   2. in another terminal: npm run test:api
+// Or keep your own local data and use a scratch database instead (set APLQ_STATE for both):
+//   wrangler d1 migrations apply ap-life-quest-db --local --persist-to .wrangler/e2e-state
+//   APLQ_STATE=.wrangler/e2e-state npm run dev   ·   APLQ_STATE=.wrangler/e2e-state npm run test:api
 // Uses the local setup password from AP_DEV_PASSWORD (default: mochi-dev-password).
 import { execSync } from "node:child_process";
 import { createHmac } from "node:crypto";
@@ -179,6 +182,9 @@ await todo("Book dentist", "schedule", dayOf(0), { hp_penalty: 6 });
 await todo("Unsorted chore", null, dayOf(-1), { hp_penalty: 5 });
 await todo("Someday idea", "later", dayOf(-1), { hp_penalty: 0 });
 ok((await post("/data/quests", { type: "todo", title: "x", priority: "panic" })).status === 400, "unknown priority rejected");
+// a daily on a schedule: every 2 days from yesterday → due on dayOf(-1), off on dayOf(0)
+await post("/data/quests", { type: "daily", title: "Every-other-day stretch", emoji: "🧘", hp_penalty: 7, created_at: dayOf(-3), repeat_rule: { t: "days", n: 2, from: dayOf(-1) } });
+ok((await post("/data/quests", { type: "daily", title: "x", repeat_rule: { t: "weeks", n: 2, days: "0000000", from: dayOf(0) } })).status === 400, "a schedule with no weekdays is rejected");
 const exp3 = (await owner.get(g("/export"))).data;
 exp3.tables.player[0].last_processed = dayOf(-2);
 exp3.tables.day_closures = exp3.tables.day_closures.filter((r) => r.date <= dayOf(-2));
@@ -208,6 +214,26 @@ s = await state();
 ok(s.ledger.some((l) => l.description.includes("Plan next sprint — early bird!")), "📅 finished early gets the early-bird bonus");
 const now2 = (await post("/data/quests", { type: "todo", title: "Do it now", priority: "do" })).data.data.id;
 ok((await state()).quests.find((q) => q.id === now2).due_date === s.today, "🔥 Do-now without a date is due today");
+const missedDaily = (date) => s.ledger.some((l) => l.source === "day" && l.date === date && l.description.includes("Every-other-day stretch"));
+ok(missedDaily(dayOf(-1)) && !missedDaily(dayOf(0)), "a scheduled daily only counts on its own days");
+
+// repeating to-dos: finishing one lines up the next; undoing takes it back
+const monthly = (await post("/data/quests", { type: "todo", title: "Pay parents", emoji: "💸", priority: "do", hp_penalty: 10, repeat_rule: { t: "monthday", n: 1, day: 26, from: s.today } })).data.data.id;
+s = await state();
+const firstDue = s.quests.find((q) => q.id === monthly).due_date;
+ok(firstDue >= s.today && firstDue.endsWith("-26"), `a repeating to-do is due on its next date (${firstDue})`);
+const doneM = await post(`/quests/${monthly}/complete`, {});
+s = await state();
+const nextM = s.quests.find((q) => q.repeat_of === monthly);
+ok(!!nextM && nextM.due_date > firstDue && nextM.priority === "do" && nextM.hp_penalty === 10 && doneM.data.fx.some((f) => f.t === "toast" && f.msg.includes("Next one")), `finishing it creates the next one (${nextM?.due_date})`);
+await post(`/quests/${monthly}/undo`, {});
+s = await state();
+ok(!s.quests.some((q) => q.repeat_of === monthly), "undoing it removes the next one again");
+
+// more picture space for the owner; deleting finished battles
+ok((await owner.get(g("/media"))).data.limit === 500 * 1024 * 1024, "the owner gets 500 MB for pictures and voice memos");
+const sprintId = (await post("/data/sprints", { title: "Old raid", boss: "Slime", start_date: dayOf(-20), end_date: dayOf(-10) })).data.data.id;
+ok((await owner.del(g(`/data/sprints/${sprintId}`))).status === 200 && !(await state()).sprints.some((x) => x.id === sprintId), "a sprint can be removed from the battle history");
 
 // ================= looks =================
 const put = (b) => owner.put(g("/settings"), b);
@@ -393,7 +419,8 @@ for (let i = 0; i < 13; i++) last = (await again.post(`/c/${M}/snapshots`, { lab
 ok(last === 400, "manual save points are capped at 12");
 
 // ================= v1 import =================
-const sql = (q) => execSync(`npx wrangler d1 execute ap-life-quest-db --local --command "${q}"`, { stdio: "pipe" });
+const persist = process.env.APLQ_STATE ? ` --persist-to "${process.env.APLQ_STATE}"` : "";
+const sql = (q) => execSync(`npx wrangler d1 execute ap-life-quest-db --local${persist} --command "${q}"`, { stdio: "pipe" });
 sql(
   "INSERT INTO settings (key, value) VALUES ('current_season','1'),('player_name','\\\"Legacy Anson\\\"'),('seeded_at','\\\"x\\\"'); INSERT INTO seasons (id, name, started_at) VALUES (1,'Season 1','2026-10-01'); INSERT INTO player (id, hp) VALUES (1, 77); INSERT INTO ledger (date, kind, ap, xp, source, description, season_id) VALUES ('2026-10-02','earn',123,50,'quest','v1 quest',1);",
 );

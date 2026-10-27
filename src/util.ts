@@ -1,5 +1,6 @@
 // UI helpers: formatting, lookups and pet mood/speech.
-import { daysBetween, hourInTz, weekStart, isDue } from "../shared/dates";
+import { daysBetween, hourInTz, weekStart } from "../shared/dates";
+import { questDue } from "../shared/schedule";
 import type { GameState, Quest } from "../shared/types";
 import type { Mood } from "./sprites";
 
@@ -41,7 +42,7 @@ export function weekCount(s: GameState, questId: number, date: string) {
 }
 
 export function dailiesFor(s: GameState, date: string): Quest[] {
-  return s.quests.filter((q) => q.type === "daily" && q.active && isDue(q.days, date));
+  return s.quests.filter((q) => q.type === "daily" && q.active && questDue(q, date));
 }
 
 /** To-dos, most pressing first: 🔥 Do now, 📅 Schedule, ⚡ Quick, unsorted, 🧹 Someday; then by due date. */

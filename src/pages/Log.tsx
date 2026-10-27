@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { prettyDate } from "../../shared/dates";
 import { useGame } from "../store";
-import { Field, Modal, Panel, Seg } from "../components/ui";
+import { Field, HelpLink, Modal, Panel, Seg } from "../components/ui";
 import { fmt } from "../util";
 
 type Filter = "all" | "earn" | "spend" | "penalty";
@@ -24,7 +24,7 @@ export default function Log() {
   return (
     <>
       <div className="page-head">
-        <h1>📜 Adventure log</h1>
+        <h1>📜 Adventure log <HelpLink to="log" /></h1>
         <button className="btn primary" onClick={() => setAdj(true)}>
           ± Adjust
         </button>

@@ -8,7 +8,7 @@ import { Coin } from "../sprites";
 import { Editor } from "../components/Editor";
 import { IconOrEmoji } from "../components/Media";
 import { Rich } from "../components/Rich";
-import { Empty, Field, Modal, Panel, Tabs } from "../components/ui";
+import { Empty, Field, HelpLink, Modal, Panel, Tabs } from "../components/ui";
 import { fmt, fmtAP, inventoryOf, relDay } from "../util";
 
 type Tab = "shop" | "bag" | "vouchers" | "court" | "history";
@@ -23,7 +23,7 @@ export default function Shop({ sub }: { sub?: string }) {
   return (
     <>
       <div className="page-head">
-        <h1>🛒 AP Shop</h1>
+        <h1>🛒 AP Shop <HelpLink to="shop" /></h1>
         <span className="coin-count" style={{ fontSize: 14 }}>
           <Coin scale={3} /> {fmtAP(state.player.ap)} AP
         </span>

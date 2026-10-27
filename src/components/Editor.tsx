@@ -5,9 +5,10 @@ import { DIFFICULTY } from "../../shared/rules";
 import type { GameState } from "../../shared/types";
 import { useGame } from "../store";
 import { ImagesInput } from "./Media";
+import { RepeatInput } from "./RepeatInput";
 import { DaysInput, EmojiInput, Field, Modal } from "./ui";
 
-type FType = "text" | "textarea" | "number" | "select" | "emoji" | "date" | "bool" | "days" | "multi" | "json" | "images" | "url";
+type FType = "text" | "textarea" | "number" | "select" | "emoji" | "date" | "bool" | "days" | "multi" | "json" | "images" | "url" | "repeat";
 interface F {
   k: string;
   label: string;
@@ -18,6 +19,8 @@ interface F {
   step?: string;
   list?: string[];
   max?: number;
+  /** repeat fields: label of the "no schedule" choice */
+  none?: string;
 }
 interface Spec {
   title: string;
@@ -102,7 +105,15 @@ function specs(s: GameState): Record<string, Spec> {
           k: "due_date",
           label: "Due date",
           type: "date",
-          help: "Deadline penalties need a due date (🔥 Do now defaults to today).",
+          help: "Deadline penalties need a due date (🔥 Do now defaults to today). Repeating to-dos: leave empty to use the next date on the schedule.",
+          show: (d) => d.type === "todo",
+        },
+        {
+          k: "repeat_rule",
+          label: "Repeat",
+          type: "repeat",
+          none: "Doesn't repeat",
+          help: "When you finish it, the next one appears with its new due date (same priority and penalty).",
           show: (d) => d.type === "todo",
         },
         { k: "emoji", label: "Icon", type: "emoji" },
@@ -119,7 +130,8 @@ function specs(s: GameState): Record<string, Spec> {
           show: (d) => (d.type === "todo" ? !!d.priority && d.priority !== "later" : !(d.type === "habit" && Number(d.polarity) > 0)),
         },
         { k: "unit", label: "Unit (optional)", type: "text", help: "e.g. h — then you'll be asked how many (coaching hours)", show: (d) => d.type === "habit" },
-        { k: "days", label: "Due on", type: "days", show: (d) => d.type === "daily" },
+        { k: "repeat_rule", label: "Due on", type: "repeat", none: "Specific weekdays", show: (d) => d.type === "daily" },
+        { k: "days", label: "Weekdays", type: "days", show: (d) => d.type === "daily" && !d.repeat_rule },
         { k: "weekly_target", label: "Times per week", type: "number", show: (d) => d.type === "weekly" },
         { k: "metric_key", label: "Auto-complete from a tracker", type: "select", options: [["", "— no, I'll tick it —"], ...metricOpts], show: (d) => d.type === "daily" || d.type === "todo" },
         { k: "metric_op", label: "Complete when…", type: "select", options: [["logged", "anything is logged"], ["<=", "value ≤ threshold"], [">=", "value ≥ threshold"]], show: (d) => !!d.metric_key },
@@ -362,7 +374,8 @@ export function Editor({ entity, row, onClose }: { entity: string; row?: Record<
     try {
       const draft: Record<string, any> = {};
       for (const f of spec.fields) if (f.k in d) draft[f.k] = d[f.k];
-      for (const f of spec.fields) if (f.show && !f.show(d) && !f.k.startsWith("_")) delete draft[f.k];
+      // drop hidden fields (unless another visible field edits the same column, e.g. repeat_rule)
+      for (const f of spec.fields) if (f.show && !f.show(d) && !f.k.startsWith("_") && !visible.some((v) => v.k === f.k)) delete draft[f.k];
       let body = spec.toBody ? spec.toBody(draft) : draft;
       for (const k of Object.keys(body)) if (k.startsWith("_")) delete body[k];
       if (existing) await act(`data/${entity}/${row![spec.pk]}`, body, "PUT");
@@ -419,6 +432,7 @@ export function Editor({ entity, row, onClose }: { entity: string; row?: Record<
 }
 
 function FieldInput({ f, value, onChange }: { f: F; value: any; onChange: (v: any) => void }) {
+  const today = useGame().state.today;
   if (f.type === "bool")
     return (
       <label className="check">
@@ -488,6 +502,9 @@ function FieldInput({ f, value, onChange }: { f: F; value: any; onChange: (v: an
       break;
     case "days":
       input = <DaysInput value={value} onChange={onChange} />;
+      break;
+    case "repeat":
+      input = <RepeatInput value={value} onChange={onChange} today={today} noneLabel={f.none ?? "Doesn't repeat"} />;
       break;
     case "date":
       input = <input className="input" type="date" value={value ?? ""} onChange={(e) => onChange(e.target.value || null)} />;

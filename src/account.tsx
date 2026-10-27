@@ -1,6 +1,6 @@
 // Account-level state: who you are, your characters, templates.
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, ApiError } from "./api";
+import { api, ApiError, readCache, writeCache } from "./api";
 
 export interface PublicUser {
   id: number;
@@ -63,11 +63,14 @@ const Ctx = createContext<AccountCtx | null>(null);
 export const useAccount = () => useContext(Ctx)!;
 
 export function AccountProvider({ children, onLoggedOut, loading }: { children: ReactNode; onLoggedOut: () => void; loading: ReactNode }) {
-  const [account, setAccount] = useState<AccountData | null>(null);
+  // last-known copy first (instant, and works on a weak signal), then the fresh one
+  const [account, setAccount] = useState<AccountData | null>(() => readCache<AccountData>("account"));
   const [error, setError] = useState<string | null>(null);
   const refresh = useCallback(async () => {
     try {
-      setAccount(await api<AccountData>("account"));
+      const a = await api<AccountData>("account");
+      setAccount(a);
+      writeCache("account", a);
       setError(null);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) onLoggedOut();

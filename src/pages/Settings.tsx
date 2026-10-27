@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, type Settings as S } from "../../shared/rules";
 import { api, download, g } from "../api";
 import { useFx } from "../fx";
 import { useGame } from "../store";
-import { Bar, Field, Modal, Panel } from "../components/ui";
+import { Bar, Field, HelpLink, Modal, Panel } from "../components/ui";
 import { fmt } from "../util";
 
 interface Snap {
@@ -44,7 +44,7 @@ export default function Settings() {
   return (
     <>
       <div className="page-head">
-        <h1>⚙️ Settings</h1>
+        <h1>⚙️ Settings <HelpLink to="saves" /></h1>
       </div>
       <div className="grid2">
         <Panel title="🧑 Profile">
@@ -105,6 +105,8 @@ export default function Settings() {
         </Panel>
 
         <SavePoints />
+
+        <ExportData />
 
         <Pictures />
 
@@ -235,6 +237,42 @@ function SavePoints() {
             </button>
           </div>
         ))}
+      </div>
+    </Panel>
+  );
+}
+
+/** Your data as a spreadsheet (like the old APES sheet) or CSV files. */
+function ExportData() {
+  const { state } = useGame();
+  const fx = useFx();
+  const [busy, setBusy] = useState<null | "xlsx" | "csv">(null);
+  const run = async (kind: "xlsx" | "csv") => {
+    setBusy(kind);
+    try {
+      const { exportData } = await import("../export");
+      const n = await exportData(kind, state.settings.player_name, state.today);
+      fx.toast(`Exported ${n.toLocaleString("en-SG")} rows`, "📊");
+    } catch (e) {
+      fx.error((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <Panel title="📊 Export to Excel / CSV">
+      <p className="small ink2" style={{ marginTop: 0 }}>
+        Everything this character has collected, as a spreadsheet: trackers by date (weight, calories, BMI…), the AP ledger with a running balance, quests done,
+        purchases, goals, sprints, trophies, events and your notes as text. Opens in Excel, Numbers or Google Sheets. (For restoring the game, use the backup file
+        above instead.)
+      </p>
+      <div className="row wrap">
+        <button className="btn good" disabled={!!busy} onClick={() => run("xlsx")}>
+          {busy === "xlsx" ? "Building…" : "⬇ Excel (.xlsx)"}
+        </button>
+        <button className="btn" disabled={!!busy} onClick={() => run("csv")}>
+          {busy === "csv" ? "Building…" : "⬇ CSV files (.zip)"}
+        </button>
       </div>
     </Panel>
   );

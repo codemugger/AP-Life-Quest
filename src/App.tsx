@@ -1,7 +1,7 @@
 // App shell: auth gate → account (choose your save) → game, with hash routing and
 // a side nav (laptop) / tab bar (phone).
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { api, setCharacter } from "./api";
+import { api, clearCachedStates, readCache, setCharacter, writeCache } from "./api";
 import { AccountProvider, useAccount, type Me } from "./account";
 import { FxProvider, useFx } from "./fx";
 import { reminderDue } from "./notes";
@@ -14,6 +14,7 @@ import Quests from "./pages/Quests";
 
 const Body = lazy(() => import("./pages/Body"));
 const Notes = lazy(() => import("./pages/Notes"));
+const Guide = lazy(() => import("./pages/Guide"));
 const Shop = lazy(() => import("./pages/Shop"));
 const Journey = lazy(() => import("./pages/Journey"));
 const Trophies = lazy(() => import("./pages/Trophies"));
@@ -63,11 +64,12 @@ const GAME_NAV = [
   { id: "trophies", label: "Trophies", ico: "🏆" },
   { id: "log", label: "Log", ico: "📜" },
   { id: "settings", label: "Settings", ico: "⚙️" },
+  { id: "guide", label: "Guide", ico: "📖" },
 ];
 /** How many of GAME_NAV fit in the phone tab bar (the rest live under ☰ More). */
 const TABBAR = 5;
 const ACCOUNT_PAGES = ["characters", "account", "admin"];
-const MORE = ["journey", "trophies", "log", "settings", "more", ...ACCOUNT_PAGES];
+const MORE = ["journey", "trophies", "log", "settings", "guide", "more", ...ACCOUNT_PAGES];
 
 function accountNav(owner: boolean) {
   return [
@@ -175,6 +177,9 @@ function GameShell() {
     case "settings":
       content = <SettingsPage />;
       break;
+    case "guide":
+      content = <Guide sub={sub} />;
+      break;
     case "more":
       content = <More />;
       break;
@@ -261,7 +266,9 @@ function Authed({ onLoggedOut }: { onLoggedOut: () => void }) {
 }
 
 export default function App() {
-  const [me, setMe] = useState<Me | null>(null);
+  // the last login seen on this device lets the game open straight away (and offline); the
+  // server's answer replaces it a moment later, and logging out wipes it
+  const [me, setMe] = useState<Me | null>(() => readCache<Me>("me"));
   const [offline, setOffline] = useState(false);
   const route = useRoute();
   const loadMe = useCallback(() => {
@@ -269,8 +276,10 @@ export default function App() {
       .then((r) => {
         setMe(r);
         setOffline(false);
+        if (r.authed) writeCache("me", r);
+        else clearCachedStates();
       })
-      .catch(() => setOffline(true));
+      .catch(() => setOffline(!readCache("me")));
   }, []);
   useEffect(() => loadMe(), [loadMe]);
   const out = useCallback(() => setMe((m) => (m ? { ...m, authed: false, user: null } : m)), []);
