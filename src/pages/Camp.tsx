@@ -7,7 +7,7 @@ import { PetStage } from "../components/Hud";
 import { LogValue, QuestRow } from "../components/QuestRow";
 import { IconOrEmoji, MediaImg } from "../components/Media";
 import { NoteView } from "../components/NoteView";
-import { Bar, Panel, Seg } from "../components/ui";
+import { Bar, HelpLink, Panel, Seg } from "../components/ui";
 import { useFx } from "../fx";
 import { notesApi, parseDoc, reminderDue, reminderLabel } from "../notes";
 import { dailiesFor, doneOn, fmt, fmtAP, relDay, sortTodos, valueOn } from "../util";
@@ -82,7 +82,14 @@ export default function Camp() {
           </div>
         )}
         <QuickLog />
-        <Panel title={<>⚔️ Daily quests</>} right={<span className="chip">{doneCount}/{dailies.length}</span>}>
+        <Panel
+          title={
+            <>
+              ⚔️ Daily quests <HelpLink to="start" />
+            </>
+          }
+          right={<span className="chip">{doneCount}/{dailies.length}</span>}
+        >
           {rest && <div className="alert info">🏖️ Rest day: no penalties today, streak frozen.</div>}
           <div style={{ margin: "0 2px 12px" }}>
             <Bar value={doneCount} max={Math.max(1, dailies.length)} kind="good" thin />
@@ -153,7 +160,11 @@ function Todos() {
   const SHOW = 8;
   return (
     <Panel
-      title={<>📋 To-do list</>}
+      title={
+        <>
+          📋 To-do list <HelpLink to="todos" />
+        </>
+      }
       right={
         <span className="row" style={{ gap: 4 }}>
           {overdue > 0 && <span className="chip bad">⏰ {overdue} late</span>}

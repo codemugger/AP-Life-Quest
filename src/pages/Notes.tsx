@@ -9,7 +9,7 @@ import { journalStreak, notesApi, parseDoc, parseExtras, parseIds, reminderDue, 
 import { useGame } from "../store";
 import { MediaImg } from "../components/Media";
 import { NoteView } from "../components/NoteView";
-import { EmojiInput, Empty, Field, Modal, Panel } from "../components/ui";
+import { EmojiInput, Empty, Field, HelpLink, Modal, Panel } from "../components/ui";
 import type { EditorInit } from "../components/notes/NoteEditor";
 
 const NoteEditor = lazy(() => import("../components/notes/NoteEditor"));
@@ -201,7 +201,7 @@ export default function Notes({ sub }: { sub?: string }) {
   return (
     <>
       <div className="page-head">
-        <h1>📒 Notebook</h1>
+        <h1>📒 Notebook <HelpLink to="notebook" /></h1>
         <div className="row note-search">
           <input className="input" type="search" placeholder="🔍 Search notes…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search notes" />
         </div>

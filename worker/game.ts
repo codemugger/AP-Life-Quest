@@ -2,6 +2,7 @@
 import { addDays, closedThrough, daysBetween, gameDate, isDue, weekday, weekStart } from "../shared/dates";
 import { LEVEL_HATS, levelInfo, titleFor, type Rarity } from "../shared/levels";
 import { drainHp, OVERDUE_DAYS, priorityOf, todoPay } from "../shared/priority";
+import { nextOccurrence, parseRepeat, questDue } from "../shared/schedule";
 import { DEFAULT_SETTINGS, streakMultiplier, type Settings } from "../shared/rules";
 import { unitPrice } from "../shared/pricing";
 import type { Fx } from "../shared/types";
@@ -51,6 +52,7 @@ export interface QuestRow {
   metric_value: number | null;
   due_date: string | null;
   priority: string | null;
+  repeat_rule: string | null;
   active: number;
   created_at: string;
 }
@@ -354,6 +356,29 @@ export async function completeQuest(ctx: Ctx, id: number, opts: { date?: string;
     throw e;
   }
   await stmt(ctx.db, "UPDATE quest_log SET ledger_id = ? WHERE id = ?", ledgerId, claim.id).run();
+  if (q.type === "todo") await spawnNextTodo(ctx, q, date);
+}
+
+/** Columns copied from a repeating to-do to its next occurrence. */
+const TODO_COPY = "type, title, emoji, notes, area, difficulty, ap, xp, hp_penalty, polarity, days, weekly_target, unit, metric_key, metric_op, metric_value, priority, active, sort, images, link, repeat_rule";
+
+/** Finishing a repeating to-do lines up the next one (from its schedule, never in the past). */
+async function spawnNextTodo(ctx: Ctx, q: QuestRow, doneOn: string) {
+  const rule = parseRepeat(q.repeat_rule);
+  if (!rule) return;
+  const after = q.due_date && q.due_date > doneOn ? q.due_date : doneOn;
+  const next = nextOccurrence(rule, after);
+  if (!next) return;
+  await stmt(
+    ctx.db,
+    `INSERT INTO quests (${TODO_COPY}, due_date, created_at, repeat_of)
+     SELECT ${TODO_COPY}, ?, ?, id FROM quests WHERE id = ? AND NOT EXISTS (SELECT 1 FROM quests WHERE repeat_of = ?)`,
+    next,
+    ctx.today,
+    q.id,
+    q.id,
+  ).run();
+  ctx.fx.push({ t: "toast", msg: `Next one lined up: ${q.title}, due ${next}`, emoji: "🔁" });
 }
 
 export async function uncompleteQuest(ctx: Ctx, id: number, date?: string) {
@@ -372,7 +397,11 @@ export async function uncompleteQuest(ctx: Ctx, id: number, date?: string) {
   if (!log) throw notFound("Nothing to undo");
   assertOpenDay(ctx, log.date);
   if (log.ledger_id) await voidLedger(ctx, log.ledger_id, { silent: true, crossSeason: true });
-  await stmt(ctx.db, "DELETE FROM quest_log WHERE id = ?", log.id).run();
+  await ctx.db.batch([
+    stmt(ctx.db, "DELETE FROM quest_log WHERE id = ?", log.id),
+    // un-finishing a repeating to-do takes back the next occurrence it created (if untouched)
+    stmt(ctx.db, "DELETE FROM quests WHERE repeat_of = ? AND type = 'todo' AND id NOT IN (SELECT quest_id FROM quest_log)", id),
+  ]);
   if (ctx.player.fainted && ctx.player.revive_progress > 0) ctx.player.revive_progress--;
 }
 
@@ -505,7 +534,7 @@ async function syncMetricQuests(ctx: Ctx, m: MetricRow, date: string, val: numbe
     date,
   );
   for (const q of qs) {
-    if (q.type === "daily" && !isDue(q.days, date)) continue;
+    if (q.type === "daily" && !questDue(q, date)) continue;
     const th = q.metric_value ?? m.target;
     const op = q.metric_op || "logged";
     const ok =
@@ -627,7 +656,7 @@ async function processDay(ctx: Ctx, d: string) {
   const sunday = weekday(d) === 6;
   const [restR, dailyR, doneR, weeklyR, obR, sprintR, shieldR, todoR] = await db.batch([
     stmt(db, "SELECT date FROM rest_days WHERE date = ?", d),
-    stmt(db, "SELECT id, title, emoji, hp_penalty, days FROM quests WHERE type = 'daily' AND active = 1 AND created_at <= ?", d),
+    stmt(db, "SELECT id, title, emoji, hp_penalty, days, repeat_rule FROM quests WHERE type = 'daily' AND active = 1 AND created_at <= ?", d),
     stmt(db, "SELECT DISTINCT quest_id FROM quest_log WHERE date = ?", d),
     stmt(
       db,
@@ -673,8 +702,8 @@ async function processDay(ctx: Ctx, d: string) {
   const rest = restR.results.length > 0;
   // First statement: claim the day. If it was already closed, the whole batch rolls back.
   const claimDay = stmt(db, "INSERT INTO day_closures (date) VALUES (?)", d);
-  const due = rows<{ id: number; title: string; emoji: string; hp_penalty: number; days: string }>(dailyR).filter((q) =>
-    isDue(q.days, d),
+  const due = rows<{ id: number; title: string; emoji: string; hp_penalty: number; days: string; repeat_rule: string | null }>(dailyR).filter((q) =>
+    questDue(q, d),
   );
   const done = new Set(rows<{ quest_id: number }>(doneR).map((r) => r.quest_id));
   const missed = due.filter((q) => !done.has(q.id));

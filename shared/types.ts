@@ -52,6 +52,8 @@ export interface Quest {
   metric_value: number | null;
   due_date: string | null;
   priority: string | null; // to-dos: do | schedule | delegate | later (see shared/priority.ts)
+  repeat_rule: string | null; // JSON schedule (shared/schedule.ts): dailies' due days / to-dos' next occurrence
+  repeat_of: number | null; // to-dos: the occurrence this one follows
   active: number;
   sort: number;
   created_at: string;

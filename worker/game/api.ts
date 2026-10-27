@@ -47,7 +47,7 @@ import {
 import { setGoalStatus, toggleMilestone, toggleTask } from "../progress";
 import { buildState } from "../state";
 
-export const VERSION = "2.2.0";
+export const VERSION = "2.3.0";
 
 type GameEnv = { Bindings: { DB: D1Database } };
 type C = Context<GameEnv>;
@@ -245,7 +245,7 @@ gameApp.delete("/api/note-labels/:id", (c) => noteAct(c, (db) => deleteLabel(db,
 const MAX_PICTURE = 1_500_000;
 const MAX_AUDIO = 1_900_000; // character databases hold values up to 2 MB
 /** Media storage per character (owner / invited members). */
-const pictureLimit = (c: C) => (c.req.header("x-aplq-owner") === "1" ? 150 : 50) * 1024 * 1024;
+const pictureLimit = (c: C) => (c.req.header("x-aplq-owner") === "1" ? 500 : 50) * 1024 * 1024;
 const ascii = (b: Uint8Array, from: number, to: number) => String.fromCharCode(...b.slice(from, to));
 const MAGIC: Record<string, (b: Uint8Array) => boolean> = {
   "image/jpeg": (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,

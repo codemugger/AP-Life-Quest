@@ -1,6 +1,7 @@
 // Generic, whitelisted create/update/delete for everything configurable in the app.
 // To make a new column editable: add it in a migration, then list it here.
 import { ruleProblem } from "../shared/rules";
+import { nextOccurrence, occursOn, parseRepeat, repeatProblem } from "../shared/schedule";
 import { bad, first, notFound, stmt } from "./db";
 import type { Ctx } from "./game";
 
@@ -50,6 +51,7 @@ export const ENTITIES: Record<string, Entity> = {
       metric_value: N,
       due_date: D,
       priority: ["text", { enum: ["do", "schedule", "delegate", "later"], nullable: true }],
+      repeat_rule: ["json", { nullable: true }],
       active: B,
       sort: I,
       created_at: D,
@@ -300,6 +302,13 @@ function clean(e: Entity, body: Record<string, unknown>, creating: boolean) {
     if (why) throw bad(`Voucher rule: ${why}`);
   }
   if (e.table === "vouchers" && out.rule === "null") out.rule = null;
+  if (e.table === "quests" && typeof out.repeat_rule === "string") {
+    if (out.repeat_rule === "null") out.repeat_rule = null;
+    else {
+      const why = repeatProblem(JSON.parse(out.repeat_rule));
+      if (why) throw bad(`Repeat: ${why}`);
+    }
+  }
   return out;
 }
 
@@ -312,6 +321,9 @@ export async function createRow(ctx: Ctx, name: string, body: Record<string, unk
   const e = entity(name);
   const row = clean(e, body, true);
   if (e.table === "quests" && !row.created_at) row.created_at = ctx.today;
+  // a repeating to-do without a date is due on its first occurrence from today
+  const rep = e.table === "quests" && row.type === "todo" ? parseRepeat(row.repeat_rule) : null;
+  if (rep && !row.due_date) row.due_date = occursOn(rep, ctx.today) ? ctx.today : nextOccurrence(rep, ctx.today);
   // "Do now" is urgent by definition: no date means today
   if (e.table === "quests" && row.type === "todo" && row.priority === "do" && !row.due_date) row.due_date = ctx.today;
   const cols = Object.keys(row);

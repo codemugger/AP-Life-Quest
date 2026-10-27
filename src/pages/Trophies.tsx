@@ -5,7 +5,7 @@ import type { Achievement } from "../../shared/types";
 import { useGame } from "../store";
 import { Editor } from "../components/Editor";
 import { IconOrEmoji } from "../components/Media";
-import { Bar, Panel } from "../components/ui";
+import { Bar, HelpLink, Panel } from "../components/ui";
 import { fmt } from "../util";
 
 export default function Trophies() {
@@ -18,7 +18,7 @@ export default function Trophies() {
   return (
     <>
       <div className="page-head">
-        <h1>🏆 Trophy room</h1>
+        <h1>🏆 Trophy room <HelpLink to="trophies" /></h1>
         <button className="btn primary" onClick={() => setEdit({})}>
           ＋ Custom achievement
         </button>

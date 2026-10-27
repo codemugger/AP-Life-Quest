@@ -2,6 +2,7 @@
 import { useState, type ReactElement } from "react";
 import { addDays, daysBetween } from "../../shared/dates";
 import { drainHp, priorityOf } from "../../shared/priority";
+import { describeRepeat, parseRepeat } from "../../shared/schedule";
 import type { Metric, Quest } from "../../shared/types";
 import { useGame } from "../store";
 import { Check } from "../sprites";
@@ -45,6 +46,7 @@ export function QuestRow({ q, date, onEdit }: { q: Quest; date: string; onEdit?:
   const bad = q.type === "habit" && q.polarity < 0;
   const streak = q.type === "daily" ? questStreak(state.log, q.id, date) : 0;
   const threshold = q.metric_value ?? metric?.target;
+  const repeat = parseRepeat(q.repeat_rule);
 
   let button: ReactElement;
   if (q.type === "daily" || q.type === "todo") {
@@ -130,6 +132,7 @@ export function QuestRow({ q, date, onEdit }: { q: Quest; date: string; onEdit?:
           {q.type === "habit" && logs.length > 0 && <span className="chip">×{logs.reduce((a, l) => a + l.qty, 0)} today</span>}
           {streak >= 2 && <span className="chip warn">🔥{streak}</span>}
           {q.type === "todo" && <TodoChips q={q} done={done} today={state.today} />}
+          {repeat && (q.type === "todo" || q.type === "daily") && <span className="chip">🔁 {describeRepeat(repeat)}</span>}
           {onEdit && (
             <button className="linkbtn" onClick={onEdit} aria-label={`Edit ${q.title}`}>
               edit

@@ -126,6 +126,15 @@ export function Seg<T extends string>({ options, value, onChange }: { options: {
   );
 }
 
+/** A small "?" that opens the in-game guide at a chapter (src/pages/Guide.tsx). */
+export function HelpLink({ to }: { to: string }) {
+  return (
+    <a className="help-q" href={`#/guide/${to}`} title="How this works" aria-label="How this works">
+      ?
+    </a>
+  );
+}
+
 export function Empty({ emoji, children }: { emoji: string; children: ReactNode }) {
   return (
     <div className="empty">

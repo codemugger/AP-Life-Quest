@@ -31,6 +31,8 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
 
 ## 1. How the game works
 
+> **In the game:** 📖 **Guide** (sidebar, or ☰ More on the phone) explains all of this with *your* rule values, and the **?** next to each page title opens the matching chapter.
+
 | Thing | What it means |
 |---|---|
 | **AP** 🪙 | Your currency. Earned from quests, chests, achievements, goals and sprints. Spent in the AP Shop. |
@@ -45,7 +47,7 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
 
 **Quest types**
 
-- **Dailies:** due on chosen weekdays; missing one costs HP when the day closes. Many tick themselves when you log a tracker (weigh-in, calories ≤ budget, CSD ≥ 6 h…).
+- **Dailies:** due on their days; missing one costs HP when the day closes. Many tick themselves when you log a tracker (weigh-in, calories ≤ budget, CSD ≥ 6 h…). "Due on" can be chosen weekdays, **every N days**, **every N weeks** on some weekdays (e.g. alternate Sundays), **monthly** on a date (the 26th, or the last day) or a weekday (the 2nd Sunday), or **yearly**. A preview shows the next dates; on other days the daily doesn't exist, so it can't hurt you.
 - **Weeklies:** do N times a week.
 - **Habits:** tap any time. Good ones pay (e.g. *coaching* pays per hour); bad ones cost AP + HP.
 - **To-dos:** one-offs, sorted by the **Eisenhower matrix** (Quests → To-dos shows the four squares; Camp shows the most pressing ones under your dailies). Penalties need a due date:
@@ -58,6 +60,8 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
   | 🧹 **Someday** (neither) | none | none | normal |
 
   "Do now" without a date is due today. Unsorted to-dos (like ones made before priorities existed) have no penalty. Rest days skip deadline damage too.
+
+  **Repeating to-dos** (e.g. *pay parents by the 26th*): pick a schedule under **Repeat**. When you finish one, the next appears with its new due date, priority and penalty (🔁 on the row). Finish it early or late, and the next one still follows the schedule. Undoing the tick removes the next one again.
 
 **When does a day close?** The game day starts at **4 am**. Yesterday stays open until **4 pm** (12 h grace) so you can catch up in the morning. Closing applies missed-quest damage, the streak, perfect-day healing, Calorie Court auto-billing and sprint deadlines, then shows a "While you were away" report. Each day can only ever be scored once, even if your phone and laptop open the app at the same moment.
 
@@ -117,7 +121,7 @@ Chests can drop locked items early.
 - **📷 Photo**: resized on your phone to keep it small, or
 - **👾 Pixel art**: turns any picture into a crunchy 8-bit icon that matches the game.
 
-The first picture is the icon or cover; tap ⭐ on another to make it the cover. Events become a photo **timeline of memories**, and goals get a **vision board**. Each character can store 150 MB of pictures, and **Settings → Pictures** shows usage and can remove unused ones.
+The first picture is the icon or cover; tap ⭐ on another to make it the cover. Events become a photo **timeline of memories**, and goals get a **vision board**. Your characters can store 500 MB of pictures and voice memos each (invited members: 50 MB), and **Settings → Pictures & voice memos** shows usage and can remove unused ones.
 
 **📝 Notes** support `**bold**`, `*italic*`, `- lists` and links.
 
@@ -198,6 +202,8 @@ If v1 is already deployed and you've been logging in it:
 
 Open the site in **Safari** → **Share** → **Add to Home Screen**. It opens full-screen, stays logged in for 30 days (refreshed as you use it), and iPhone can save your password and 2FA codes (Settings → Passwords).
 
+It keeps the app itself on the phone and remembers your last view, so it opens instantly, even with a weak or no signal (showing what you last saw until it can sync). Your game data is never stored by the app cache, and logging out wipes the saved view from the device. After an update, close and reopen the app once to get the new version.
+
 ---
 
 ## 9. Updating the app
@@ -228,6 +234,7 @@ npm run deploy           # typecheck + tests → build → migrate DB → deploy
 
 - **Settings → Save points → Load**. A save point is made weekly and before every reset, import or load. You choose whether your notebook goes back in time too (default: keep today's notes).
 - **⬇ Download backup** / **⬆ Import backup** (a JSON file; pictures aren't included in the file).
+- **📊 Export to Excel / CSV** (Settings) is for *looking at* your data, not restoring it: one workbook (named `APES <name> <date>.xlsx`) with tabs for trackers by date (with BMI), the AP ledger with a running balance, quests done, all quests and their schedules, purchases, goals, sprints, trophies, events, notes (as text) and seasons. Dates are real dates, so you can chart them. The CSV option gives the same tabs as separate files in a .zip.
 
 **Roll back the code:**
 
@@ -308,7 +315,7 @@ To start over completely, create a new character (or delete one under **Characte
   Devices you've logged in from before skip the per-username and global limits, so a stranger spamming wrong passwords can't lock you out. Login timing doesn't reveal which usernames exist.
 - **Sessions:** random 256-bit tokens in `HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` cookies, stored hashed, with a 30-day sliding expiry. Changing your password logs out your other devices; **Log out everywhere** is in Account. Disabled accounts are locked out immediately.
 - **Isolation:** each character is its own Durable Object database. Every request is checked for login and ownership before it's forwarded. Only the headers the game needs are passed on, and the internal operations can't be reached from the internet. Owner-only templates are protected by a flag that backups can't change.
-- **Fair use:** per character, members get 200 MB of storage with 50 MB of pictures and voice memos (owner: 1 GB / 150 MB). Other limits: 12 manual save points, 120 changes a minute, 8 MB per upload or import, 5,000 notes of up to ~15,000 words each. Character creation can't exceed each person's limit.
+- **Fair use:** per character, members get 200 MB of storage with 50 MB of pictures and voice memos (owner: 1 GB / 500 MB). Other limits: 12 manual save points, 120 changes a minute, 8 MB per upload or import, 5,000 notes of up to ~15,000 words each. Character creation can't exceed each person's limit.
 - **Pictures:** only JPEG, PNG, WebP or GIF, checked by their actual bytes (no SVG or HTML), max 1.5 MB, served with `nosniff` and a locked-down Content-Security-Policy. Access is re-checked against your login on every view (nothing readable from the browser cache after logging out).
 - **Voice memos:** M4A/MP4, MP3, WebM, OGG or WAV, also checked by their bytes, max ~1.9 MB. The microphone is only used while you're recording and is allowed for this site alone.
 - **Imports** are validated like typed input: bad links and picture lists are dropped, sizes are capped, and imported notes are cleaned like typed ones.
@@ -332,7 +339,7 @@ Everything fits Cloudflare's **free** plan for you plus a handful of invited peo
 | Requests (Worker + character databases) | 100,000 / day |
 | Storage (account DB + all characters) | 5 GB total |
 | Account DB rows read / written | 5 M / 100 k per day |
-| Per character (app limit) | members 200 MB incl. 50 MB pictures; owner 1 GB incl. 150 MB |
+| Per character (app limit) | members 200 MB incl. 50 MB pictures; owner 1 GB incl. 500 MB |
 
 Beyond roughly 20–50 active players, move to **Workers Paid (US$5/month)**. No code changes are needed.
 
@@ -368,7 +375,7 @@ npm run dev                       # http://localhost:5173 (UI + API + character 
 | Command | What it does |
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and unit tests |
-| `npm run test:api` | 117 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`) |
+| `npm run test:api` | 124 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
 | `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
 | `npm run versions` / `npm run rollback` | Deployments |
 | `npm run backup` | SQL dump of the account database |
@@ -403,10 +410,13 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   └── seed.ts            templates: Healthy-life starter, Anson's original, Blank
 ├── shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules,
 │                          notedoc (what a rich note may contain + previews/word counts)
+│                          priority (to-do matrix), schedule (repeats)
 ├── src/                   React UI (pages/, components/, account flow, pictures, effects)
+│   ├── pages/Guide.tsx    the in-game guide (? buttons link to its chapters)
+│   ├── export.ts          Excel / CSV export (built in the browser)
 │   ├── pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
 │   └── components/notes/  editor (TipTap, loaded on demand), sketch pad, voice recorder
-├── public/                icons, manifest, security headers
+├── public/                icons, manifest, security headers, sw.js (keeps the app on the device)
 ├── scripts/               setup, passwords, 2FA, owner reset, backup, icons
 └── tests/                 unit tests + end-to-end API checks
 ```
@@ -424,7 +434,8 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 | Lost or stolen phone | Account → **Log out everywhere** (from another device), then change your password |
 | A day was scored unfairly | Log → void the penalty. For planned rest days, buy a 🏖️ Rest Day Pass |
 | Something broke after an update | `npm run rollback` (code) and/or Save points → Load (data) |
-| Picture won't upload | Max 1.5 MB after compression; JPEG, PNG, WebP or GIF; 50 MB per character for members, 150 MB for the owner |
+| Picture won't upload | Max 1.5 MB after compression; JPEG, PNG, WebP or GIF; 50 MB per character for members, 500 MB for the owner |
+| The app shows old numbers for a second | That's the last-known view drawn instantly while fresh data loads. Offline, it stays and says so; it refreshes when you're back online |
 | "Storage is full" | Settings → delete old save points or remove unused pictures; empty the notebook trash |
 | Voice memo says the microphone is blocked | iPhone: Settings → Safari (or the home-screen app) → Microphone → Allow. Laptop: click the 🔒 in the address bar → Microphone → Allow |
 | "This note was changed on another device" | Choose **Load theirs** (keep the other device's version) or **Keep mine** (overwrite with this one) |

@@ -7,7 +7,7 @@ import { Editor } from "../components/Editor";
 import { Gallery, IconOrEmoji, LinkButton, MediaImg } from "../components/Media";
 import { Rich } from "../components/Rich";
 import { parseImages } from "../media";
-import { Bar, Empty, Modal, Panel, Tabs } from "../components/ui";
+import { Bar, Empty, HelpLink, Modal, Panel, Tabs } from "../components/ui";
 import { fmt, latest, relDay } from "../util";
 
 type Tab = "goals" | "sprints" | "events";
@@ -19,7 +19,7 @@ export default function Journey({ sub }: { sub?: string }) {
   return (
     <>
       <div className="page-head">
-        <h1>🗺️ Journey</h1>
+        <h1>🗺️ Journey <HelpLink to="journey" /></h1>
         <button className="btn primary" onClick={() => open(tab === "goals" ? "goals" : tab === "sprints" ? "sprints" : "events")}>
           ＋ New {tab === "goals" ? "goal" : tab === "sprints" ? "sprint" : "event"}
         </button>
@@ -199,7 +199,9 @@ function GoalCard({ g, open }: { g: Goal; open: Open }) {
 }
 
 function Sprints({ open }: { open: Open }) {
-  const { state } = useGame();
+  const { state, act, busy } = useGame();
+  const remove = (sp: Sprint) =>
+    confirm(`Remove “${sp.title}” from your battle history? The AP, XP and chests you won stay yours.`) && act(`data/sprints/${sp.id}`, {}, "DELETE").catch(() => {});
   const active = state.sprints.filter((s) => s.status === "active");
   const past = state.sprints.filter((s) => s.status !== "active");
   return (
@@ -230,6 +232,9 @@ function Sprints({ open }: { open: Open }) {
                   </div>
                 </div>
                 <span className={`chip ${sp.status === "won" ? "good" : sp.status === "lost" ? "bad" : ""}`}>{sp.status === "won" ? "🏆 won" : sp.status === "lost" ? "💨 escaped" : sp.status}</span>
+                <button className="btn xs" disabled={busy} onClick={() => remove(sp)} aria-label={`Remove ${sp.title} from history`} title="Remove from history">
+                  ✕
+                </button>
               </div>
             ))}
           </div>
