@@ -42,6 +42,7 @@ import {
   verifyTotp,
 } from "./auth";
 import { exportJson } from "./backup";
+import { createLink, deleteLink, fillLogos, iconOf, listHighway, reorder, setIcon, updateLink } from "./highway";
 import { CharacterDO, contentFromCopy } from "./character";
 import { all, bad, first, HttpError, run } from "./db";
 import { TEMPLATES } from "./seed";
@@ -308,10 +309,58 @@ app.delete("/api/account", async (c) => {
     c.env.DB.prepare("UPDATE characters SET deleted_at = datetime('now') WHERE user_id = ?").bind(user.id),
     c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id),
     c.env.DB.prepare("DELETE FROM devices WHERE user_id = ?").bind(user.id),
+    c.env.DB.prepare("DELETE FROM highway WHERE user_id = ?").bind(user.id),
     c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(user.id),
   ]);
   c.header("Set-Cookie", clearCookie());
   return c.json({ ok: true });
+});
+
+// ---------- the Highway (your favourite sites; account-wide) ----------
+const hwId = (c: C) => {
+  const n = Number(c.req.param("id"));
+  if (!Number.isInteger(n) || n <= 0) throw bad("Bad id");
+  return n;
+};
+app.get("/api/highway", async (c) => c.json(await listHighway(c.env.DB, c.get("user"))));
+app.post("/api/highway", async (c) => {
+  const id = await createLink(c.env.DB, c.get("user").id, await body(c));
+  await fillLogos(c.env.DB, c.get("user").id, id); // its logo, straight away
+  return c.json({ ok: true, id });
+});
+app.put("/api/highway/order", async (c) => {
+  await reorder(c.env.DB, c.get("user").id, (await body(c)).ids);
+  return c.json({ ok: true });
+});
+/** Logos for sites that don't have one yet (the starter set, or after a failed lookup). */
+app.post("/api/highway/logos", async (c) => c.json({ ok: true, found: await fillLogos(c.env.DB, c.get("user").id) }));
+app.put("/api/highway/:id", async (c) => {
+  const b = await body(c);
+  await updateLink(c.env.DB, c.get("user").id, hwId(c), b);
+  if (b.icon_mode === "auto") await fillLogos(c.env.DB, c.get("user").id, hwId(c), !!b.refresh_logo);
+  return c.json({ ok: true });
+});
+app.delete("/api/highway/:id", async (c) => {
+  await deleteLink(c.env.DB, c.get("user").id, hwId(c));
+  return c.json({ ok: true });
+});
+app.post("/api/highway/:id/icon", async (c) => {
+  const buf = await c.req.arrayBuffer();
+  await setIcon(c.env.DB, c.get("user").id, hwId(c), buf);
+  return c.json({ ok: true });
+});
+app.get("/api/highway/:id/icon", async (c) => {
+  const row = await iconOf(c.env.DB, c.get("user").id, hwId(c));
+  if (!row?.icon || !row.icon_type) throw new HttpError(404, "No icon");
+  return new Response(row.icon, {
+    headers: {
+      "Content-Type": row.icon_type,
+      // the URL carries ?v=<version>, so a changed icon is a new address
+      "Cache-Control": "private, max-age=604800, immutable",
+      "Content-Security-Policy": "default-src 'none'",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 });
 
 // ---------- characters ----------

@@ -16,6 +16,7 @@ export interface User {
   last_character: string | null;
   created_at: string;
   last_login: string | null;
+  highway_seeded?: number;
 }
 
 export interface CharacterRow {

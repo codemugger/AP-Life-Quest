@@ -40,7 +40,13 @@ export async function seasonStats(ctx: Ctx, tot: { ap: number; xp: number }): Pr
   const S = ctx.season;
   const from = ctx.seasonStart;
   const res = await db.batch([
-    stmt(db, "SELECT COUNT(*) AS c FROM quest_log l JOIN quests q ON q.id = l.quest_id WHERE l.season_id = ? AND q.polarity > 0", S),
+    // (deleted quests still count: their completions stay in your history)
+    stmt(
+      db,
+      `SELECT COUNT(*) AS c FROM quest_log l LEFT JOIN quests q ON q.id = l.quest_id LEFT JOIN ledger g ON g.id = l.ledger_id
+       WHERE l.season_id = ? AND COALESCE(q.polarity, CASE WHEN g.kind = 'penalty' THEN -1 ELSE 1 END) > 0`,
+      S,
+    ),
     // one pass over the season's ledger for every ledger-based counter
     stmt(
       db,

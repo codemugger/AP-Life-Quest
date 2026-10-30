@@ -8,6 +8,7 @@ import { reminderDue } from "./notes";
 import { GameProvider, useGame } from "./store";
 import { Pet } from "./sprites";
 import { Hud } from "./components/Hud";
+import { HighwayButton, HighwayProvider } from "./components/Highway";
 import Camp from "./pages/Camp";
 import { Join, Login, Setup } from "./pages/Login";
 import Quests from "./pages/Quests";
@@ -94,6 +95,7 @@ function AccountShell({ page }: { page: string }) {
           </span>
           <span className="grow" />
           <nav className="row" aria-label="Account">
+            <HighwayButton />
             {hasChar && (
               <button className="btn xs" onClick={() => go("camp")}>
                 ◀ Back to game
@@ -304,7 +306,9 @@ export default function App() {
   } else
     body = (
       <AccountProvider key={me.user?.id} onLoggedOut={out} loading={<Splash />}>
-        <Authed onLoggedOut={out} />
+        <HighwayProvider>
+          <Authed onLoggedOut={out} />
+        </HighwayProvider>
       </AccountProvider>
     );
   return <FxProvider>{body}</FxProvider>;

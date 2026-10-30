@@ -230,6 +230,17 @@ await post(`/quests/${monthly}/undo`, {});
 s = await state();
 ok(!s.quests.some((q) => q.repeat_of === monthly), "undoing it removes the next one again");
 
+// deleting archived quests forever keeps what they earned
+const before3 = (await state()).stats.quests_done;
+const oldQ = (await post("/data/quests", { type: "habit", title: "Old habit", emoji: "🧓", polarity: 1 })).data.data.id;
+await post(`/quests/${oldQ}/complete`, {});
+const doneWith = (await state()).stats.quests_done;
+await owner.put(g(`/data/quests/${oldQ}`), { active: 0 });
+ok((await post("/quests/delete-archived", {})).status === 400, "deleting all archived needs confirming");
+ok((await post("/quests/delete-archived", { confirm: true })).status === 200, "archived quests can be deleted");
+s = await state();
+ok(!s.quests.some((q) => !q.active) && s.stats.quests_done === doneWith && doneWith === before3 + 1, `…and their completions still count (${before3} → ${doneWith} → ${s.stats.quests_done})`);
+
 // more picture space for the owner; deleting finished battles
 ok((await owner.get(g("/media"))).data.limit === 500 * 1024 * 1024, "the owner gets 500 MB for pictures and voice memos");
 const sprintId = (await post("/data/sprints", { title: "Old raid", boss: "Slime", start_date: dayOf(-20), end_date: dayOf(-10) })).data.data.id;
@@ -241,8 +252,33 @@ ok((await put({ pet_species: "dino", pet_eyes: "sparkle", pet_color: "#123456" }
 ok((await put({ pet_species: "dragon" })).status === 400, "unknown species rejected");
 ok((await put({ pet_color: "red" })).status === 400, "bad colour rejected");
 ok((await put({ hat: "beanie", face: "glasses", scene: "beach" })).status === 200, "free hat/face/scene work");
-ok((await put({ hat: "crown" })).status === 400, "level-locked hat rejected");
-ok((await put({ scene: "space" })).status === 400, "level-locked scene rejected");
+// (chests can drop locked items early, so pick ones this character hasn't won)
+const owned = (await state()).settings.hats;
+const lockedHat = ["crown", "wizard", "flower"].find((h) => !owned.includes(h));
+const lockedScene = ["space", "sakura", "city"].find((h) => !owned.includes(h));
+ok((await put({ hat: lockedHat })).status === 400, `level-locked hat rejected (${lockedHat})`);
+ok((await put({ scene: lockedScene })).status === 400, `level-locked scene rejected (${lockedScene})`);
+
+// ================= the Highway (account-wide favourite sites) =================
+let hw = (await owner.get("/highway")).data;
+ok(hw.length === 11 && hw[0].name === "ChatGPT" && hw.some((l) => l.url.startsWith("https://calendar.google.com/")), `the owner's Highway starts with the 11 sites (${hw.length})`);
+ok((await owner.get("/highway")).data.length === 11, "the starter set is only added once");
+ok((await member.get("/highway")).data.length === 0, "an invited member starts with an empty Highway");
+ok((await owner.post("/highway", { name: "Evil", url: "javascript:alert(1)" })).status === 400, "javascript: addresses rejected");
+const site = await owner.post("/highway", { name: "Example", url: "example.com", emoji: "🧪", icon_mode: "emoji" });
+ok(site.status === 200 && (await owner.get("/highway")).data.find((l) => l.id === site.data.id)?.url === "https://example.com/", "a bare address becomes https://…");
+ok((await owner.put(`/highway/${site.data.id}`, { name: "Example 2" })).status === 200, "a site can be renamed");
+ok((await member.put(`/highway/${site.data.id}`, { name: "hijack" })).status === 404, "a member can't edit someone else's sites");
+const icon = await owner.post(`/highway/${site.data.id}/icon`, null, { raw: PNG, headers: { "content-type": "image/png" } });
+const iconGet = await owner.get(`/highway/${site.data.id}/icon?v=1`);
+ok(icon.status === 200 && iconGet.status === 200 && iconGet.type === "image/png" && iconGet.data.length === PNG.length, "own picture as the icon");
+ok((await member.get(`/highway/${site.data.id}/icon?v=1`)).status === 404, "a member can't see someone else's icons");
+ok((await owner.post(`/highway/${site.data.id}/icon`, null, { raw: new TextEncoder().encode("<svg onload=alert(1)>".padEnd(40)), headers: { "content-type": "image/png" } })).status === 400, "fake icons rejected");
+hw = (await owner.get("/highway")).data;
+await owner.put("/highway/order", { ids: [site.data.id, ...hw.filter((l) => l.id !== site.data.id).map((l) => l.id)] });
+ok((await owner.get("/highway")).data[0].id === site.data.id, "sites can be reordered");
+ok((await owner.post("/highway/logos")).status === 200, "logo lookup runs (finds what it can)");
+ok((await owner.del(`/highway/${site.data.id}`)).status === 200 && (await owner.get("/highway")).data.length === 11, "a site can be removed");
 
 // ================= pictures =================
 const up = await owner.post(g("/media"), null, { raw: PNG, headers: { "content-type": "image/png", "x-width": "1", "x-height": "1" } });

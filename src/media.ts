@@ -17,11 +17,11 @@ function loadImage(file: File): Promise<HTMLImageElement> {
   });
 }
 
-/** Returns a small JPEG (photo, ≤1280px) or a tiny posterised PNG (pixel art, ≤40px). */
-export async function prepareImage(file: File, mode: PicMode) {
+/** Returns a small JPEG (photo, ≤1280px or `maxSize`) or a tiny posterised PNG (pixel art, ≤40px). */
+export async function prepareImage(file: File, mode: PicMode, maxSize?: number) {
   if (!file.type.startsWith("image/")) throw new Error("Please choose a picture");
   const img = await loadImage(file);
-  const max = mode === "photo" ? 1280 : 40;
+  const max = mode === "photo" ? (maxSize ?? 1280) : 40;
   const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(1, Math.round(img.naturalWidth * scale));
   const h = Math.max(1, Math.round(img.naturalHeight * scale));

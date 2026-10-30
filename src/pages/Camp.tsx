@@ -7,6 +7,7 @@ import { PetStage } from "../components/Hud";
 import { LogValue, QuestRow } from "../components/QuestRow";
 import { IconOrEmoji, MediaImg } from "../components/Media";
 import { NoteView } from "../components/NoteView";
+import { HighwayStrip } from "../components/Highway";
 import { Bar, HelpLink, Panel, Seg } from "../components/ui";
 import { useFx } from "../fx";
 import { notesApi, parseDoc, reminderDue, reminderLabel } from "../notes";
@@ -66,6 +67,7 @@ export default function Camp() {
             <span className="small ink2">+{fmtAP(p.earned_today)} AP today</span>
           </div>
         </Panel>
+        <HighwayStrip />
         <Alerts />
         <PinnedNotes />
       </div>

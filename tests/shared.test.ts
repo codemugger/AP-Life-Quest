@@ -230,6 +230,18 @@ describe("spreadsheet export", () => {
     expect(by("AP ledger").rows.map((r) => r[8])).toEqual([10, 6]);
     expect(by("Notes").rows[0].at(-1)).toBe("Gym 7pm");
   });
+  it("exports just a date period (balance still counts what came before)", () => {
+    const p = buildSheets(tables as never, { from: "2026-10-02", to: "2026-10-31" });
+    const get = (n: string) => p.find((s) => s.name === n)!;
+    expect(get("Trackers").rows).toEqual([[{ date: "2026-10-02" }, 66.5, 1800, 25.3]]);
+    expect(get("AP ledger").rows.map((r) => [r[5], r[8]])).toEqual([[-4, 6]]);
+    const summary = Object.fromEntries(get("Summary").rows.filter((r) => r[0]).map((r) => [r[0], r[1]]));
+    expect(summary.Period).toBe("2026-10-02 to 2026-10-31");
+    expect(summary["AP spent / lost"]).toBe(4);
+    expect(summary["AP earned"]).toBe(0);
+    expect(summary["Days weighed"]).toBe(1);
+    expect(get("Notes").rows.length).toBe(0); // the note has no dates in this period
+  });
   it("writes valid cells and safe CSV", () => {
     expect(colName(0)).toBe("A");
     expect(colName(27)).toBe("AB");
