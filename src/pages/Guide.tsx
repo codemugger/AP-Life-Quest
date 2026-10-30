@@ -232,6 +232,18 @@ const CHAPTERS: Chapter[] = [
     ),
   },
   {
+    id: "highway",
+    emoji: "🛣️",
+    title: "The Highway (your favourite sites)",
+    body: () => (
+      <ul>
+        <li>Tap 🛣️ in the top bar on any page (or the strip on Camp) and tap a site: it opens in a new window.</li>
+        <li>✎ Edit to add, rename, re-order or remove sites. Each icon can be the site's own logo (↻ Try another logo if it looks wrong), an emoji, or your own picture or pixel art.</li>
+        <li>It's the same in all your characters. Logos are fetched once and kept in your app, never loaded from other websites.</li>
+      </ul>
+    ),
+  },
+  {
     id: "log",
     emoji: "📜",
     title: "The log (undo anything)",

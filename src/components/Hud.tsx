@@ -7,6 +7,7 @@ import { useGame } from "../store";
 import { Coin, Heart, lookOf, Pet, Star } from "../sprites";
 import { fmtAP, isNight, petLine, petMood } from "../util";
 import { Bar, Modal, Tabs } from "./ui";
+import { HighwayButton } from "./Highway";
 
 function usePetAnim() {
   const [anim, setAnim] = useState("");
@@ -55,6 +56,7 @@ export function Hud() {
             <Coin scale={2} /> {fmtAP(p.ap)}
           </span>
         </div>
+        <HighwayButton />
       </div>
     </header>
   );

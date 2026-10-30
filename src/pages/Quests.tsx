@@ -16,7 +16,7 @@ const BLURB: Record<Tab, string> = {
   weekly: "Do them N times per week. Checked every Sunday night.",
   habit: "Tap any time. Good habits pay out; bad habits cost AP and HP. Habits with a unit (e.g. coaching hours) pay per unit.",
   todo: "One-off quests, sorted by the Eisenhower matrix. Give one a priority and a due date and missing the deadline costs HP (🔥 also its AP, and 🔥/📅 keep hurting each late day). Finishing late pays half; 📅 done early pays +25%.",
-  archived: "Paused quests. Edit one and tick Active to bring it back.",
+  archived: "Paused and finished quests. ↩ brings one back, ✎ edits it, 🗑 deletes it forever (what it earned stays in your log and stats).",
 };
 
 export default function Quests({ sub }: { sub?: string }) {
@@ -66,14 +66,25 @@ export default function Quests({ sub }: { sub?: string }) {
         <div className="qlist">
           {(tab === "todo" ? [] : list).map((q) =>
             tab === "archived" ? (
-              <div className="quest muted-row" key={q.id}>
-                <div className="q-emoji">{q.emoji}</div>
-                <div className="q-body">
+              <div className="quest archived-row" key={q.id}>
+                <div className="q-emoji faded">{q.emoji}</div>
+                <div className="q-body faded">
                   <div className="q-title">{q.title}</div>
                   <div className="small muted">{q.type}</div>
                 </div>
-                <button className="btn sm" onClick={() => setEdit(q)}>
-                  Edit
+                <button className="btn xs" onClick={() => act(`data/quests/${q.id}`, { active: 1 }, "PUT").catch(() => {})} title="Bring it back" aria-label={`Restore ${q.title}`}>
+                  ↩
+                </button>
+                <button className="btn xs" onClick={() => setEdit(q)} aria-label={`Edit ${q.title}`}>
+                  ✎
+                </button>
+                <button
+                  className="btn xs danger"
+                  aria-label={`Delete ${q.title} forever`}
+                  title="Delete forever"
+                  onClick={() => confirm(`Delete “${q.title}” forever? What it earned stays in your log and stats.`) && act(`data/quests/${q.id}`, {}, "DELETE").catch(() => {})}
+                >
+                  🗑
                 </button>
               </div>
             ) : (
@@ -98,6 +109,16 @@ export default function Quests({ sub }: { sub?: string }) {
             </Empty>
           )}
         </div>
+        {tab === "archived" && list.length > 1 && (
+          <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
+            <button
+              className="btn sm danger"
+              onClick={() => confirm(`Delete all ${list.length} archived quests forever? What they earned stays in your log and stats.`) && act("quests/delete-archived", { confirm: true }).catch(() => {})}
+            >
+              🗑 Delete all {list.length} archived
+            </button>
+          </div>
+        )}
         {tab === "todo" && doneTodos > 0 && (
           <div className="row" style={{ justifyContent: "flex-end", marginTop: 10 }}>
             <button className="btn sm" onClick={() => act("quests/clear-done").catch(() => {})}>

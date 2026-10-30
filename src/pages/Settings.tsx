@@ -1,5 +1,6 @@
 // Settings: profile, look & sound, game rules, save points/backups, resets, security, about.
 import { useEffect, useRef, useState } from "react";
+import { addDays, prettyDate } from "../../shared/dates";
 import { DEFAULT_SETTINGS, type Settings as S } from "../../shared/rules";
 import { api, download, g } from "../api";
 import { useFx } from "../fx";
@@ -243,15 +244,46 @@ function SavePoints() {
 }
 
 /** Your data as a spreadsheet (like the old APES sheet) or CSV files. */
+type Preset = "all" | "this-month" | "last-month" | "last-30" | "this-year" | "custom";
+
+/** First and last day of the month `date` is in. */
+const monthOf = (date: string) => {
+  const [y, m] = date.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return { from: `${date.slice(0, 7)}-01`, to: `${date.slice(0, 7)}-${String(last).padStart(2, "0")}` };
+};
+
+function presetPeriod(p: Preset, today: string, custom: { from: string; to: string }) {
+  switch (p) {
+    case "this-month":
+      return monthOf(today);
+    case "last-month":
+      return monthOf(addDays(`${today.slice(0, 7)}-01`, -1));
+    case "last-30":
+      return { from: addDays(today, -29), to: today };
+    case "this-year":
+      return { from: `${today.slice(0, 4)}-01-01`, to: `${today.slice(0, 4)}-12-31` };
+    case "custom":
+      return custom;
+    default:
+      return null;
+  }
+}
+
 function ExportData() {
   const { state } = useGame();
   const fx = useFx();
   const [busy, setBusy] = useState<null | "xlsx" | "csv">(null);
+  const [preset, setPreset] = useState<Preset>("all");
+  const [custom, setCustom] = useState(() => monthOf(state.today));
+  const period = presetPeriod(preset, state.today, custom);
+  const badRange = !!period && (!period.from || !period.to || period.from > period.to);
   const run = async (kind: "xlsx" | "csv") => {
+    if (badRange) return;
     setBusy(kind);
     try {
       const { exportData } = await import("../export");
-      const n = await exportData(kind, state.settings.player_name, state.today);
+      const n = await exportData(kind, state.settings.player_name, state.today, period);
       fx.toast(`Exported ${n.toLocaleString("en-SG")} rows`, "📊");
     } catch (e) {
       fx.error((e as Error).message);
@@ -266,11 +298,40 @@ function ExportData() {
         purchases, goals, sprints, trophies, events and your notes as text. Opens in Excel, Numbers or Google Sheets. (For restoring the game, use the backup file
         above instead.)
       </p>
+      <Field label="Period">
+        <select className="input" value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
+          <option value="all">Everything</option>
+          <option value="this-month">This month</option>
+          <option value="last-month">Last month</option>
+          <option value="last-30">Last 30 days</option>
+          <option value="this-year">This year</option>
+          <option value="custom">Choose dates…</option>
+        </select>
+      </Field>
+      {preset === "custom" && (
+        <div className="row wrap export-dates">
+          <label className="field">
+            <span>From</span>
+            <input className="input" type="date" value={custom.from} max={custom.to || undefined} onChange={(e) => setCustom({ ...custom, from: e.target.value })} />
+          </label>
+          <label className="field">
+            <span>To</span>
+            <input className="input" type="date" value={custom.to} min={custom.from || undefined} onChange={(e) => setCustom({ ...custom, to: e.target.value })} />
+          </label>
+        </div>
+      )}
+      <p className={`small ${badRange ? "neg" : "ink2"}`} style={{ margin: "0 0 8px" }}>
+        {badRange
+          ? "Pick a start date on or before the end date."
+          : period
+            ? `${prettyDate(period.from)} – ${prettyDate(period.to)}: dated things (trackers, the AP log, quests done, purchases, events, notes, trophies won) in this range, plus totals for the period on the Summary tab. Your quest and goal lists are always included in full.`
+            : "Everything since the start."}
+      </p>
       <div className="row wrap">
-        <button className="btn good" disabled={!!busy} onClick={() => run("xlsx")}>
+        <button className="btn good" disabled={!!busy || badRange} onClick={() => run("xlsx")}>
           {busy === "xlsx" ? "Building…" : "⬇ Excel (.xlsx)"}
         </button>
-        <button className="btn" disabled={!!busy} onClick={() => run("csv")}>
+        <button className="btn" disabled={!!busy || badRange} onClick={() => run("csv")}>
           {busy === "csv" ? "Building…" : "⬇ CSV files (.zip)"}
         </button>
       </div>

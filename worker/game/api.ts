@@ -47,7 +47,7 @@ import {
 import { setGoalStatus, toggleMilestone, toggleTask } from "../progress";
 import { buildState } from "../state";
 
-export const VERSION = "2.3.0";
+export const VERSION = "2.4.0";
 
 type GameEnv = { Bindings: { DB: D1Database } };
 type C = Context<GameEnv>;
@@ -112,6 +112,14 @@ gameApp.post("/api/quests/:id/undo", (c) => act(c, (ctx, b) => uncompleteQuest(c
 gameApp.post("/api/quests/clear-done", (c) =>
   act(c, async (ctx) => {
     await ctx.db.prepare("UPDATE quests SET active = 0 WHERE type = 'todo' AND active = 1 AND id IN (SELECT quest_id FROM quest_log)").run();
+  }),
+);
+/** Deletes every archived quest for good (what they earned stays in the log and stats). */
+gameApp.post("/api/quests/delete-archived", (c) =>
+  act(c, async (ctx, b) => {
+    if (b.confirm !== true) throw bad("Confirm first");
+    const r = await ctx.db.prepare("DELETE FROM quests WHERE active = 0").run();
+    ctx.fx.push({ t: "toast", msg: `Deleted ${r.meta.changes} archived quest(s)`, emoji: "🗑️" });
   }),
 );
 

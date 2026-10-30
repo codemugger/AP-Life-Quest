@@ -11,7 +11,7 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
 1. [How the game works](#1-how-the-game-works)
 2. [A day in the life](#2-a-day-in-the-life)
 3. [Accounts, characters and invites](#3-accounts-characters-and-invites)
-4. [Make it yours: looks, pictures, notes and links](#4-make-it-yours-looks-pictures-notes-and-links)
+4. [Make it yours: looks, pictures, notes, links and the Highway](#4-make-it-yours-looks-pictures-notes-links-and-the-highway)
 5. [Notebook & journal](#5-notebook--journal)
 6. [First-time setup (≈10 minutes)](#6-first-time-setup)
 7. [Upgrading from v1](#7-upgrading-from-v1)
@@ -62,6 +62,7 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
   "Do now" without a date is due today. Unsorted to-dos (like ones made before priorities existed) have no penalty. Rest days skip deadline damage too.
 
   **Repeating to-dos** (e.g. *pay parents by the 26th*): pick a schedule under **Repeat**. When you finish one, the next appears with its new due date, priority and penalty (🔁 on the row). Finish it early or late, and the next one still follows the schedule. Undoing the tick removes the next one again.
+- **Archive:** paused quests and finished to-dos (**Archive N finished**). Each row has ↩ restore, ✎ edit and 🗑 delete forever, plus **🗑 Delete all archived**. Deleting never takes back what a quest earned: your log, stats, trophies and exports keep it (shown as *(deleted quest)*).
 
 **When does a day close?** The game day starts at **4 am**. Yesterday stays open until **4 pm** (12 h grace) so you can catch up in the morning. Closing applies missed-quest damage, the streak, perfect-day healing, Calorie Court auto-billing and sprint deadlines, then shows a "While you were away" report. Each day can only ever be scored once, even if your phone and laptop open the app at the same moment.
 
@@ -101,7 +102,7 @@ If you ignore it, it's auto-billed at full price.
 
 ---
 
-## 4. Make it yours: looks, pictures, notes and links
+## 4. Make it yours: looks, pictures, notes, links and the Highway
 
 **🎀 Wardrobe** (tap your pet on the Camp page):
 
@@ -126,6 +127,13 @@ The first picture is the icon or cover; tap ⭐ on another to make it the cover.
 **📝 Notes** support `**bold**`, `*italic*`, `- lists` and links.
 
 **🔗 Links** (workout videos, maps, booking pages…) show as a button on the quest, event or goal card.
+
+**🛣️ The Highway** is your launcher for the sites you use every day. Tap 🛣️ in the top bar on any page (or use the strip on Camp), then tap a site to open it in a new window.
+
+- It starts with ChatGPT, Claude, Gemini, DeepSeek, Facebook, Google Calendar, Udemy, LinkedIn, Outlook, Gmail and Google (owner account; invited members start empty).
+- **✎ Edit** to add a site (quick-add chips for YouTube, WhatsApp, Drive and more, or any address), rename it, change its address, move it ◀ ▶ or remove it. Up to 48 sites.
+- **Icons:** 🌐 the site's own logo (if it looks wrong, **↻ Try another logo** cycles between three logo services), 😀 an emoji, or 🖼️ your own picture or pixel art.
+- It belongs to your **account**, so every character sees the same Highway. Logos are fetched once by the server and stored with your account, so the app never loads pictures from other websites.
 
 ---
 
@@ -235,6 +243,7 @@ npm run deploy           # typecheck + tests → build → migrate DB → deploy
 - **Settings → Save points → Load**. A save point is made weekly and before every reset, import or load. You choose whether your notebook goes back in time too (default: keep today's notes).
 - **⬇ Download backup** / **⬆ Import backup** (a JSON file; pictures aren't included in the file).
 - **📊 Export to Excel / CSV** (Settings) is for *looking at* your data, not restoring it: one workbook (named `APES <name> <date>.xlsx`) with tabs for trackers by date (with BMI), the AP ledger with a running balance, quests done, all quests and their schedules, purchases, goals, sprints, trophies, events, notes (as text) and seasons. Dates are real dates, so you can chart them. The CSV option gives the same tabs as separate files in a .zip.
+  - **Period:** Everything, This month, Last month, Last 30 days, This year, or **Choose dates…** (e.g. 1 Nov 2026 to 30 Nov 2026; the file becomes `APES <name> 2026-11-01 to 2026-11-30`). Dated tabs keep only that period; the ledger's running balance still counts everything before it; sprints and events show if they overlap it; notes show if they were written or changed in it. The Summary tab adds the period's totals: AP earned and spent, XP, quests done, weight change and average calories.
 
 **Roll back the code:**
 
@@ -299,6 +308,7 @@ To start over completely, create a new character (or delete one under **Characte
 - Make a new column editable: add it in a migration, then to the whitelist in `worker/crud.ts` and the field list in `src/components/Editor.tsx`.
 - New pet hats or faces: `shared/petgrid.ts` (pixel grids) and `shared/levels.ts` (unlock rules).
 - New templates: `worker/seed.ts`.
+- Highway starter sites and quick-add chips: `shared/highway.ts` (changing them only affects new accounts; existing ones edit theirs in the app).
 - Notebook: server in `worker/notes.ts`; what a note may contain (nodes, marks, fonts, colours) in `shared/notedoc.ts`; the editor in `src/components/notes/NoteEditor.tsx`. A new formatting option needs all three: the editor extension, the whitelist entry, and a case in `src/components/NoteView.tsx` (cards).
 
 ---
@@ -319,6 +329,7 @@ To start over completely, create a new character (or delete one under **Characte
 - **Pictures:** only JPEG, PNG, WebP or GIF, checked by their actual bytes (no SVG or HTML), max 1.5 MB, served with `nosniff` and a locked-down Content-Security-Policy. Access is re-checked against your login on every view (nothing readable from the browser cache after logging out).
 - **Voice memos:** M4A/MP4, MP3, WebM, OGG or WAV, also checked by their bytes, max ~1.9 MB. The microphone is only used while you're recording and is allowed for this site alone.
 - **Imports** are validated like typed input: bad links and picture lists are dropped, sizes are capped, and imported notes are cleaned like typed ones.
+- **Highway:** only `http(s)` addresses are accepted (no `javascript:`), sites open with `noopener noreferrer`, and each account sees and changes only its own. Logos are fetched by the server (5 s timeout, max 200 KB, checked by their bytes), stored with the account and served only to its owner.
 - **Notes** are rendered without HTML. Rich notes are stored as editor JSON, and the server keeps only whitelisted formatting (fonts, colours and sizes from fixed lists; links only `http(s)`, `mailto:` and `tel:`; pictures only by their id in your own storage), so a note can't carry scripts or outside content.
 - **CSRF guard** (custom header + same-origin check), strict security headers, and `noindex` so search engines stay away.
 - **Secrets never committed:** `.dev.vars`, `backups/` and your `.xlsx` files are git-ignored.
@@ -375,7 +386,7 @@ npm run dev                       # http://localhost:5173 (UI + API + character 
 | Command | What it does |
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and unit tests |
-| `npm run test:api` | 124 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
+| `npm run test:api` | 140 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
 | `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
 | `npm run versions` / `npm run rollback` | Deployments |
 | `npm run backup` | SQL dump of the account database |
@@ -390,9 +401,10 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 ## 17. Project structure
 
 ```
-├── migrations/            account database (D1): 0001 = v1 game tables (kept), 0002 = accounts
+├── migrations/            account database (D1): 0001 = v1 game tables (kept), 0002 = accounts, 0003 = Highway
 ├── worker/
 │   ├── index.ts           accounts, invites, admin, v1 import, secure proxy to characters
+│   ├── highway.ts         the Highway: sites, order, server-fetched logos, own icons
 │   ├── auth.ts            passwords, TOTP, sessions, lock-outs
 │   ├── accounts.ts        users, invites, character registry
 │   ├── character.ts       the per-character Durable Object (own SQLite, self-migrating)
@@ -410,9 +422,10 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   └── seed.ts            templates: Healthy-life starter, Anson's original, Blank
 ├── shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules,
 │                          notedoc (what a rich note may contain + previews/word counts)
-│                          priority (to-do matrix), schedule (repeats)
+│                          priority (to-do matrix), schedule (repeats), highway (starter sites, URL rules)
 ├── src/                   React UI (pages/, components/, account flow, pictures, effects)
 │   ├── pages/Guide.tsx    the in-game guide (? buttons link to its chapters)
+│   ├── components/Highway.tsx  🛣️ launcher, Camp strip, site editor
 │   ├── export.ts          Excel / CSV export (built in the browser)
 │   ├── pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
 │   └── components/notes/  editor (TipTap, loaded on demand), sketch pad, voice recorder
