@@ -97,13 +97,29 @@ export function isUnlocked(id: string, owned: string[], level: number) {
   return c.unlock === 0 || owned.includes(id) || (typeof c.unlock === "number" && level >= c.unlock);
 }
 
+/** Pets: each evolves through 5 forms (egg + 4, see STAGES), Pokémon-style, and has a natural colour. */
 export const SPECIES = [
-  { id: "cat", name: "Neko" },
-  { id: "blob", name: "Mochi blob" },
-  { id: "bunny", name: "Usagi" },
-  { id: "bear", name: "Kuma" },
-  { id: "dino", name: "Dino" },
+  { id: "cat", name: "Neko", color: "ash", forms: ["Neko egg", "Mewbit", "Neko", "Tora", "Nekomata"] },
+  { id: "shiba", name: "Shiba", color: "shiba", forms: ["Shiba egg", "Pupshi", "Shibako", "Shiba", "Okami"] },
+  { id: "bear", name: "Kuma", color: "cocoa", forms: ["Kuma egg", "Kumabun", "Kumako", "Kuma", "Kumaou"] },
+  { id: "penguin", name: "Pengu", color: "navy", forms: ["Pengu egg", "Pipchick", "Pengu", "Penguard", "Emperion"] },
+  { id: "redpanda", name: "Red panda", color: "rust", forms: ["Panda egg", "Pandling", "Ressa", "Akapan", "Homura"] },
+  { id: "blob", name: "Mochi blob", color: "cloud", forms: ["Mochi egg", "Mochidrop", "Mochi", "Daifuku", "Kagami"] },
+  { id: "bunny", name: "Usagi", color: "cloud", forms: ["Usagi egg", "Bunbun", "Usagi", "Usamaru", "Lunasagi"] },
+  { id: "dino", name: "Dino", color: "mint", forms: ["Dino egg", "Dinobit", "Rexi", "Rexaur", "Dracorex"] },
 ] as const;
+
+/** The name of a species' form at an evolution stage, e.g. "Tora". */
+export function formName(species: string, stage: number) {
+  const sp = SPECIES.find((s) => s.id === species) ?? SPECIES[0];
+  return sp.forms[Math.max(0, Math.min(4, stage))];
+}
+
+/** The stage a pet evolves into on reaching `level` (null if it doesn't evolve then). */
+export function evolvesAt(level: number) {
+  const i = STAGES.findIndex((st) => st.level === level);
+  return i > 0 ? i : null;
+}
 
 export const EYES = [
   { id: "dot", name: "Classic" },
