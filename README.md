@@ -108,9 +108,9 @@ If you ignore it, it's auto-billed at full price.
 
 | | Options | How to get them |
 |---|---|---|
-| Species | Neko (cat), Mochi blob, Usagi (bunny), Kuma (bear), Dino | free |
+| Animal | Neko (cat), Shiba, Kuma (bear), Pengu (penguin), Red panda, Mochi blob, Usagi (bunny), Dino. Each comes in its natural colour and evolves Pokémon-style from an egg through 4 hand-drawn forms (Lv 3 / 10 / 20 / 35), e.g. Pupshi → Shibako → Shiba → Okami. The **evolution line** shows forms you haven't reached as silhouettes | free, switch any time |
 | Eyes | Classic, Big & shiny, Sparkly | free |
-| Colour | 9 presets **or any colour** you pick | free |
+| Colour | 13 presets **or any colour** you pick | free |
 | Hats | Beanie (free), Headband (Lv 5), Party hat (Lv 10), Flower (Lv 15), Wizard (Lv 25), Crown (Lv 40), Bow & Coach cap (chest drops) | level up / chests |
 | Face | Round glasses (free), Cool shades (chest) | free / chests |
 | Scene | Meadow & Beach (free), City Lights (Lv 8), Sakura Park (Lv 12), Moon Base (Lv 20) | level up / chests |

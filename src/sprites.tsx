@@ -1,6 +1,8 @@
-// Pixel art: a tiny sprite renderer, the procedural pet, hats, chests and icons.
+// Pixel art: a tiny sprite renderer, the pets, hats, chests and icons.
 import { memo, useEffect, useState, type ReactElement } from "react";
-import { buildPet, PET_COLORS, petPalette, type Mood } from "../shared/petgrid";
+import { formName, STAGES } from "../shared/levels";
+import { buildPet, PET_COLORS, petPalette, petSize, type Mood } from "../shared/petgrid";
+import "./pets.css";
 
 export { PET_COLORS, type Mood };
 
@@ -27,7 +29,14 @@ const BASE: Palette = {
   T: "#b9a991",
   b: "#c07a3e",
   d: "#8a5428",
+  c: "#fff1d6",
+  K: "#4b2e35",
+  f: "#ff8a3d",
+  F: "#ffd166",
 };
+
+/** Every letter in one dark colour: a not-yet-discovered form. */
+const SILHOUETTE: Palette = Object.fromEntries([...Object.keys(BASE), "l", "e"].map((k) => [k, "#4a3f6b"]));
 
 /** Renders rows of characters as crisp SVG rects (horizontal runs merged). */
 export const Sprite = memo(function Sprite({
@@ -93,6 +102,10 @@ export const lookOf = (s: { pet_color: string; hat: string | null; pet_species: 
   face: s.face,
 });
 
+/**
+ * The pet. Later forms are bigger drawings, so `scale` is pixels per sprite pixel, shrunk if needed
+ * so the body (not counting a hat) fits `maxW` × `maxH` CSS pixels.
+ */
 export function Pet({
   stage,
   mood,
@@ -102,11 +115,14 @@ export function Pet({
   eyes = "dot",
   face = null,
   scale = 6,
+  maxW,
+  maxH,
+  silhouette = false,
   className,
-}: PetLook & { stage: number; mood: Mood; scale?: number; className?: string }) {
+}: PetLook & { stage: number; mood: Mood; scale?: number; maxW?: number; maxH?: number; silhouette?: boolean; className?: string }) {
   const [blink, setBlink] = useState(false);
   useEffect(() => {
-    if (mood === "sleep" || mood === "fainted") return;
+    if (silhouette || mood === "sleep" || mood === "fainted") return;
     let t2: ReturnType<typeof setTimeout>;
     const t = setInterval(() => {
       setBlink(true);
@@ -116,12 +132,35 @@ export function Pet({
       clearInterval(t);
       clearTimeout(t2);
     };
-  }, [mood]);
+  }, [mood, silhouette]);
   const c = petPalette(color);
-  const eggPal = { b: "#fff6e0", l: "#ffffff", d: "#ead7b4", e: c.b };
-  const pal = stage === 0 ? eggPal : { b: c.b, l: c.l, d: c.d };
+  const eggPal = { b: "#fff6e0", l: "#ffffff", d: "#ead7b4", e: c.d };
+  const pal = silhouette ? SILHOUETTE : stage === 0 ? eggPal : { b: c.b, l: c.l, d: c.d };
   const grid = buildPet(stage, blink && mood !== "sad" ? "blink" : mood, hat, { species, eyes, face });
-  return <Sprite grid={grid} palette={pal} scale={scale} className={className} title="Your pet" />;
+  const size = petSize(stage, species);
+  const fit = Math.min(scale, maxW ? maxW / size.w : scale, maxH ? maxH / size.h : scale);
+  const px = Math.max(1, Math.floor(fit * 4) / 4); // quarter steps keep the pixels even
+  return <Sprite grid={grid} palette={pal} scale={px} className={className} title={silhouette ? "Not discovered yet" : "Your pet"} />;
+}
+
+/** Pokédex-style row: every form of a species, with the ones not reached yet as silhouettes. */
+export function EvolutionLine({ species, stage, look }: { species: string; stage: number; look: PetLook }) {
+  return (
+    <div className="evo-line" role="list" aria-label="Evolution line">
+      {STAGES.map((st, i) => {
+        const known = i <= stage;
+        return (
+          <div key={i} className={`evo-step ${i === stage ? "now" : ""} ${known ? "" : "unknown"}`} role="listitem">
+            <div className="evo-pet">
+              <Pet stage={i} mood="content" {...look} species={species} hat={null} face={null} scale={2} maxW={56} silhouette={!known} />
+            </div>
+            <span className="evo-name">{known ? formName(species, i) : "???"}</span>
+            <span className="tiny muted">{i === 0 ? "start" : `Lv ${st.level}`}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------

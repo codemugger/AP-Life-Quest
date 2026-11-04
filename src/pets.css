@@ -1,0 +1,45 @@
+/* Pets: sizing for the evolving forms, the form name on Camp, and the evolution line. */
+
+/* the top-bar pet: later forms are bigger drawings, so fit whichever form it is into the box */
+.hud .pet-mini { display: flex; align-items: flex-end; justify-content: center; }
+.hud .pet-mini svg { width: 100%; height: 100%; }
+
+.stage .form-tag {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  font-family: var(--font-px);
+  font-size: 9px;
+  color: #fff;
+  background: rgba(45, 33, 66, 0.72);
+  padding: 4px 6px;
+  box-shadow: 0 0 0 2px var(--line);
+}
+
+.wardrobe-form { margin-top: 4px; }
+
+/* Pokédex-style evolution line */
+.evo-line {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  margin: 10px 0 6px;
+  padding: 8px 4px 6px;
+  background: var(--panel-2);
+  box-shadow: 0 0 0 2px var(--line);
+  overflow-x: auto;
+}
+.evo-step { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 56px; flex: 1 1 0; }
+.evo-step .evo-pet { min-height: 58px; display: flex; align-items: flex-end; justify-content: center; }
+.evo-step .evo-name { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.evo-step.now .evo-name { color: var(--violet); }
+.evo-step.now .evo-pet { box-shadow: 0 4px 0 0 var(--violet); }
+.evo-step.unknown .evo-pet { opacity: 0.6; }
+.evo-step.unknown .evo-name { color: var(--muted); }
+
+@media (max-width: 420px) {
+  .evo-step { min-width: 50px; }
+  .evo-step .evo-name { font-size: 11px; }
+}

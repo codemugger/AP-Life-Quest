@@ -54,7 +54,7 @@ const CHAPTERS: Chapter[] = [
           perfect day heals {s.perfect_day_heal}.
         </li>
         <li>
-          <b>Your pet</b> evolves at levels 3, 10, 20 and 35, and its mood follows your HP and today's effort.
+          <b>Your pet</b> hatches at level 3 and evolves into a new, bigger form at levels 10, 20 and 35 (e.g. Mewbit → Neko → Tora → Nekomata). Choose the animal in 🎀 Wardrobe (tap your pet), where the evolution line shows forms you haven't reached as silhouettes. Its mood follows your HP and today's effort.
         </li>
         <li>
           <b>Difficulty</b> sets a quest's rewards: {Object.values(DIFFICULTY).map((d) => `${d.label} ${d.ap} AP`).join(" · ")}.

@@ -5,7 +5,7 @@ import { PET_COLORS } from "../../shared/petgrid";
 import { api } from "../api";
 import { useAccount, type CharacterInfo } from "../account";
 import { useFx } from "../fx";
-import { Pet } from "../sprites";
+import { EvolutionLine, Pet } from "../sprites";
 import { Empty, Field, Modal } from "../components/ui";
 
 export function play(id: string) {
@@ -65,7 +65,7 @@ export default function Characters() {
             <div key={ch.id} className={`panel char-card ${last ? "tinted" : ""}`} style={{ margin: 4 }}>
               <div className="char-pet">
                 {s ? (
-                  <Pet stage={s.stage} mood={s.fainted ? "fainted" : "happy"} color={s.color} species={s.species} eyes={s.eyes} hat={s.hat} face={s.face} scale={4} className="pet-sprite" />
+                  <Pet stage={s.stage} mood={s.fainted ? "fainted" : "happy"} color={s.color} species={s.species} eyes={s.eyes} hat={s.hat} face={s.face} scale={4} maxW={130} maxH={96} className="pet-sprite" />
                 ) : (
                   <span style={{ fontSize: 40 }}>❔</span>
                 )}
@@ -139,8 +139,8 @@ function CreateWizard({ onClose, onCreated }: { onClose: () => void; onCreated: 
   const [step, setStep] = useState<Step>(0);
   const [name, setName] = useState(account.characters.length ? "" : account.user.display_name);
   const [pet, setPet] = useState("Mochi");
-  const [species, setSpecies] = useState("cat");
-  const [color, setColor] = useState("pink");
+  const [species, setSpecies] = useState<string>(SPECIES[0].id);
+  const [color, setColor] = useState<string>(SPECIES[0].color);
   const [eyes, setEyes] = useState("dot");
   const [tpl, setTpl] = useState<string>(account.templates[0]?.id ?? "starter");
   const [busy, setBusy] = useState(false);
@@ -186,9 +186,9 @@ function CreateWizard({ onClose, onCreated }: { onClose: () => void; onCreated: 
         </>
       }
     >
-      <div className="center" style={{ marginBottom: 8 }}>
-        <Pet stage={2} mood="happy" {...look} scale={5} className="pet-sprite" />
-        <div className="tiny muted">(It starts as an egg and evolves as you level up.)</div>
+      <div className="center" style={{ marginBottom: 8, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <Pet stage={2} mood="happy" {...look} scale={5} maxH={110} className="pet-sprite" />
+        <div className="tiny muted">(It starts as an egg and evolves into new forms as you level up.)</div>
       </div>
       {step === 0 && (
         <>
@@ -207,12 +207,21 @@ function CreateWizard({ onClose, onCreated }: { onClose: () => void; onCreated: 
           </div>
           <div className="row wrap">
             {SPECIES.map((sp) => (
-              <button key={sp.id} className={`panel tight trophy ${species === sp.id ? "tinted selected" : ""}`} onClick={() => setSpecies(sp.id)} style={{ margin: 4 }}>
-                <Pet stage={2} mood="content" {...look} species={sp.id} scale={3} />
+              <button
+                key={sp.id}
+                className={`panel tight trophy ${species === sp.id ? "tinted selected" : ""}`}
+                onClick={() => {
+                  setSpecies(sp.id);
+                  setColor(sp.color);
+                }}
+                style={{ margin: 4 }}
+              >
+                <Pet stage={2} mood="content" {...look} species={sp.id} color={species === sp.id ? color : sp.color} scale={3} maxW={70} />
                 <span className="small">{sp.name}</span>
               </button>
             ))}
           </div>
+          <EvolutionLine species={species} stage={0} look={look} />
           <div className="panel-title" style={{ marginTop: 8 }}>
             <h2>Colour</h2>
           </div>
