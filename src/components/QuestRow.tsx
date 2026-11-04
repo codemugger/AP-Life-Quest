@@ -1,9 +1,10 @@
 // A single quest row (daily / weekly / habit / to-do) with the right button for its type.
-import { useState, type ReactElement } from "react";
-import { addDays, daysBetween } from "../../shared/dates";
+import { useEffect, useState, type ReactElement } from "react";
+import { addDays, daysBetween, prettyDate } from "../../shared/dates";
 import { drainHp, priorityOf } from "../../shared/priority";
 import { describeRepeat, parseRepeat } from "../../shared/schedule";
 import type { Metric, Quest } from "../../shared/types";
+import { api, g } from "../api";
 import { useGame } from "../store";
 import { Check } from "../sprites";
 import { doneOn, fmt, relDay, valueOn, weekCount } from "../util";
@@ -131,6 +132,11 @@ export function QuestRow({ q, date, onEdit }: { q: Quest; date: string; onEdit?:
           )}
           {q.type === "habit" && logs.length > 0 && <span className="chip">×{logs.reduce((a, l) => a + l.qty, 0)} today</span>}
           {streak >= 2 && <span className="chip warn">🔥{streak}</span>}
+          {q.type === "todo" && state.promises.some((p) => p.quest_id === q.id && p.date === state.today) && (
+            <span className="chip promise" title={`Promised for today: +${Math.round(state.settings.promise_bonus * 100)}% if you finish it today`}>
+              🎯 promised
+            </span>
+          )}
           {q.type === "todo" && <TodoChips q={q} done={done} today={state.today} />}
           {repeat && (q.type === "todo" || q.type === "daily") && <span className="chip">🔁 {describeRepeat(repeat)}</span>}
           {onEdit && (
@@ -261,21 +267,46 @@ function QtyPrompt({ q, onClose, onSubmit }: { q: Quest; onClose: () => void; on
   );
 }
 
-/** Modal to log (or fix) a tracker value for a date. */
-export function LogValue({ metric, date, onClose }: { metric: Metric; date: string; onClose: () => void }) {
+/** Days of tracker values the game state carries (older ones are fetched when needed). */
+const LOADED_DAYS = 399;
+
+/**
+ * Modal to log (or fix) a tracker value. Any day works: today and yesterday count for quests,
+ * older days just go into your history and charts.
+ */
+export function LogValue({ metric, date, onClose, fixedDay = false }: { metric: Metric; date: string; onClose: () => void; fixedDay?: boolean }) {
   const { state, act, busy } = useGame();
-  const current = valueOn(state, metric.key, date);
+  const [day, setDay] = useState(date);
+  const loaded = day >= addDays(state.today, -LOADED_DAYS);
+  const [old, setOld] = useState<{ day: string; value: number | null } | null>(null);
+  useEffect(() => {
+    if (loaded) return;
+    let live = true;
+    api<{ date: string; value: number }[]>(g(`history/${metric.key}`))
+      .then((rows) => live && setOld({ day, value: rows.find((r) => r.date === day)?.value ?? null }))
+      .catch(() => live && setOld({ day, value: null }));
+    return () => {
+      live = false;
+    };
+  }, [day, loaded, metric.key]);
+  const current = loaded ? valueOn(state, metric.key, day) : old?.day === day ? old.value : null;
   const add = metric.mode === "add";
   const [v, setV] = useState(add ? "" : current !== null ? String(current) : "");
+  // switching days shows that day's value
+  useEffect(() => {
+    if (!add) setV(current !== null ? String(current) : "");
+  }, [add, day, current]);
+  const closedDay = day <= state.closed;
   const save = async (val: number | null, mode?: string) => {
     try {
-      await act(`metrics/${metric.key}/log`, { date, value: val, mode });
+      await act(`metrics/${metric.key}/log`, { date: day, value: val, mode });
       onClose();
     } catch {}
   };
+  const label = day === state.today ? "today" : day === addDays(state.today, -1) ? "yesterday" : prettyDate(day);
   return (
     <Modal
-      title={`${metric.emoji} ${metric.name} · ${date === state.today ? "today" : relDay(date, state.today)}`}
+      title={`${metric.emoji} ${metric.name} · ${label}`}
       onClose={onClose}
       actions={
         <>
@@ -287,12 +318,25 @@ export function LogValue({ metric, date, onClose }: { metric: Metric; date: stri
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn good" disabled={busy} onClick={() => v !== "" && save(Number(v))}>
+          <button className="btn good" disabled={busy || v === "" || (!loaded && old?.day !== day)} onClick={() => v !== "" && save(Number(v))}>
             {add ? "Add" : "Save"}
           </button>
         </>
       }
     >
+      {!fixedDay && (
+        <Field label="Day">
+          <div className="row wrap" style={{ gap: 6 }}>
+            <input className="input" type="date" max={state.today} value={day} onChange={(e) => e.target.value && e.target.value <= state.today && setDay(e.target.value)} style={{ maxWidth: 180 }} aria-label="Day" />
+            {[state.today, addDays(state.today, -1)].map((d) => (
+              <button key={d} className={`btn xs ${day === d ? "primary" : ""}`} onClick={() => setDay(d)}>
+                {d === state.today ? "Today" : "Yesterday"}
+              </button>
+            ))}
+          </div>
+        </Field>
+      )}
+      {closedDay && <p className="tiny ink2" style={{ marginTop: -4 }}>📜 That day is closed: this goes into your history and charts (no quests or AP).</p>}
       {add && current !== null && (
         <p className="small ink2">
           So far: <b>{fmt(current, metric.decimals)} {metric.unit}</b>. Enter an amount to add (negative to correct).

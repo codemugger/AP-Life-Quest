@@ -7,16 +7,19 @@ import schema2 from "./schema/0002_media.sql?raw";
 import schema3 from "./schema/0003_notes.sql?raw";
 import schema4 from "./schema/0004_todo_priority.sql?raw";
 import schema5 from "./schema/0005_repeats.sql?raw";
+import schema6 from "./schema/0006_lockin.sql?raw";
 import { importAll, type Backup } from "./backup";
 import { all, first } from "./db";
 import { DoDb, splitSql } from "./do-db";
 import { gameApp } from "./game/api";
 import { loadCtx } from "./game";
+import { deliver, dueReminders, nextReminderAt } from "./push";
+import type { Vapid } from "./webpush";
 import type { TemplateContent } from "./seed";
 import { seedAll } from "./seeding";
 
 /** Character database schema, applied in order. Only ever append. */
-const SCHEMA = [schema1, schema2, schema3, schema4, schema5];
+const SCHEMA = [schema1, schema2, schema3, schema4, schema5, schema6];
 
 /** Config tables that "copy setup from another character" brings across (no progress). */
 const CONFIG_TABLES = ["metrics", "quests", "shop_items", "vouchers", "achievements", "goals", "milestones"] as const;
@@ -50,11 +53,55 @@ const WRITES_PER_MINUTE = 120;
 export class CharacterDO extends DurableObject {
   private readonly db: DoDb;
   private writes: number[] = [];
+  /** this character's id and the app's address (for phone reminders), kept in _meta */
+  private known: { char: string | null; origin: string | null } = { char: null, origin: null };
 
   constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env as never);
     this.db = new DoDb(ctx.storage);
-    void ctx.blockConcurrencyWhile(async () => this.migrate());
+    void ctx.blockConcurrencyWhile(async () => {
+      this.migrate();
+      this.known = { char: this.meta("char_id"), origin: this.meta("origin") };
+    });
+  }
+
+  private meta(key: string): string | null {
+    const r = this.ctx.storage.sql.exec("SELECT value FROM _meta WHERE key = ?", key).toArray()[0];
+    return r ? String(r.value) : null;
+  }
+
+  private remember(req: Request) {
+    const char = req.headers.get("x-aplq-char");
+    const origin = new URL(req.url).origin;
+    const sql = this.ctx.storage.sql;
+    if (char && char !== this.known.char) sql.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('char_id', ?)", (this.known.char = char));
+    if (origin !== this.known.origin) sql.exec("INSERT OR REPLACE INTO _meta (key, value) VALUES ('origin', ?)", (this.known.origin = origin));
+  }
+
+  /** Phone reminder keys (Cloudflare secrets); null until they're set up. */
+  private vapid(): Vapid | null {
+    const e = this.env as { VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string };
+    if (!e.VAPID_PUBLIC_KEY || !e.VAPID_PRIVATE_KEY) return null;
+    const o = this.known.origin;
+    return { publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY, subject: o?.startsWith("https://") ? o : "https://localhost" };
+  }
+
+  /** Sets the alarm for the next phone reminder (or clears it when there's nothing to send). */
+  private async schedulePush() {
+    if (!this.vapid() || !(await this.seeded())) return;
+    const devices = Number(this.ctx.storage.sql.exec("SELECT COUNT(*) AS c FROM push_devices").toArray()[0]?.c ?? 0);
+    const at = devices ? await nextReminderAt(await loadCtx(this.db.asD1())) : null;
+    if (at === null) await this.ctx.storage.deleteAlarm();
+    else await this.ctx.storage.setAlarm(Math.max(at, Date.now() + 1000));
+  }
+
+  async alarm() {
+    const v = this.vapid();
+    if (!v || !(await this.seeded())) return;
+    const ctx = await loadCtx(this.db.asD1());
+    const due = await dueReminders(ctx);
+    if (due.length) await deliver(ctx, v, due, this.known.char);
+    await this.schedulePush();
   }
 
   private migrate() {
@@ -98,8 +145,12 @@ export class CharacterDO extends DurableObject {
       if (this.ctx.storage.sql.databaseSize > budget && !freesSpace)
         return json({ error: `This character's storage is full (${Math.round(budget / MB)} MB). Delete old save points or unused pictures in Settings.` }, 507);
     }
+    this.remember(req);
     const exec = { waitUntil: (p: Promise<unknown>) => this.ctx.waitUntil(p), passThroughOnException() {}, props: {} };
-    return gameApp.fetch(req, { DB: this.db.asD1() }, exec as unknown as ExecutionContext);
+    const res = await gameApp.fetch(req, { DB: this.db.asD1(), VAPID: this.vapid(), CHAR_ID: this.known.char }, exec as unknown as ExecutionContext);
+    // anything that changed may move the next phone reminder (new device, times, note reminders…)
+    if (req.method !== "GET" && req.method !== "HEAD") await this.schedulePush().catch((e) => console.error("push schedule failed", e));
+    return res;
   }
 
   private async seeded() {
@@ -157,6 +208,7 @@ export class CharacterDO extends DurableObject {
         return json(summary);
       }
       case "destroy": {
+        await this.ctx.storage.deleteAlarm();
         await this.ctx.storage.deleteAll();
         return json({ ok: true });
       }

@@ -7,11 +7,12 @@ import { api, g } from "../api";
 import { useGame } from "../store";
 import { BarChart, LineChart, Spark, type Pt } from "../components/charts";
 import { Editor } from "../components/Editor";
+import { ImportHistory } from "../components/ImportHistory";
 import { LogValue } from "../components/QuestRow";
 import { Empty, HelpLink, Panel, Seg } from "../components/ui";
 import { fmt, latest, series, valueOn } from "../util";
 
-type Range = "30" | "90" | "365" | "all";
+type Range = "30" | "90" | "365" | "1826" | "all";
 
 export default function Body() {
   const { state, logDate } = useGame();
@@ -32,12 +33,20 @@ export default function Body() {
   const [edit, setEdit] = useState<Partial<Metric> | null>(null);
   const [logFor, setLogFor] = useState<Metric | null>(null);
   const [table, setTable] = useState<string | null>(null);
-
+  const [importFor, setImportFor] = useState<Metric | null>(null);
+  // the whole weight history (the game state only carries the last ~400 days)
+  const lastWeigh = wSeries.length ? wSeries[wSeries.length - 1].date + wSeries[wSeries.length - 1].value : "";
   useEffect(() => {
-    if (range === "all" && !all) api<Pt[]>(g("history/weight")).then(setAll).catch(() => setAll([]));
-  }, [range, all]);
+    let live = true;
+    api<Pt[]>(g("history/weight"))
+      .then((r) => live && setAll(r))
+      .catch(() => live && setAll(null));
+    return () => {
+      live = false;
+    };
+  }, [lastWeigh]);
 
-  const wData: Pt[] = range === "all" ? (all ?? wSeries) : wSeries.filter((v) => v.date >= addDays(state.today, -Number(range)));
+  const wData: Pt[] = range === "all" ? (all ?? wSeries) : (Number(range) > 365 ? (all ?? wSeries) : wSeries).filter((v) => v.date >= addDays(state.today, -Number(range)));
   const [hLo, hHi] = healthyRange(s.height_m);
   const target = weightM?.target;
 
@@ -89,7 +98,7 @@ export default function Body() {
       </div>
 
       <div className="grid2">
-        <Panel title="⚖️ Weight" right={<Seg<Range> options={[{ id: "30", label: "30d" }, { id: "90", label: "90d" }, { id: "365", label: "1y" }, { id: "all", label: "All" }]} value={range} onChange={setRange} />}>
+        <Panel title="⚖️ Weight" right={<Seg<Range> options={[{ id: "30", label: "30d" }, { id: "90", label: "90d" }, { id: "365", label: "1y" }, { id: "1826", label: "5y" }, { id: "all", label: "All" }]} value={range} onChange={setRange} />}>
           {wData.length ? (
             <>
               <LineChart
@@ -107,7 +116,13 @@ export default function Body() {
               </div>
             </>
           ) : (
-            <Empty emoji="⚖️">Log your first weigh-in on the Camp page.</Empty>
+            <Empty emoji="⚖️">
+              Log your first weigh-in on the Camp page, or{" "}
+              <button className="linkbtn" onClick={() => setImportFor(weightM)}>
+                import your history
+              </button>
+              .
+            </Empty>
           )}
         </Panel>
         <Panel title="🍱 Calories · last 30 days">
@@ -156,6 +171,9 @@ export default function Body() {
                       <button className="linkbtn tiny" onClick={() => setEdit(m)} aria-label={`Edit ${m.name}`}>
                         edit
                       </button>
+                      <button className="linkbtn tiny" onClick={() => setImportFor(m)} aria-label={`Import ${m.name} history`}>
+                        import
+                      </button>
                     </div>
                     <div className="small ink2">
                       {v !== null ? `${fmt(v, m.decimals)} ${m.unit} ${logDate === state.today ? "today" : "yesterday"}` : last ? `last ${fmt(last.value, m.decimals)} ${m.unit} · ${prettyDate(last.date)}` : "no data yet"}
@@ -191,6 +209,19 @@ export default function Body() {
       </Panel>
       {edit && <Editor entity="metrics" row={edit as Record<string, unknown>} onClose={() => setEdit(null)} />}
       {logFor && <LogValue metric={logFor} date={logDate} onClose={() => setLogFor(null)} />}
+      {all && <YearByYear data={all} height={s.height_m} />}
+      {importFor && (
+        <ImportHistory
+          metric={importFor}
+          onClose={() => setImportFor(null)}
+          onDone={() => {
+            if (importFor.key !== "weight") return;
+            setAll(null);
+            setRange("all");
+            void api<Pt[]>(g("history/weight")).then(setAll).catch(() => {});
+          }}
+        />
+      )}
     </>
   );
 }
@@ -218,7 +249,54 @@ function HistoryTable({ metric }: { metric: Metric }) {
         ))}
         {!rows.length && <div className="muted small">No entries yet.</div>}
       </div>
-      {fix && <LogValue metric={{ ...metric, mode: "set" }} date={fix} onClose={() => setFix(null)} />}
+      {fix && <LogValue metric={{ ...metric, mode: "set" }} date={fix} fixedDay onClose={() => setFix(null)} />}
     </div>
+  );
+}
+
+/** Weigh-ins per year with average, lightest and heaviest (shown once there's more than a year). */
+function YearByYear({ data, height }: { data: Pt[]; height: number }) {
+  const years = useMemo(() => {
+    const by = new Map<string, number[]>();
+    for (const p of data) by.set(p.date.slice(0, 4), [...(by.get(p.date.slice(0, 4)) ?? []), p.value]);
+    return [...by.entries()].reverse().map(([y, v]) => ({ y, n: v.length, avg: v.reduce((a, x) => a + x, 0) / v.length, lo: Math.min(...v), hi: Math.max(...v) }));
+  }, [data]);
+  if (years.length < 2) return null;
+  return (
+    <Panel title="📅 Weight year by year">
+      <div style={{ overflowX: "auto" }}>
+        <table className="mini-table wide">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th className="num">Weigh-ins</th>
+              <th className="num">Average</th>
+              <th className="num">Lightest</th>
+              <th className="num">Heaviest</th>
+              <th className="num">Avg BMI</th>
+            </tr>
+          </thead>
+          <tbody>
+            {years.map((r) => {
+              const band = bmiBand(bmi(r.avg, height));
+              return (
+                <tr key={r.y}>
+                  <td>
+                    <b>{r.y}</b>
+                  </td>
+                  <td className="num">{r.n}</td>
+                  <td className="num">{fmt(r.avg, 1)} kg</td>
+                  <td className="num">{fmt(r.lo, 1)}</td>
+                  <td className="num">{fmt(r.hi, 1)}</td>
+                  <td className="num" title={band.label}>
+                    {fmt(bmi(r.avg, height), 1)} {band.emoji}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }

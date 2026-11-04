@@ -8,7 +8,7 @@ import { MAX_DOC_CHARS, sanitizeDoc } from "../shared/notedoc";
 import { all, bad, first, HttpError, notFound, stmt } from "./db";
 import { savePlayer, settingStmt, totals, type Ctx } from "./game";
 import { contentCols, journalRebuildStmts } from "./notes";
-import { ownerTemplatesAllowed, seedAll } from "./seeding";
+import { ownerTemplatesAllowed, QUICK_LOG_DEFAULTS, seedAll } from "./seeding";
 
 /** Every table that holds game data (sessions/login attempts/snapshots are deliberately excluded). */
 export const DATA_TABLES = [
@@ -19,6 +19,7 @@ export const DATA_TABLES = [
   "rest_days",
   "quests",
   "quest_log",
+  "promises",
   "metrics",
   "metric_values",
   "ledger",
@@ -177,6 +178,7 @@ export async function restoreSnapshot(db: D1Database, id: number, opts: { notes?
     );
   }
   batch.push(...journalRebuildStmts(db));
+  batch.push(db.prepare(QUICK_LOG_DEFAULTS)); // save points from before v2.5
   await db.batch(batch);
 }
 
@@ -261,6 +263,8 @@ export async function importAll(db: D1Database, data: Backup, opts: { keepTempla
   }
   if (opts.keepTemplate) batch.push(stmt(db, "INSERT OR REPLACE INTO settings (key, value) VALUES ('template', ?)", current?.value ?? JSON.stringify("starter")));
   batch.push(...journalRebuildStmts(db));
+  // files from before v2.5 don't say what's in the Quick log
+  batch.push(db.prepare(QUICK_LOG_DEFAULTS));
   await db.batch(batch);
 }
 

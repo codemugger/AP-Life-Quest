@@ -6,6 +6,7 @@ import { api, download, g } from "../api";
 import { useFx } from "../fx";
 import { useGame } from "../store";
 import { Bar, Field, HelpLink, Modal, Panel } from "../components/ui";
+import { PhoneReminders } from "../components/Reminders";
 import { fmt } from "../util";
 
 interface Snap {
@@ -33,6 +34,9 @@ const RULES: { k: keyof S; label: string; help: string; step?: string }[] = [
   { k: "revive_quests", label: "Quests needed to revive", help: "" },
   { k: "revive_hp", label: "HP after reviving", help: "" },
   { k: "fainted_earn_mult", label: "Earnings while fainted", help: "0.5 = half AP", step: "0.05" },
+  { k: "promise_max", label: "Big 3: promises per day", help: "To-dos you can promise each day (1–5)" },
+  { k: "promise_bonus", label: "Big 3: bonus for a kept promise", help: "0.5 = +50% AP and XP", step: "0.05" },
+  { k: "promise_hp", label: "Big 3: HP per broken promise", help: "Lost when the day closes" },
 ];
 
 export default function Settings() {
@@ -83,6 +87,8 @@ export default function Settings() {
           </label>
           <p className="small ink2">Tip: tap your pet on the Camp page to change hats and colours.</p>
         </Panel>
+
+        <PhoneReminders />
 
         <Panel title="🎲 Game rules" className="span2">
           <p className="small ink2" style={{ marginTop: 0 }}>

@@ -240,6 +240,123 @@ ok((await post("/quests/delete-archived", {})).status === 400, "deleting all arc
 ok((await post("/quests/delete-archived", { confirm: true })).status === 200, "archived quests can be deleted");
 s = await state();
 ok(!s.quests.some((q) => !q.active) && s.stats.quests_done === doneWith && doneWith === before3 + 1, `…and their completions still count (${before3} → ${doneWith} → ${s.stats.quests_done})`);
+const reused = (await post("/data/quests", { type: "todo", title: "Brand new to-do", priority: "later" })).data.data.id;
+s = await state();
+ok(!s.log.some((l) => l.quest_id === reused) && s.stats.quests_done === doneWith, `a new quest never inherits a deleted quest's completions (id ${reused}${reused === oldQ ? ", reused" : ""})`);
+await owner.del(g(`/data/quests/${reused}`));
+
+// ================= v2.5: log any day, Quick log, history import =================
+s = await state();
+const tomorrow = new Date(Date.parse(s.today + "T00:00:00Z") + 86400000).toISOString().slice(0, 10);
+const longAgo = dayOf(-30);
+const wGoal = (await post("/data/goals", { title: "Lighter", emoji: "⚖️", mode: "metric", metric_key: "weight", target_value: 50 })).data.data.id;
+await post("/metrics/weight/log", { value: 69 });
+const xpBefore = (await state()).player.xp;
+ok((await post("/metrics/weight/log", { date: longAgo, value: 70.2 })).status === 200, "a tracker can be logged for a day long ago");
+s = await state();
+ok(s.values.some((v) => v.metric_key === "weight" && v.date === longAgo && v.value === 70.2) && s.player.xp === xpBefore, "…as history only (no quest ticks or XP)");
+ok(s.goals.find((x) => x.id === wGoal).start_value === 69, `a weight goal keeps its starting weight when older days are added (${s.goals.find((x) => x.id === wGoal).start_value})`);
+ok((await post("/metrics/weight/log", { date: tomorrow, value: 60 })).status === 400, "…but not for tomorrow");
+ok((await post("/metrics/weight/log", { date: "2026-02-30", value: 60 })).status === 400, "…or a date that doesn't exist");
+await post("/metrics/calories/log", { date: dayOf(-20), value: 3500 });
+ok((await state()).obligations.length === 0, "calories logged weeks late don't open a court case (history only)");
+let r = await post("/metrics/weight/import", {
+  rows: [
+    { date: "2016-10-31", value: 58 },
+    { date: "2016-11-07", value: 57.5 },
+    { date: "2016-11-07", value: 57 },
+    { date: longAgo, value: 99 },
+    { date: "2016-02-30", value: 1 },
+    { date: tomorrow, value: 1 },
+    { date: "2016-11-13", value: "x" },
+  ],
+});
+ok(r.status === 200 && r.data.data.added === 2 && r.data.data.skipped === 1 && r.data.data.from === "2016-10-31", `history import adds new days, keeps logged ones, drops bad rows (${JSON.stringify(r.data.data)})`);
+let hist = (await owner.get(g("/history/weight"))).data;
+ok(hist[0].date === "2016-10-31" && hist.find((h) => h.date === "2016-11-07").value === 57 && hist.find((h) => h.date === longAgo).value === 70.2, "imported days are in the history (a repeated date keeps its last value)");
+r = await post("/metrics/weight/import", { rows: [{ date: longAgo, value: 71 }], overwrite: true });
+ok(r.data.data.replaced === 1 && (await owner.get(g("/history/weight"))).data.find((h) => h.date === longAgo).value === 71, "…and can replace days when asked");
+s = await state();
+ok(s.goals.find((x) => x.id === wGoal).start_value === 69 && s.player.xp === xpBefore, "importing changes no goals, AP or XP");
+ok((await post("/metrics/weight/import", { rows: [] })).status === 400 && (await post("/metrics/nope/import", { rows: [{ date: longAgo, value: 1 }] })).status === 404, "empty imports and unknown trackers are rejected");
+ok(s.metrics.filter((m) => m.quick_log > 0).length >= 2 && s.metrics.find((m) => m.key === "weight").quick_log === 1, "existing characters keep weight and calories in the Quick log");
+ok((await owner.put(g("/quick-log"), { keys: ["calories", "weight", "nope"] })).status === 200, "the Quick log can be chosen");
+s = await state();
+const ql = s.metrics.filter((m) => m.quick_log > 0).sort((a, b) => a.quick_log - b.quick_log).map((m) => m.key);
+ok(ql.join() === "calories,weight", `…in your order (${ql.join()})`);
+const msQl = (await member.get(`/c/${M}/state`)).data.metrics.filter((m) => m.quick_log > 0).map((m) => m.key);
+ok(["weight", "calories", "water", "focus"].every((k) => msQl.includes(k)), `new characters start with a sensible Quick log (${msQl.join()})`);
+
+// ================= v2.5: Big 3 promises =================
+const pa = await todo("Promise A", "schedule", dayOf(9));
+const pb = await todo("Promise B", "schedule", dayOf(9));
+const pc = await todo("Promise C", "schedule", dayOf(9));
+const pd = await todo("Promise D", "schedule", dayOf(9));
+ok((await post(`/promises/${pa}`)).status === 200, "a to-do can be promised for today");
+ok((await post(`/promises/${pa}`)).status === 409, "…once");
+await post(`/promises/${pb}`);
+await post(`/promises/${pc}`);
+ok((await post(`/promises/${pd}`)).status === 400, "no more than 3 promises a day");
+ok((await owner.del(g(`/promises/${pc}`))).status === 200, "a fresh promise can be taken back");
+ok((await post(`/promises/${move.id}`)).status === 404, "only to-dos can be promised");
+s = await state();
+ok(s.promises.filter((p) => p.date === s.today).map((p) => p.quest_id).sort().join() === [pa, pb].sort().join(), "today's promises are in the state");
+await post(`/quests/${pa}/complete`, {});
+s = await state();
+const keptL = s.ledger.find((l) => l.description.includes("Promise A") && !l.voided);
+ok(!!keptL && keptL.description.includes("promise kept") && keptL.xp === 30, `a kept promise pays +50% (${keptL?.xp} XP for a 20 XP to-do)`);
+// close two days with promises in them: day -1 all kept, day 0 one broken
+const exp5 = (await owner.get(g("/export"))).data;
+exp5.tables.player[0].last_processed = dayOf(-2);
+exp5.tables.day_closures = exp5.tables.day_closures.filter((x) => x.date <= dayOf(-2));
+exp5.tables.seasons[0].started_at = dayOf(-40);
+const logA = exp5.tables.quest_log.find((l) => l.quest_id === pa);
+logA.date = dayOf(0);
+exp5.tables.quest_log.push({ quest_id: pd, date: dayOf(-1), qty: 1, auto: 0, season_id: logA.season_id });
+exp5.tables.promises = [
+  { date: dayOf(-1), quest_id: pd, title: "Promise D", emoji: "📌", made_at: 0, season_id: logA.season_id },
+  { date: dayOf(0), quest_id: pa, title: "Promise A", emoji: "📌", made_at: 0, season_id: logA.season_id },
+  { date: dayOf(0), quest_id: pb, title: "Promise B", emoji: "📌", made_at: 0, season_id: logA.season_id },
+];
+ok((await post("/import", exp5)).status === 200, "backups carry promises");
+const proc5 = [];
+for (let i = 0; i < 5; i++) {
+  const x = await post("/process");
+  proc5.push(...x.data.fx);
+  if (!x.data.remaining) break;
+}
+s = await state();
+const rep5 = (d) => proc5.find((f) => f.t === "report" && f.date === d)?.promises;
+ok(rep5(dayOf(-1))?.kept === 1 && rep5(dayOf(-1))?.broken.length === 0, "the report counts kept promises");
+ok(rep5(dayOf(0))?.kept === 1 && rep5(dayOf(0))?.broken.join() === "📌 Promise B", `…and broken ones (${JSON.stringify(rep5(dayOf(0)))})`);
+const broke = s.ledger.find((l) => l.source === "promise" && l.date === dayOf(0) && !l.voided);
+ok(!!broke && broke.description.includes("Promise B") && !broke.description.includes("Promise A"), "a broken promise costs HP when the day closes");
+ok(s.player.promise_streak === 0 && s.player.best_promise_streak === 1, `the promise streak grows on all-kept days and resets on a broken one (${s.player.promise_streak}/${s.player.best_promise_streak})`);
+await post("/metrics/calories/log", { date: dayOf(-3), value: 3500 });
+ok((await state()).obligations.some((o) => o.date === dayOf(-3)), "calories logged a few days late still go to the Calorie Court");
+await post("/metrics/calories/log", { date: dayOf(-3), value: 1500 });
+ok(!(await state()).obligations.some((o) => o.date === dayOf(-3)), "…and fixing the number closes the case");
+
+// ================= v2.5: phone reminders =================
+let ph = (await owner.get(g("/push"))).data;
+ok(typeof ph.ready === "boolean" && Array.isArray(ph.devices) && ph.devices.length === 0, `reminder status loads (server keys ${ph.ready ? "set" : "not set"})`);
+const uaKey = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+const p256dh = Buffer.from(await crypto.subtle.exportKey("raw", uaKey.publicKey)).toString("base64url");
+const auth = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString("base64url");
+const addDev = (endpoint) => post("/push/devices", { endpoint, keys: { p256dh, auth }, label: "Test phone" });
+// nothing scheduled while the fake device exists, so the suite never sends a real push
+await owner.put(g("/settings"), { push_morning: "", push_evening: "", push_notes: false });
+if (ph.ready) {
+  ok((await addDev("https://evil.example/push")).status === 400 && (await addDev("http://web.push.apple.com/x")).status === 400, "reminders only go to real push services");
+  ok((await addDev("https://web.push.apple.com/e2e-test-device")).status === 200, "a device can turn reminders on");
+  ok((await addDev("https://web.push.apple.com/e2e-test-device")).status === 200 && (await owner.get(g("/push"))).data.devices.length === 1, "…once per device");
+  ph = (await owner.get(g("/push"))).data;
+  ok((await member.get(`/c/${M}/push`)).data.devices.length === 0, "devices belong to their own character");
+  ok((await owner.del(g(`/push/devices/${ph.devices[0].id}`))).status === 200 && (await owner.get(g("/push"))).data.devices.length === 0, "…and can be removed");
+  ok((await post("/push/test")).status === 400, "a test needs a device first");
+} else ok((await addDev("https://web.push.apple.com/x")).status === 400, "without server keys, devices can't be added");
+ok((await owner.put(g("/settings"), { push_morning: "25:00" })).status === 400 && (await owner.put(g("/settings"), { push_morning: "07:30", push_evening: "" })).status === 200, "reminder times are checked");
+ok((await owner.put(g("/settings"), { promise_max: 9 })).status === 400 && (await owner.put(g("/settings"), { promise_max: 3 })).status === 200, "Big 3 rules have sane limits");
 
 // more picture space for the owner; deleting finished battles
 ok((await owner.get(g("/media"))).data.limit === 500 * 1024 * 1024, "the owner gets 500 MB for pictures and voice memos");

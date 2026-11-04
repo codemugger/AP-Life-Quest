@@ -29,6 +29,8 @@ export type Fx =
       perfect: boolean;
       billed: string[];
       rest: boolean;
+      /** Big 3: promises kept / broken that day */
+      promises?: { kept: number; broken: string[] };
     }
   | { t: "toast"; msg: string; emoji?: string };
 
@@ -82,6 +84,8 @@ export interface Metric {
   builtin: number;
   active: number;
   sort: number;
+  /** position in Camp's Quick log (0 = not shown) */
+  quick_log: number;
 }
 
 export interface MetricValue {
@@ -342,6 +346,9 @@ export interface Player {
   revive_progress: number;
   streak: number;
   best_streak: number;
+  /** Big 3: days in a row with every promise kept */
+  promise_streak: number;
+  best_promise_streak: number;
   fast_started_at: number | null;
   ap: number;
   xp: number;
@@ -383,4 +390,15 @@ export interface GameState {
   rest_days: string[];
   stats: Record<string, number>;
   notes: NoteRef[];
+  /** Big 3 promises for yesterday and today */
+  promises: Promise3[];
+}
+
+export interface Promise3 {
+  date: string;
+  quest_id: number;
+  title: string;
+  emoji: string | null;
+  /** ms; it can be taken back for a few minutes (PROMISE_UNDO_MIN) */
+  made_at: number;
 }

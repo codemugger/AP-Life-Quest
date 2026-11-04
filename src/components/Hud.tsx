@@ -8,6 +8,7 @@ import { Coin, Heart, lookOf, Pet, Star } from "../sprites";
 import { fmtAP, isNight, petLine, petMood } from "../util";
 import { Bar, Modal, Tabs } from "./ui";
 import { HighwayButton } from "./Highway";
+import { Big3Chip } from "./Big3";
 
 function usePetAnim() {
   const [anim, setAnim] = useState("");
@@ -55,6 +56,7 @@ export function Hud() {
           <span className={`coin-count ${p.ap < 0 ? "neg" : ""}`}>
             <Coin scale={2} /> {fmtAP(p.ap)}
           </span>
+          <Big3Chip />
         </div>
         <HighwayButton />
       </div>

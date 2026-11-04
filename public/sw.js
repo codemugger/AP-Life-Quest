@@ -59,3 +59,40 @@ async function trim(cache) {
   const keys = await cache.keys();
   for (const key of keys.slice(0, Math.max(0, keys.length - MAX_FILES))) await cache.delete(key);
 }
+
+// Phone reminders: the server sends an encrypted message, the browser decrypts it, we show it.
+self.addEventListener("push", (event) => {
+  let m = {};
+  try {
+    m = event.data ? event.data.json() : {};
+  } catch {}
+  const title = typeof m.title === "string" && m.title ? m.title : "AP Life Quest";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: typeof m.body === "string" ? m.body : "",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: typeof m.tag === "string" ? m.tag : undefined,
+      data: { url: typeof m.url === "string" && m.url.startsWith("/") ? m.url : "/", char: typeof m.char === "string" ? m.char : null },
+    }),
+  );
+});
+
+// Tapping one opens the app (as the character it's about) on the right page.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const { url = "/", char = null } = event.notification.data || {};
+  const hash = url.includes("#") ? url.slice(url.indexOf("#")) : "#/";
+  const target = new URL(char ? `/?play=${encodeURIComponent(char)}${hash}` : `/${hash}`, self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const win = wins.find((w) => new URL(w.url).origin === self.location.origin);
+      if (win) {
+        await win.focus();
+        return win.navigate(target).catch(() => self.clients.openWindow(target));
+      }
+      return self.clients.openWindow(target);
+    })(),
+  );
+});

@@ -1,5 +1,5 @@
 // Core game engine: context, rewards, quests, trackers and the nightly "close the day" pass.
-import { addDays, closedThrough, daysBetween, gameDate, isDue, weekday, weekStart } from "../shared/dates";
+import { addDays, closedThrough, daysBetween, gameDate, isDate, isDue, weekday, weekStart } from "../shared/dates";
 import { LEVEL_HATS, levelInfo, titleFor, type Rarity } from "../shared/levels";
 import { drainHp, OVERDUE_DAYS, priorityOf, todoPay } from "../shared/priority";
 import { nextOccurrence, parseRepeat, questDue } from "../shared/schedule";
@@ -20,6 +20,8 @@ export interface PlayerRow {
   last_processed: string | null;
   fast_started_at: number | null;
   rewarded_level: number;
+  promise_streak: number;
+  best_promise_streak: number;
 }
 
 export interface Ctx {
@@ -148,7 +150,8 @@ export function playerStmt(ctx: Ctx) {
   const p = ctx.player;
   return stmt(
     ctx.db,
-    `UPDATE player SET hp=?, fainted=?, revive_progress=?, streak=?, best_streak=?, last_processed=?, fast_started_at=?, rewarded_level=? WHERE id = 1`,
+    `UPDATE player SET hp=?, fainted=?, revive_progress=?, streak=?, best_streak=?, last_processed=?, fast_started_at=?, rewarded_level=?,
+       promise_streak=?, best_promise_streak=? WHERE id = 1`,
     p.hp,
     p.fainted,
     p.revive_progress,
@@ -157,6 +160,8 @@ export function playerStmt(ctx: Ctx) {
     p.last_processed,
     p.fast_started_at,
     p.rewarded_level,
+    p.promise_streak ?? 0,
+    p.best_promise_streak ?? 0,
   );
 }
 
@@ -323,11 +328,16 @@ export async function completeQuest(ctx: Ctx, id: number, opts: { date?: string;
       const crit = q.ap > 0 && hashFloat(`${q.id}|${date}|${count}`) < ctx.s.crit_chance;
       // to-dos: late = half pay; important ones finished early get a bonus
       const pay = q.type === "todo" ? todoPay(q.priority, q.due_date, date) : { mult: 1, tag: "" };
-      const ap = Math.round(q.ap * qty * mult * pay.mult * (crit ? ctx.s.crit_mult : 1));
+      // Big 3: a to-do promised for this day pays extra
+      const kept =
+        q.type === "todo" && !!(await first(ctx.db, "SELECT 1 AS x FROM promises WHERE date = ? AND quest_id = ? AND season_id = ?", date, q.id, ctx.season));
+      const bonus = kept ? 1 + ctx.s.promise_bonus : 1;
+      if (kept) pay.tag += " · 🎯 promise kept";
+      const ap = Math.round(q.ap * qty * mult * pay.mult * bonus * (crit ? ctx.s.crit_mult : 1));
       ledgerId = await award(ctx, {
         kind: "earn",
         ap,
-        xp: Math.round(q.xp * qty * Math.min(1, pay.mult)),
+        xp: Math.round(q.xp * qty * Math.min(1, pay.mult) * bonus),
         hp: q.type === "habit" ? 0 : ctx.s.complete_heal,
         source: "quest",
         ref_id: q.id,
@@ -486,7 +496,7 @@ export async function setMetric(
   const m = await first<MetricRow>(ctx.db, "SELECT key, name, mode, target FROM metrics WHERE key = ?", key);
   if (!m) throw notFound("Tracker not found");
   const date = opts.date ?? ctx.today;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw bad("Bad date");
+  if (!isDate(date)) throw bad("Bad date");
   if (date > ctx.today) throw bad("That day hasn't happened yet");
 
   let val: number | null = null;
@@ -497,6 +507,7 @@ export async function setMetric(
     if (!Number.isFinite(v) || Math.abs(v) > 1e7) throw bad("That number looks wrong");
     const note = opts.note ? String(opts.note).slice(0, 500) : null;
     const add = (opts.mode ?? m.mode) === "add";
+    if (date <= ctx.closed) await pinGoalStarts(ctx, key, date);
     const r = await stmt(
       ctx.db,
       `INSERT INTO metric_values (metric_key, date, value, note) VALUES (?,?,?,?)
@@ -514,9 +525,77 @@ export async function setMetric(
       val = null;
     }
   }
+  // Closed days are history only (no quests or AP). Calorie court still looks back a week,
+  // so logging late can't dodge it; anything older just goes on the charts.
   if (date > ctx.closed) await syncMetricQuests(ctx, m, date, val);
-  await syncObligations(ctx, key, date, val);
+  if (inCourtWindow(ctx, date)) await syncObligations(ctx, key, date, val);
   return val;
+}
+
+/** Days back that a logged value can still open a calorie court case. */
+export const COURT_DAYS = 7;
+const inCourtWindow = (ctx: Ctx, date: string) => date >= addDays(ctx.today, -COURT_DAYS) && date >= ctx.seasonStart;
+
+/** Goals measured "from your first value" keep their start when older history is added. */
+async function pinGoalStarts(ctx: Ctx, key: string, earliest: string) {
+  const f = await first<{ date: string; value: number }>(ctx.db, "SELECT date, value FROM metric_values WHERE metric_key = ? ORDER BY date LIMIT 1", key);
+  if (!f || earliest >= f.date) return;
+  await stmt(ctx.db, "UPDATE goals SET start_value = ? WHERE mode = 'metric' AND metric_key = ? AND start_value IS NULL", f.value, key).run();
+}
+
+export const MAX_IMPORT_ROWS = 5000;
+
+/**
+ * Adds a tracker's past values in one go (e.g. years of weigh-ins from a spreadsheet).
+ * Closed days are history only; today and yesterday go through setMetric like a normal log.
+ */
+export async function importMetric(ctx: Ctx, key: string, input: unknown, overwrite: boolean) {
+  const m = await first<MetricRow>(ctx.db, "SELECT key, name, mode, target FROM metrics WHERE key = ?", key);
+  if (!m) throw notFound("Tracker not found");
+  if (!Array.isArray(input) || !input.length) throw bad("Nothing to import");
+  if (input.length > MAX_IMPORT_ROWS) throw bad(`Up to ${MAX_IMPORT_ROWS.toLocaleString()} days at a time, please`);
+  const vals = new Map<string, number>(); // a date listed twice keeps its last value
+  for (const r of input as { date?: unknown; value?: unknown }[]) {
+    const date = String(r?.date ?? "");
+    const v = Number(r?.value);
+    if (!isDate(date) || date > ctx.today || !Number.isFinite(v) || Math.abs(v) > 1e7) continue;
+    vals.set(date, v);
+  }
+  if (!vals.size) throw bad("None of those rows had a valid date and number");
+  const dates = [...vals.keys()].sort();
+  const existing = new Set(
+    (await all<{ date: string }>(ctx.db, "SELECT date FROM metric_values WHERE metric_key = ? AND date BETWEEN ? AND ?", key, dates[0], dates.at(-1)!)).map((r) => r.date),
+  );
+  await pinGoalStarts(ctx, key, dates[0]);
+  const old = dates.filter((d) => d <= ctx.closed && (overwrite || !existing.has(d)));
+  for (let i = 0; i < old.length; i += 100)
+    await ctx.db.batch(
+      old.slice(i, i + 100).map((d) =>
+        stmt(
+          ctx.db,
+          `INSERT INTO metric_values (metric_key, date, value) VALUES (?,?,?)
+           ON CONFLICT(metric_key, date) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
+          key,
+          d,
+          vals.get(d)!,
+        ),
+      ),
+    );
+  let open = 0;
+  for (const d of dates.filter((d) => d > ctx.closed && (overwrite || !existing.has(d)))) {
+    await setMetric(ctx, key, { date: d, value: vals.get(d)!, mode: "set" });
+    open++;
+  }
+  const replaced = dates.filter((d) => existing.has(d)).length;
+  const result = {
+    added: old.length + open - (overwrite ? replaced : 0),
+    replaced: overwrite ? replaced : 0,
+    skipped: overwrite ? 0 : replaced,
+    from: dates[0],
+    to: dates.at(-1)!,
+  };
+  ctx.fx.push({ t: "toast", msg: `Imported ${result.added + result.replaced} ${m.name.toLowerCase()} entries (${result.from} to ${result.to})`, emoji: "📥" });
+  return result;
 }
 
 async function syncMetricQuests(ctx: Ctx, m: MetricRow, date: string, val: number | null) {
@@ -654,7 +733,7 @@ async function processDay(ctx: Ctx, d: string) {
   const db = ctx.db;
   const ws = weekStart(d);
   const sunday = weekday(d) === 6;
-  const [restR, dailyR, doneR, weeklyR, obR, sprintR, shieldR, todoR] = await db.batch([
+  const [restR, dailyR, doneR, weeklyR, obR, sprintR, shieldR, todoR, promR] = await db.batch([
     stmt(db, "SELECT date FROM rest_days WHERE date = ?", d),
     stmt(db, "SELECT id, title, emoji, hp_penalty, days, repeat_rule FROM quests WHERE type = 'daily' AND active = 1 AND created_at <= ?", d),
     stmt(db, "SELECT DISTINCT quest_id FROM quest_log WHERE date = ?", d),
@@ -695,6 +774,14 @@ async function processDay(ctx: Ctx, d: string) {
       addDays(d, -OVERDUE_DAYS),
       d,
       d,
+    ),
+    // Big 3: what was promised for this day, and whether it got done that day
+    stmt(
+      db,
+      `SELECT p.title, p.emoji, EXISTS (SELECT 1 FROM quest_log l WHERE l.quest_id = p.quest_id AND l.date = p.date) AS kept
+       FROM promises p WHERE p.date = ? AND p.season_id = ?`,
+      d,
+      ctx.season,
     ),
   ]);
 
@@ -800,6 +887,35 @@ async function processDay(ctx: Ctx, d: string) {
     }
   }
 
+  // Big 3: each broken promise hurts; a day with every promise kept grows the promise streak
+  // (rest days freeze it, days without promises leave it alone).
+  const proms = rows<{ title: string; emoji: string | null; kept: number }>(promR);
+  let promises: { kept: number; broken: string[] } | undefined;
+  if (proms.length) {
+    const broken = proms.filter((x) => !x.kept);
+    promises = { kept: proms.length - broken.length, broken: broken.map((x) => `${x.emoji ?? "🎯"} ${x.title}`) };
+    if (!rest) {
+      if (broken.length && ctx.s.promise_hp > 0)
+        batch.push(
+          ledgerStmt(ctx, {
+            kind: "penalty",
+            hp: -ctx.s.promise_hp * broken.length,
+            source: "promise",
+            date: d,
+            description: `Broken promises: ${broken.map((x) => x.title).join(", ")}`,
+            fx: false,
+          }),
+        );
+      if (broken.length) p.promise_streak = 0;
+      else {
+        p.promise_streak = (p.promise_streak ?? 0) + 1;
+        p.best_promise_streak = Math.max(p.best_promise_streak ?? 0, p.promise_streak);
+        const r = STREAK_CHESTS[p.promise_streak];
+        if (r) batch.push(chestStmt(ctx, r, `${p.promise_streak}-day promise streak`));
+      }
+    }
+  }
+
   // Auto-bill unresolved calorie court cases at full price (no vouchers).
   const billed: string[] = [];
   for (const o of rows<{ id: number; date: string; item_id: number; name: string; emoji: string; base_price: number; tax: number; category: string; voucher_ok: number }>(obR)) {
@@ -853,6 +969,7 @@ async function processDay(ctx: Ctx, d: string) {
     perfect,
     billed,
     rest,
+    promises,
   });
   if (p.hp <= 0) await maybeFaint(ctx);
 }

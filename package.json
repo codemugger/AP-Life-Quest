@@ -47,6 +47,7 @@
     "setup": "node scripts/setup.mjs",
     "set-password": "node scripts/set-password.mjs",
     "setup-2fa": "node scripts/setup-2fa.mjs",
+    "push-keys": "node scripts/push-keys.mjs",
     "backup": "node scripts/backup.mjs",
     "versions": "wrangler deployments list",
     "rollback": "wrangler rollback",

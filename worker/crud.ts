@@ -18,6 +18,16 @@ interface Entity {
   protect?: (row: Record<string, unknown>) => string | null;
 }
 
+/**
+ * A quest deleted forever keeps its history (log, stats, exports) under a negative id. Ids get
+ * reused by SQLite, so otherwise a new quest could take the id and inherit old completions.
+ */
+export const RETIRE_QUEST = [
+  "UPDATE quest_log SET quest_id = -quest_id WHERE quest_id = ?",
+  "UPDATE promises SET quest_id = -quest_id WHERE quest_id = ?",
+  "UPDATE ledger SET ref_id = -ref_id WHERE source = 'quest' AND ref_id = ?",
+];
+
 const T: Field = ["text"];
 const TN: Field = ["text", { nullable: true }];
 const N: Field = ["num", { nullable: true }];
@@ -58,6 +68,7 @@ export const ENTITIES: Record<string, Entity> = {
       images: IMG,
       link: URL_,
     },
+    onDelete: RETIRE_QUEST,
   },
   metrics: {
     table: "metrics",
@@ -75,6 +86,7 @@ export const ENTITIES: Record<string, Entity> = {
       quick: TN,
       active: B,
       sort: I,
+      quick_log: ["int", { min: 0, max: 999 }],
     },
     onDelete: ["DELETE FROM metric_values WHERE metric_key = ?"],
     protect: (r) => (r.builtin ? "Built-in trackers can be hidden (set inactive) but not deleted" : null),

@@ -253,10 +253,28 @@ function More() {
   );
 }
 
+/** A tapped phone reminder opens /?play=<character>: switch to that character first. */
+function usePlayLink() {
+  const { account, refresh } = useAccount();
+  const [switching, setSwitching] = useState(() => new URLSearchParams(location.search).has("play"));
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("play");
+    if (!id) return;
+    history.replaceState(null, "", location.pathname + location.hash);
+    if (id === account.user.last_character || !account.characters.some((c) => c.id === id)) return setSwitching(false);
+    void api(`characters/${id}/select`, { body: {} })
+      .then(() => refresh())
+      .catch(() => {})
+      .finally(() => setSwitching(false));
+  }, []); // once, on opening
+  return switching;
+}
+
 /** Logged in: pick the character to play (or show account pages). */
 function Authed({ onLoggedOut }: { onLoggedOut: () => void }) {
   const { account } = useAccount();
   const { page } = useRoute();
+  if (usePlayLink()) return <Splash />;
   const cid = account.characters.some((c) => c.id === account.user.last_character) ? account.user.last_character : null;
   if (ACCOUNT_PAGES.includes(page) || !cid) return <AccountShell page={cid ? page : ACCOUNT_PAGES.includes(page) ? page : "characters"} />;
   setCharacter(cid);

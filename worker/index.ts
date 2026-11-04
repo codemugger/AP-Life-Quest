@@ -55,6 +55,9 @@ export interface Env {
   /** v1 admin password; in v2 it's the one-time "setup password" that claims the owner account. */
   ADMIN_PASSWORD_HASH?: string;
   TOTP_SECRET?: string;
+  /** phone reminders (Web Push): set with npm run push-keys */
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
 }
 
 type AppEnv = { Bindings: Env; Variables: { user: User } };
@@ -463,6 +466,7 @@ app.all("/api/c/:cid/*", async (c) => {
     if (v) headers.set(h, v);
   }
   headers.set("x-aplq-owner", c.get("user").role === "owner" ? "1" : "0");
+  headers.set("x-aplq-char", ch.id); // lets a phone reminder open the right character
   const res = await stub(c.env, ch.id).fetch(url.toString(), { method, headers, body: payload });
   if (rest === "process" && res.ok)
     c.executionCtx.waitUntil(run(c.env.DB, "UPDATE characters SET last_played = datetime('now') WHERE id = ?", ch.id).catch(() => undefined));

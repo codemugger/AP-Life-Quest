@@ -8,6 +8,12 @@ export async function ownerTemplatesAllowed(db: D1Database) {
   return row?.value === "1";
 }
 
+/** Quick log picks for a setup that has none yet (new character, or a backup from before v2.5). */
+export const QUICK_LOG_DEFAULTS = `UPDATE metrics SET quick_log = CASE key WHEN 'weight' THEN 1 WHEN 'calories' THEN 2 WHEN 'csd' THEN 3
+    WHEN 'fasting' THEN 4 WHEN 'water' THEN 5 WHEN 'focus' THEN 6 END
+  WHERE (key IN ('weight', 'calories') OR (key IN ('csd', 'fasting', 'water', 'focus') AND active = 1))
+    AND NOT EXISTS (SELECT 1 FROM metrics m WHERE m.quick_log > 0)`;
+
 /**
  * `keep` = profile + looks to carry over (and `template`, which picks the content).
  * `content` overrides the template (used when copying setup from another character).
@@ -25,6 +31,7 @@ export async function seedAll(db: D1Database, keep: Record<string, unknown> = {}
     stmt(db, "INSERT INTO seasons (id, name, started_at) VALUES (1, 'Season 1', ?)", today),
     stmt(db, "INSERT INTO player (id, hp) VALUES (1, ?)", (settings.max_hp as number) ?? 100),
     ...tpl.metrics.map((r) => insertStmt(db, "metrics", r)),
+    db.prepare(QUICK_LOG_DEFAULTS),
     ...tpl.quests.map((r) => insertStmt(db, "quests", r)),
     ...tpl.shop.map((r) => insertStmt(db, "shop_items", r)),
     ...tpl.vouchers.map((r) => insertStmt(db, "vouchers", r)),
