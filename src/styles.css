@@ -287,7 +287,7 @@ textarea.input { min-height: 80px; resize: vertical; font-family: ui-monospace, 
 label.field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--ink-2); margin-bottom: 10px; }
 label.field .help { font-size: 12px; color: var(--muted); }
 .check { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; margin: 6px 0 10px; }
-.check input { width: 22px; height: 22px; accent-color: var(--violet); }
+.check input { flex: none; width: 22px; height: 22px; accent-color: var(--violet); }
 
 /* ---------- bars ---------- */
 .bar {

@@ -62,6 +62,14 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
   "Do now" without a date is due today. Unsorted to-dos (like ones made before priorities existed) have no penalty. Rest days skip deadline damage too.
 
   **Repeating to-dos** (e.g. *pay parents by the 26th*): pick a schedule under **Repeat**. When you finish one, the next appears with its new due date, priority and penalty (🔁 on the row). Finish it early or late, and the next one still follows the schedule. Undoing the tick removes the next one again.
+
+  **🎯 Big 3 (lock in):** each morning, promise up to 3 to-dos you'll finish *today* (Camp → Today's Big 3; it asks once a day). They're pinned on Camp, marked 🎯 on the Quest board and counted in the top bar.
+
+  - **Kept** (ticked the same day): **+50% AP and XP**.
+  - **Broken**: **−5 HP each** when the day closes, listed in the overnight report.
+  - You can take a promise back for 10 minutes (for a mis-tap). After that it's locked in, and deleting the to-do still counts as broken.
+  - 🤝 **Promise streak:** days in a row with every promise kept. It drops chests at 3, 7, 14, 30, 60 and 100 days. Days without promises don't break it; rest days freeze it.
+  - The number of promises, the bonus and the HP are in Settings → Game rules.
 - **Archive:** paused quests and finished to-dos (**Archive N finished**). Each row has ↩ restore, ✎ edit and 🗑 delete forever, plus **🗑 Delete all archived**. Deleting never takes back what a quest earned: your log, stats, trophies and exports keep it (shown as *(deleted quest)*).
 
 **When does a day close?** The game day starts at **4 am**. Yesterday stays open until **4 pm** (12 h grace) so you can catch up in the morning. Closing applies missed-quest damage, the streak, perfect-day healing, Calorie Court auto-billing and sprint deadlines, then shows a "While you were away" report. Each day can only ever be scored once, even if your phone and laptop open the app at the same moment.
@@ -76,13 +84,27 @@ If you ignore it, it's auto-billed at full price.
 
 **Vouchers** can have automatic checks (AP earned this month, CSD this week, fasting total, weight + 30-day calorie EMA, recent calories, birthday…) or use the honour system.
 
+**📝 Trackers and history:**
+
+- **Any day:** the Log window and Camp's Quick log have a day picker. Today and yesterday count for quests as usual. Older days go into your history and charts only (no AP, quests or streaks); calories logged up to a week late still go to the Calorie Court.
+- **Quick log:** tap ⚙ on Camp's Quick log to choose which trackers show there and in what order (or tick *Show in Camp's Quick log* on a tracker).
+- **Import history:** Body → a tracker → **import**, then choose an Excel file (.xlsx), a CSV, or paste two columns from a spreadsheet (date, value). It finds the date and value columns (e.g. DATE and MASS/KG), reads day/month dates the Singapore way, skips titles and notes, and shows a preview before anything is saved. Days you've already logged keep their value unless you choose the file's. Weight goals keep their starting weight.
+- **Body** shows weight over 30 days, 90 days, 1 year, 5 years or all of it, plus a **year-by-year** table (weigh-ins, average, lightest, heaviest, average BMI).
+
+**🔔 Phone reminders** (Settings → Phone reminders): real notifications even when the app is closed.
+
+- ☀️ **Morning brief** (default 08:00): what's due, what's late, and a nudge to pick your Big 3.
+- 🌙 **Evening check** (default 20:00): promises, deadlines and dailies still open. It stays quiet when everything's done.
+- ⏰ **Note reminders** at the time you set on a note.
+- Turn off *Show names* to see only counts on the lock screen. Reminders belong to the character, and go to every device you turn them on for (on iPhone: from the Home Screen app, see [section 8](#8-install-on-your-iphone)).
+
 ---
 
 ## 2. A day in the life
 
-1. **Morning:** open the app and read the overnight report. Weigh in (Camp → Quick log); the weigh-in quest ticks itself.
+1. **Morning:** the ☀️ morning brief arrives on your phone. Open the app, read the overnight report and **lock in today's Big 3**. Weigh in (Camp → Quick log); the weigh-in quest ticks itself.
 2. **During the day:** tap **+0.5 / +1 / +2** for focus or CSD hours, start the **fasting timer**, and tap habits as they happen.
-3. **Evening:** enter the day's calories (one box), tick what you did, open chests.
+3. **Evening:** the 🌙 evening check lists what's still open. Enter the day's calories (one box), tick what you did, open chests.
 4. **Treat yourself** in the Shop, and use rewards from your Bag when you enjoy them.
 5. **Weekly:** check Body (weight trend, BMI, 30-day EMA) and Journey (goals, sprint boss, upcoming trips).
 
@@ -193,6 +215,8 @@ This logs you in to Cloudflare in the browser, creates the database, checks, bui
 
 Open the site address it prints (`https://ap-life-quest.<you>.workers.dev`). The first visit shows **Claim your castle**: enter the setup password and choose your owner username and password. Then create your first character. Commit the updated `wrangler.jsonc` afterwards (it holds the database ID, which isn't secret).
 
+For **phone reminders**, run `npm run push-keys` once. It makes the key pair the server signs notifications with and stores it as Cloudflare secrets (`npm run push-keys -- --local` for local dev). Running it again makes new keys, and every device then has to turn reminders on again.
+
 ---
 
 ## 7. Upgrading from v1
@@ -211,6 +235,8 @@ If v1 is already deployed and you've been logging in it:
 Open the site in **Safari** → **Share** → **Add to Home Screen**. It opens full-screen, stays logged in for 30 days (refreshed as you use it), and iPhone can save your password and 2FA codes (Settings → Passwords).
 
 It keeps the app itself on the phone and remembers your last view, so it opens instantly, even with a weak or no signal (showing what you last saw until it can sync). Your game data is never stored by the app cache, and logging out wipes the saved view from the device. After an update, close and reopen the app once to get the new version.
+
+**Phone reminders on iPhone** (iOS 16.4 or later): open the app **from the Home Screen icon**, go to **Settings → 🔔 Phone reminders → Turn on for this device**, allow notifications, then tap **Send a test**. iPhone only allows notifications for web apps added to the Home Screen, so this doesn't work from a Safari tab. To stop them, tap ✕ next to the device, or turn notifications off in the iPhone's Settings → Notifications.
 
 ---
 
@@ -330,6 +356,8 @@ To start over completely, create a new character (or delete one under **Characte
 - **Voice memos:** M4A/MP4, MP3, WebM, OGG or WAV, also checked by their bytes, max ~1.9 MB. The microphone is only used while you're recording and is allowed for this site alone.
 - **Imports** are validated like typed input: bad links and picture lists are dropped, sizes are capped, and imported notes are cleaned like typed ones.
 - **Highway:** only `http(s)` addresses are accepted (no `javascript:`), sites open with `noopener noreferrer`, and each account sees and changes only its own. Logos are fetched by the server (5 s timeout, max 200 KB, checked by their bytes), stored with the account and served only to its owner.
+- **Phone reminders:** standard Web Push. Each message is encrypted for the receiving device (RFC 8291), so Apple's or Google's push service only carries ciphertext, and it's signed with the server's VAPID key (a Cloudflare secret). The server only sends to the real push services (Apple, Google, Microsoft, Mozilla), at most 10 devices per character. Turn off *Show names* to keep to-do and note titles off the lock screen.
+- **Tracker imports** run in your browser: the file is read on the device, and only the dates and numbers are sent. Rows with impossible dates, future dates or non-numbers are dropped.
 - **Notes** are rendered without HTML. Rich notes are stored as editor JSON, and the server keeps only whitelisted formatting (fonts, colours and sizes from fixed lists; links only `http(s)`, `mailto:` and `tel:`; pictures only by their id in your own storage), so a note can't carry scripts or outside content.
 - **CSRF guard** (custom header + same-origin check), strict security headers, and `noindex` so search engines stay away.
 - **Secrets never committed:** `.dev.vars`, `backups/` and your `.xlsx` files are git-ignored.
@@ -351,6 +379,7 @@ Everything fits Cloudflare's **free** plan for you plus a handful of invited peo
 | Storage (account DB + all characters) | 5 GB total |
 | Account DB rows read / written | 5 M / 100 k per day |
 | Per character (app limit) | members 200 MB incl. 50 MB pictures; owner 1 GB incl. 500 MB |
+| Phone reminders | free: each character wakes itself only when a reminder is due (a few times a day) |
 
 Beyond roughly 20–50 active players, move to **Workers Paid (US$5/month)**. No code changes are needed.
 
@@ -386,11 +415,12 @@ npm run dev                       # http://localhost:5173 (UI + API + character 
 | Command | What it does |
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and unit tests |
-| `npm run test:api` | 140 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
+| `npm run test:api` | 179 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
 | `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
 | `npm run versions` / `npm run rollback` | Deployments |
 | `npm run backup` | SQL dump of the account database |
 | `npm run set-password` / `npm run setup-2fa` | Setup password (for claiming the owner account) |
+| `npm run push-keys` | Keys for phone reminders (once; `-- --local` for dev) |
 | `npm run reset-owner` | Set a new owner password (`-- --local` for dev) |
 | `npm run icons` | Re-render the home-screen icons |
 
@@ -408,7 +438,8 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── auth.ts            passwords, TOTP, sessions, lock-outs
 │   ├── accounts.ts        users, invites, character registry
 │   ├── character.ts       the per-character Durable Object (own SQLite, self-migrating)
-│   ├── schema/            character database migrations (0002 = pictures & links, 0003 = notebook)
+│   ├── schema/            character database migrations (0002 = pictures & links, 0003 = notebook,
+│   │                      0004–0005 = to-do priorities & repeats, 0006 = Quick log, Big 3, reminders)
 │   ├── do-db.ts           D1-style adapter over Durable Object SQL
 │   ├── game/api.ts        the game API for one character (+ pictures)
 │   ├── game.ts            engine: rewards, crits, quests, trackers, closing days, fainting
@@ -419,6 +450,9 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── crud.ts            whitelisted create/update/delete for everything editable
 │   ├── backup.ts          save points (built inside SQLite), export/import, resets
 │   ├── notes.ts           notebook: notes, binders, labels, reminders, journal → game
+│   ├── promises.ts        Big 3: promise / take back (rewards in game.ts)
+│   ├── push.ts            phone reminders: what to send and when (run from the character's alarm)
+│   ├── webpush.ts         Web Push: VAPID signing + aes128gcm encryption (WebCrypto only)
 │   └── seed.ts            templates: Healthy-life starter, Anson's original, Blank
 ├── shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules,
 │                          notedoc (what a rich note may contain + previews/word counts)
@@ -427,10 +461,12 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── pages/Guide.tsx    the in-game guide (? buttons link to its chapters)
 │   ├── components/Highway.tsx  🛣️ launcher, Camp strip, site editor
 │   ├── export.ts          Excel / CSV export (built in the browser)
+│   ├── importer.ts        tracker history import: .xlsx / CSV / pasted cells → dates + values
+│   ├── components/Big3.tsx, Reminders.tsx, ImportHistory.tsx
 │   ├── pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
 │   └── components/notes/  editor (TipTap, loaded on demand), sketch pad, voice recorder
-├── public/                icons, manifest, security headers, sw.js (keeps the app on the device)
-├── scripts/               setup, passwords, 2FA, owner reset, backup, icons
+├── public/                icons, manifest, security headers, sw.js (keeps the app on the device, shows notifications)
+├── scripts/               setup, passwords, 2FA, owner reset, backup, icons, push keys
 └── tests/                 unit tests + end-to-end API checks
 ```
 
@@ -452,6 +488,8 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 | "Storage is full" | Settings → delete old save points or remove unused pictures; empty the notebook trash |
 | Voice memo says the microphone is blocked | iPhone: Settings → Safari (or the home-screen app) → Microphone → Allow. Laptop: click the 🔒 in the address bar → Microphone → Allow |
 | "This note was changed on another device" | Choose **Load theirs** (keep the other device's version) or **Keep mine** (overwrite with this one) |
+| Phone reminders don't arrive | iPhone: open the app from the Home Screen icon (not Safari), turn them on again in Settings → Phone reminders, and check iPhone Settings → Notifications → AP Life Quest. Use **Send a test**. Focus modes can hold notifications back |
+| Imported dates look swapped (e.g. 7 Nov became 11 Jul) | In the import preview, switch *Dates are written* to the other order |
 | Journal quest didn't tick | It needs 30+ words in that day's entries (change the threshold in Quests). Entries for days already closed still count toward the tracker and trophies |
 
 ---

@@ -52,7 +52,7 @@ import type { Vapid } from "../webpush";
 import { isClockTime } from "../../shared/dates";
 import { buildState } from "../state";
 
-export const VERSION = "2.4.0";
+export const VERSION = "2.5.0";
 
 type GameEnv = { Bindings: { DB: D1Database; VAPID?: Vapid | null; CHAR_ID?: string | null } };
 type C = Context<GameEnv>;

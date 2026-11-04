@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { prettyDate } from "../../shared/dates";
 import type { Metric } from "../../shared/types";
-import { guessColumns, guessMonthFirst, parseText, parseXlsx, pickRows, type Table } from "../importer";
+import { guessColumns, guessMonthFirst, parseDate, parseNumber, parseText, parseXlsx, pickRows, type Table } from "../importer";
 import { useGame } from "../store";
 import { fmt } from "../util";
 import { Field, Modal, Seg } from "./ui";
@@ -47,7 +47,10 @@ export function ImportHistory({ metric, onClose, onDone }: { metric: Metric; onC
   const existing = new Set(state.values.filter((v) => v.metric_key === metric.key).map((v) => v.date));
   const clash = rows.filter((r) => existing.has(r.date)).length;
   const width = table ? Math.max(...table.map((r) => r.length)) : 0;
-  const colOpts = Array.from({ length: width }, (_, i) => ({ i, label: `${colName(i)}: ${table!.find((r) => r[i])?.[i]?.slice(0, 18) ?? ""}` }));
+  // label each column by its header (skipping one-cell title rows), else its first value
+  const head = (i: number) =>
+    table!.find((r) => r[i] && r.filter(Boolean).length > 1 && !parseDate(r[i]) && parseNumber(r[i]) === null)?.[i] ?? table!.find((r) => r[i])?.[i] ?? "";
+  const colOpts = Array.from({ length: width }, (_, i) => ({ i, label: `${colName(i)}: ${head(i).slice(0, 18)}` }));
 
   const run = async () => {
     try {
