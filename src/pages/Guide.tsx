@@ -54,7 +54,7 @@ const CHAPTERS: Chapter[] = [
           perfect day heals {s.perfect_day_heal}.
         </li>
         <li>
-          <b>Your pet</b> evolves at levels 3, 10, 20 and 35, and its mood follows your HP and today's effort.
+          <b>Your pet</b> hatches at level 3 and evolves into a new, bigger form at levels 10, 20 and 35 (e.g. Mewbit → Neko → Tora → Nekomata). Choose the animal in 🎀 Wardrobe (tap your pet), where the evolution line shows forms you haven't reached as silhouettes. Its mood follows your HP and today's effort.
         </li>
         <li>
           <b>Difficulty</b> sets a quest's rewards: {Object.values(DIFFICULTY).map((d) => `${d.label} ${d.ap} AP`).join(" · ")}.
@@ -119,6 +119,46 @@ const CHAPTERS: Chapter[] = [
     ),
   },
   {
+    id: "big3",
+    emoji: "🎯",
+    title: "Big 3: lock in your most important to-dos",
+    body: (s) => (
+      <ul>
+        <li>
+          Each morning, promise up to <b>{s.promise_max}</b> to-dos you'll finish <i>today</i> (Camp → 🎯 Today's Big 3; it asks once a day). They're pinned at the top
+          of Camp, marked 🎯 on the Quest board, and counted in the top bar.
+        </li>
+        <li>
+          <b>Kept</b> (ticked the same day): <b>+{pct(s.promise_bonus)} AP and XP</b> on top of everything else. <b>Broken</b>: <b>−{s.promise_hp} HP</b> each when the
+          day closes, and it's in the <i>While you were away</i> report.
+        </li>
+        <li>You can take a promise back for 10 minutes (for a mis-tap). After that it's locked in; deleting the to-do still counts as broken.</li>
+        <li>🤝 Promise streak: days in a row with every promise kept. It drops chests at 3, 7, 14, 30, 60 and 100 days. Days without promises don't break it; rest days freeze it.</li>
+        <li>Change the number of promises, the bonus and the HP in Settings → Game rules.</li>
+      </ul>
+    ),
+  },
+  {
+    id: "reminders",
+    emoji: "🔔",
+    title: "Phone reminders",
+    body: (s) => (
+      <ul>
+        <li>
+          Settings → 🔔 Phone reminders → <b>Turn on for this device</b>. On iPhone, do it from the Home Screen app (Share → Add to Home Screen first); iPhone only
+          allows notifications for installed web apps.
+        </li>
+        <li>
+          ☀️ Morning brief{s.push_morning ? ` (${s.push_morning})` : ""}: what's due today, what's late, and a nudge to pick your Big 3. 🌙 Evening check
+          {s.push_evening ? ` (${s.push_evening})` : ""}: promises, deadlines and dailies still open (it stays quiet when everything's done). ⏰ Note reminders at the
+          time you set.
+        </li>
+        <li>Turn off 👀 Show names to see only counts on the lock screen. Messages are encrypted for your device, so the push service can't read them.</li>
+        <li>Reminders belong to this character. Remove old phones from the device list.</li>
+      </ul>
+    ),
+  },
+  {
     id: "streaks",
     emoji: "🔥",
     title: "Streaks, crits and chests",
@@ -158,6 +198,18 @@ const CHAPTERS: Chapter[] = [
     ),
   },
   {
+    id: "trackers",
+    emoji: "📝",
+    title: "Logging any day, the Quick log and importing",
+    body: () => (
+      <ul>
+        <li>Camp's 📝 Quick log shows the trackers you chose (⚙), in your order. The 📅 day box logs for another day.</li>
+        <li>Today and yesterday count for quests and AP; older days go into your history and charts only.</li>
+        <li>Years of old data (e.g. weigh-ins in a spreadsheet)? Body → the tracker → import. More in the next chapter.</li>
+      </ul>
+    ),
+  },
+  {
     id: "body",
     emoji: "💗",
     title: "Trackers and health",
@@ -166,6 +218,17 @@ const CHAPTERS: Chapter[] = [
         <li>Body shows each tracker's chart, your BMI (Singapore cut-offs) and the 30-day moving average, which is steadier than daily weigh-ins.</li>
         <li>"Add" trackers (water, CSD hours) sum up during the day; "set" trackers (weight, calories) keep one value per day.</li>
         <li>Make your own trackers with ＋ Tracker; then link quests, trophies and vouchers to them.</li>
+        <li>
+          <b>Any day:</b> the Log window and Camp's 📝 Quick log have a day picker. Today and yesterday count for quests as usual; older days go into your history and
+          charts only (no AP, quests or streaks). Calories logged up to a week late still go to the Calorie Court.
+        </li>
+        <li>
+          <b>Quick log:</b> tap ⚙ to choose which trackers show on Camp and in what order (or tick "Show in Camp's Quick log" on a tracker).
+        </li>
+        <li>
+          <b>Import history:</b> Body → a tracker → <i>import</i>, then pick an Excel file, a CSV, or paste two columns (date, value). You see a preview first; days
+          you've already logged keep their value unless you choose the file's. Weight goals keep their starting weight.
+        </li>
       </ul>
     ),
   },

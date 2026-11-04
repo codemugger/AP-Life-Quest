@@ -1,13 +1,14 @@
 // Sticky top HUD, the big pet scene on the Camp page, and the wardrobe.
 import { useEffect, useMemo, useState, type ReactElement } from "react";
-import { COSMETICS, EYES, isUnlocked, SPECIES, type Slot } from "../../shared/levels";
+import { COSMETICS, EYES, formName, isUnlocked, SPECIES, STAGES, type Slot } from "../../shared/levels";
 import { PET_COLORS } from "../../shared/petgrid";
 import { petBus } from "../fx";
 import { useGame } from "../store";
-import { Coin, Heart, lookOf, Pet, Star } from "../sprites";
+import { Coin, EvolutionLine, Heart, lookOf, Pet, Star } from "../sprites";
 import { fmtAP, isNight, petLine, petMood } from "../util";
 import { Bar, Modal, Tabs } from "./ui";
 import { HighwayButton } from "./Highway";
+import { Big3Chip } from "./Big3";
 
 function usePetAnim() {
   const [anim, setAnim] = useState("");
@@ -55,6 +56,7 @@ export function Hud() {
           <span className={`coin-count ${p.ap < 0 ? "neg" : ""}`}>
             <Coin scale={2} /> {fmtAP(p.ap)}
           </span>
+          <Big3Chip />
         </div>
         <HighwayButton />
       </div>
@@ -116,13 +118,16 @@ export function PetStage() {
         <div className="ground" />
         <div className="shadow" />
         <button className="pet-wrap" onClick={() => setWardrobe(true)} aria-label="Open wardrobe" style={{ background: "none", border: 0, padding: 0 }}>
-          <Pet stage={p.stage} mood={mood} {...lookOf(s)} scale={6} className={`pet-sprite ${anim} ${mood === "sleep" ? "sleeping" : ""} ${mood === "fainted" ? "fainted" : ""}`} />
+          <Pet stage={p.stage} mood={mood} {...lookOf(s)} scale={6} maxH={140} className={`pet-sprite ${anim} ${mood === "sleep" ? "sleeping" : ""} ${mood === "fainted" ? "fainted" : ""}`} />
         </button>
         {mood === "sleep" && (
           <span className="zzz" style={{ left: "58%", bottom: 150 }}>
             z
           </span>
         )}
+        <span className="form-tag" title="Your pet's form">
+          {formName(s.pet_species, p.stage)}
+        </span>
         <button className="btn xs wardrobe-btn" onClick={() => setWardrobe(true)}>
           🎀 Wardrobe
         </button>
@@ -140,7 +145,9 @@ function Wardrobe({ onClose }: { onClose: () => void }) {
   const p = state.player;
   const [tab, setTab] = useState<WTab>("pet");
   const look = lookOf(s);
-  const stage = Math.max(2, p.stage);
+  // previews show the form you have now (an egg previews as a baby)
+  const stage = Math.max(1, p.stage);
+  const next = STAGES[p.stage + 1];
   const set = (patch: Record<string, unknown>) => act("settings", patch, "PUT").catch(() => {});
   const [custom, setCustom] = useState(/^#/.test(s.pet_color) ? s.pet_color : "#7ec8a0");
   const tile = (key: string, selected: boolean, onClick: () => void, preview: ReactElement, label: string, locked?: string) => (
@@ -169,8 +176,12 @@ function Wardrobe({ onClose }: { onClose: () => void }) {
           <SceneDeco scene={s.scene || "meadow"} />
           <div className="ground" />
           <div className="pet-wrap">
-            <Pet stage={p.stage} mood="happy" {...look} scale={5} className="pet-sprite" />
+            <Pet stage={p.stage} mood="happy" {...look} scale={5} maxH={108} className="pet-sprite" />
           </div>
+        </div>
+        <div className="wardrobe-form">
+          <b>{formName(s.pet_species, p.stage)}</b>{" "}
+          <span className="small ink2">{next ? `· evolves at Lv ${next.level}` : "· final form"}</span>
         </div>
       </div>
       <Tabs<WTab>
@@ -184,21 +195,29 @@ function Wardrobe({ onClose }: { onClose: () => void }) {
           { id: "scene", label: "Scene" },
         ]}
       />
+      {tab === "pet" && <EvolutionLine species={s.pet_species} stage={p.stage} look={look} />}
       <div className="cards" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 4 }}>
         {tab === "pet" &&
           SPECIES.map((sp) =>
-            tile(sp.id, s.pet_species === sp.id, () => set({ pet_species: sp.id }), <Pet stage={stage} mood="content" {...look} species={sp.id} hat={null} scale={3} />, sp.name),
+            tile(
+              sp.id,
+              s.pet_species === sp.id,
+              // each animal comes in its natural colour (the Colour tab can still change it)
+              () => set({ pet_species: sp.id, pet_color: sp.color }),
+              <Pet stage={stage} mood="content" {...look} species={sp.id} color={sp.color} hat={null} scale={3} maxW={76} />,
+              sp.name,
+            ),
           )}
         {tab === "pet" &&
           EYES.map((e) =>
-            tile(`eyes-${e.id}`, s.pet_eyes === e.id, () => set({ pet_eyes: e.id }), <Pet stage={stage} mood="content" {...look} eyes={e.id} hat={null} face={null} scale={3} />, `${e.name} eyes`),
+            tile(`eyes-${e.id}`, s.pet_eyes === e.id, () => set({ pet_eyes: e.id }), <Pet stage={stage} mood="content" {...look} eyes={e.id} hat={null} face={null} scale={3} maxW={76} />, `${e.name} eyes`),
           )}
         {tab === "colour" &&
           Object.entries(PET_COLORS).map(([k, c]) =>
-            tile(k, s.pet_color === k, () => set({ pet_color: k }), <Pet stage={stage} mood="content" {...look} color={k} scale={3} />, c.name),
+            tile(k, s.pet_color === k, () => set({ pet_color: k }), <Pet stage={stage} mood="content" {...look} color={k} scale={3} maxW={76} />, c.name),
           )}
         {(tab === "hat" || tab === "face") &&
-          tile("none", !(tab === "hat" ? s.hat : s.face), () => set({ [tab]: null }), <Pet stage={stage} mood="content" {...look} {...{ [tab]: null }} scale={3} />, tab === "hat" ? "No hat" : "Nothing")}
+          tile("none", !(tab === "hat" ? s.hat : s.face), () => set({ [tab]: null }), <Pet stage={stage} mood="content" {...look} {...{ [tab]: null }} scale={3} maxW={76} />, tab === "hat" ? "No hat" : "Nothing")}
         {(tab === "hat" || tab === "face" || tab === "scene") &&
           COSMETICS.filter((c) => c.slot === tab).map((c) =>
             tile(
@@ -211,7 +230,7 @@ function Wardrobe({ onClose }: { onClose: () => void }) {
                   <div className="ground" />
                 </div>
               ) : (
-                <Pet stage={stage} mood="content" {...look} {...{ [tab]: c.id }} scale={3} />
+                <Pet stage={stage} mood="content" {...look} {...{ [tab]: c.id }} scale={3} maxW={76} />
               ),
               c.name,
               lockText(c.id),
@@ -230,7 +249,11 @@ function Wardrobe({ onClose }: { onClose: () => void }) {
         </div>
       )}
       <p className="tiny muted" style={{ marginTop: 10 }}>
-        Species, eyes and colours are free. Hats, faces and scenes unlock as you level up, and some only drop from chests.
+        Animals, eyes and colours are free, and you can switch any time: your pet takes the new animal's form for your level. It evolves at levels{" "}
+        {STAGES.slice(1)
+          .map((st) => st.level)
+          .join(", ")}
+        . Hats, faces and scenes unlock as you level up, and some only drop from chests.
       </p>
     </Modal>
   );

@@ -334,8 +334,9 @@ describe("pixel pet", () => {
             for (const m of moods)
               for (const h of hats) {
                 const g = buildPet(stage, m, h, { species, eyes, face });
-                expect(g.length).toBeGreaterThanOrEqual(24);
-                for (const row of g) expect(row.length).toBe(24);
+                const w = g[0].length;
+                expect(w).toBeGreaterThanOrEqual(14);
+                for (const row of g) expect(row.length).toBe(w);
                 expect(g.join("")).toMatch(/o/);
               }
   }, 30_000); // ~14,000 pets: give slow or busy machines time

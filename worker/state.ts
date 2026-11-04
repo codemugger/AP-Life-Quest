@@ -69,6 +69,7 @@ export async function buildState(ctx: Ctx, version: string): Promise<GameState> 
          AND ((pin_today = 1 AND archived = 0) OR remind_at IS NOT NULL OR goal_id IS NOT NULL OR sprint_id IS NOT NULL OR event_id IS NOT NULL)
        ORDER BY pinned DESC, updated_at DESC LIMIT 300`,
     ), // 24
+    stmt(db, "SELECT date, quest_id, title, emoji, made_at FROM promises WHERE date >= ? AND season_id = ? ORDER BY date, made_at", addDays(t, -1), S), // 25
   ]);
 
   const tot = res[21].results[0] as { ap: number; xp: number; today: number; month: number };
@@ -131,6 +132,8 @@ export async function buildState(ctx: Ctx, version: string): Promise<GameState> 
       revive_progress: p.revive_progress,
       streak: p.streak,
       best_streak: p.best_streak,
+      promise_streak: p.promise_streak ?? 0,
+      best_promise_streak: p.best_promise_streak ?? 0,
       fast_started_at: p.fast_started_at,
       ap: tot.ap,
       xp: tot.xp,
@@ -171,5 +174,6 @@ export async function buildState(ctx: Ctx, version: string): Promise<GameState> 
       notes: stats.notes,
     },
     notes: rows<NoteRef>(res[24]),
+    promises: rows<GameState["promises"][number]>(res[25]),
   };
 }

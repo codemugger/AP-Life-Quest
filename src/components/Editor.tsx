@@ -165,6 +165,7 @@ function specs(s: GameState): Record<string, Spec> {
         { k: "decimals", label: "Decimals", type: "number" },
         { k: "quick", label: "Quick-add buttons", type: "text", help: "comma list, e.g. 0.5,1,2", show: (d) => d.mode === "add" },
         { k: "active", label: "Show this tracker", type: "bool" },
+        { k: "quick_log", label: "Show in Camp's Quick log", type: "bool", help: "Order them with ⚙ on the Quick log" },
       ],
     },
     shop_items: {

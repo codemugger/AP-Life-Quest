@@ -31,6 +31,13 @@ export interface Settings {
   revive_quests: number;
   revive_hp: number;
   fainted_earn_mult: number;
+  promise_max: number; // Big 3: to-dos you can promise to finish in a day
+  promise_bonus: number; // extra share of AP and XP for keeping a promise (0.5 = +50%)
+  promise_hp: number; // HP lost per broken promise when the day closes
+  push_morning: string; // phone reminders: morning brief at "HH:MM" ("" = off)
+  push_evening: string; // evening check at "HH:MM" ("" = off)
+  push_notes: boolean; // note reminders on the phone
+  push_details: boolean; // show to-do and note names in notifications
   sound: boolean;
   theme: "auto" | "day" | "night";
   current_season: number;
@@ -66,6 +73,13 @@ export const DEFAULT_SETTINGS: Settings = {
   revive_quests: 3,
   revive_hp: 50,
   fainted_earn_mult: 0.5,
+  promise_max: 3,
+  promise_bonus: 0.5,
+  promise_hp: 5,
+  push_morning: "08:00",
+  push_evening: "20:00",
+  push_notes: true,
+  push_details: true,
   sound: true,
   theme: "auto",
   current_season: 1,

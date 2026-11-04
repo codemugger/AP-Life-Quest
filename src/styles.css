@@ -287,7 +287,7 @@ textarea.input { min-height: 80px; resize: vertical; font-family: ui-monospace, 
 label.field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--ink-2); margin-bottom: 10px; }
 label.field .help { font-size: 12px; color: var(--muted); }
 .check { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; margin: 6px 0 10px; }
-.check input { width: 22px; height: 22px; accent-color: var(--violet); }
+.check input { flex: none; width: 22px; height: 22px; accent-color: var(--violet); }
 
 /* ---------- bars ---------- */
 .bar {
@@ -1009,3 +1009,22 @@ img.media.px-art { image-rendering: pixelated; }
 .quad { padding: 8px 10px 10px; background: var(--panel); box-shadow: 0 -3px 0 0 var(--line), 0 3px 0 0 var(--line), -3px 0 0 0 var(--line), 3px 0 0 0 var(--line), inset 0 6px 0 0 var(--qd); margin: 3px; min-width: 0; }
 .quad-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; padding: 6px 8px; background: var(--q); box-shadow: 0 0 0 2px var(--line); }
 .quad-empty { padding: 4px 6px; }
+
+/* --- v2.5: Quick log day, Big 3, history import --- */
+.input.day-pick { width: auto; max-width: 152px; min-height: 32px; padding: 2px 6px; font-size: 14px; margin: 0; }
+.chip.promise { background: var(--violet-l); }
+.big3-chip { text-decoration: none; font-size: 11px; padding: 1px 6px; }
+.big3-row { display: flex; flex-direction: column; gap: 2px; }
+.big3-row > .linkbtn { align-self: flex-end; }
+.quest.faded { opacity: 0.6; }
+.big3-pick { max-height: 50vh; overflow-y: auto; }
+.big3-option { width: 100%; background: none; border: 0; cursor: pointer; font: inherit; color: inherit; text-align: left; }
+.big3-option.on { background: var(--violet-l); }
+.big3-option:disabled { opacity: 0.45; cursor: default; }
+.big3-box { flex: none; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; background: var(--panel); box-shadow: 0 0 0 2px var(--line); }
+.mini-table { border-collapse: collapse; font-size: 14px; }
+.mini-table td, .mini-table th { padding: 4px 12px 4px 0; text-align: left; white-space: nowrap; }
+.mini-table th { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.mini-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.mini-table.wide { width: 100%; }
+.mini-table.wide tbody tr + tr td { border-top: 2px dashed var(--grid); }

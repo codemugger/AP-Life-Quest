@@ -7,13 +7,14 @@ import { isPetColor } from "../../shared/petgrid";
 import { DEFAULT_SETTINGS, EDITABLE_SETTINGS } from "../../shared/rules";
 import { claimAchievement } from "../achievements";
 import { createSnapshot, exportJson, factoryReset, importAll, maybeAutoSnapshot, restoreSnapshot, seasonReset, snapshotJson } from "../backup";
-import { createRow, deleteRow, ENTITIES, updateRow } from "../crud";
+import { createRow, deleteRow, ENTITIES, RETIRE_QUEST, updateRow } from "../crud";
 import { all, bad, first, HttpError, notFound, run, stmt } from "../db";
 import { openChest, purchase, resolveObligation, useItem } from "../economy";
 import {
   award,
   completeQuest,
   finalize,
+  importMetric,
   loadCtx,
   processDays,
   setMetric,
@@ -45,11 +46,15 @@ import {
   type NoteResult,
 } from "../notes";
 import { setGoalStatus, toggleMilestone, toggleTask } from "../progress";
+import { dropPromise, makePromise } from "../promises";
+import { addDevice, deliver, devices, removeDevice } from "../push";
+import type { Vapid } from "../webpush";
+import { isClockTime } from "../../shared/dates";
 import { buildState } from "../state";
 
-export const VERSION = "2.4.0";
+export const VERSION = "2.5.0";
 
-type GameEnv = { Bindings: { DB: D1Database } };
+type GameEnv = { Bindings: { DB: D1Database; VAPID?: Vapid | null; CHAR_ID?: string | null } };
 type C = Context<GameEnv>;
 
 /** Allowed ranges for numeric settings. */
@@ -71,6 +76,9 @@ const RANGES: Record<string, [number, number]> = {
   revive_quests: [1, 50],
   revive_hp: [1, 1000],
   fainted_earn_mult: [0, 1],
+  promise_max: [1, 5],
+  promise_bonus: [0, 2],
+  promise_hp: [0, 50],
 };
 
 const SLOT_OF: Record<string, Slot> = { hat: "hat", face: "face", scene: "scene" };
@@ -118,8 +126,9 @@ gameApp.post("/api/quests/clear-done", (c) =>
 gameApp.post("/api/quests/delete-archived", (c) =>
   act(c, async (ctx, b) => {
     if (b.confirm !== true) throw bad("Confirm first");
-    const r = await ctx.db.prepare("DELETE FROM quests WHERE active = 0").run();
-    ctx.fx.push({ t: "toast", msg: `Deleted ${r.meta.changes} archived quest(s)`, emoji: "🗑️" });
+    const ids = (await all<{ id: number }>(ctx.db, "SELECT id FROM quests WHERE active = 0")).map((q) => q.id);
+    await ctx.db.batch([...ids.flatMap((qid) => RETIRE_QUEST.map((sql) => stmt(ctx.db, sql, qid))), ctx.db.prepare("DELETE FROM quests WHERE active = 0")]);
+    ctx.fx.push({ t: "toast", msg: `Deleted ${ids.length} archived quest(s)`, emoji: "🗑️" });
   }),
 );
 
@@ -127,11 +136,64 @@ gameApp.post("/api/quests/delete-archived", (c) =>
 gameApp.post("/api/metrics/:key/log", (c) =>
   act(c, (ctx, b) => setMetric(ctx, c.req.param("key"), { date: b.date, value: b.value, mode: b.mode, note: b.note })),
 );
+gameApp.post("/api/metrics/:key/import", (c) => act(c, (ctx, b) => importMetric(ctx, c.req.param("key"), b.rows, !!b.overwrite)));
+/** Which trackers show in Camp's Quick log, in order (the rest are hidden there). */
+gameApp.put("/api/quick-log", (c) =>
+  act(c, async (ctx, b) => {
+    if (!Array.isArray(b.keys) || b.keys.length > 30) throw bad("Bad list");
+    const keys = [...new Set(b.keys.map(String))];
+    await ctx.db.batch([
+      ctx.db.prepare("UPDATE metrics SET quick_log = 0"),
+      ...keys.map((k, i) => stmt(ctx.db, "UPDATE metrics SET quick_log = ? WHERE key = ?", i + 1, k)),
+    ]);
+  }),
+);
 gameApp.get("/api/history/:key", async (c) =>
   c.json(await all(c.env.DB, "SELECT date, value, note FROM metric_values WHERE metric_key = ? ORDER BY date", c.req.param("key"))),
 );
 gameApp.post("/api/fast/start", (c) => act(c, (ctx) => startFast(ctx)));
 gameApp.post("/api/fast/stop", (c) => act(c, (ctx, b) => stopFast(ctx, !!b.cancel)));
+
+// Big 3 promises (today's to-dos you commit to)
+gameApp.post("/api/promises/:id", (c) => act(c, (ctx) => makePromise(ctx, id(c))));
+gameApp.delete("/api/promises/:id", (c) => act(c, (ctx) => dropPromise(ctx, id(c))));
+
+// phone reminders (Web Push)
+gameApp.get("/api/push", async (c) => {
+  const list = await devices(c.env.DB);
+  return c.json({
+    ready: !!c.env.VAPID,
+    key: c.env.VAPID?.publicKey ?? null,
+    devices: list.map((d) => ({ id: d.id, label: d.label, created_at: d.created_at, last_ok: d.last_ok, endpoint: d.endpoint })),
+  });
+});
+gameApp.post("/api/push/devices", (c) =>
+  act(c, async (ctx, b) => {
+    if (!c.env.VAPID) throw bad("Phone reminders aren't set up on the server yet");
+    await addDevice(ctx.db, b);
+    ctx.fx.push({ t: "toast", msg: "Reminders are on for this device", emoji: "🔔" });
+  }),
+);
+gameApp.delete("/api/push/devices/:id", (c) => act(c, (ctx) => removeDevice(ctx.db, id(c))));
+gameApp.post("/api/push/test", (c) =>
+  act(c, async (ctx) => {
+    const v = c.env.VAPID;
+    if (!v) throw bad("Phone reminders aren't set up on the server yet");
+    // at most one test every 20 seconds
+    const slot = String(Math.floor(ctx.now.getTime() / 20_000));
+    const r = await stmt(ctx.db, "INSERT OR IGNORE INTO push_sent (kind, ref) VALUES ('test', ?)", slot).run();
+    if (!r.meta.changes) throw new HttpError(429, "Give it a few seconds between tests");
+    const out = await deliver(
+      ctx,
+      v,
+      [{ kind: "test", ref: slot, title: "🔔 Test from AP Life Quest", body: `${ctx.s.pet_name} says hi! Reminders work on this device.`, url: "/#/settings", ttl: 600 }],
+      c.env.CHAR_ID ?? null,
+    );
+    if (!out.devices) throw bad("No devices yet: turn reminders on first");
+    ctx.fx.push({ t: "toast", msg: out.failed ? `Sent to ${out.ok}, failed on ${out.failed}` : `Sent to ${out.ok} device${out.ok === 1 ? "" : "s"}`, emoji: "🔔" });
+    return out;
+  }),
+);
 
 // shop & inventory
 gameApp.post("/api/shop/buy", (c) =>
@@ -194,6 +256,7 @@ gameApp.put("/api/settings", (c) =>
       if (k === "pet_species" && !SPECIES.some((s) => s.id === val)) throw bad("Unknown species");
       if (k === "pet_eyes" && !EYES.some((s) => s.id === val)) throw bad("Unknown eye style");
       if (k === "pet_color" && !isPetColor(String(val))) throw bad("Colour must be a preset or #rrggbb");
+      if ((k === "push_morning" || k === "push_evening") && val !== "" && !isClockTime(val)) throw bad("Reminder times look like 08:00");
       if (SLOT_OF[k]) {
         if (k === "scene" && !val) val = "meadow";
         if (val) {

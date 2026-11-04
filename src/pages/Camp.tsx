@@ -1,6 +1,6 @@
 // Home: pet, status, alerts, one-tap logging and today's dailies.
 import { useEffect, useState } from "react";
-import { daysBetween } from "../../shared/dates";
+import { daysBetween, prettyDate } from "../../shared/dates";
 import { useGame } from "../store";
 import { Chest, Coin } from "../sprites";
 import { PetStage } from "../components/Hud";
@@ -8,12 +8,13 @@ import { LogValue, QuestRow } from "../components/QuestRow";
 import { IconOrEmoji, MediaImg } from "../components/Media";
 import { NoteView } from "../components/NoteView";
 import { HighwayStrip } from "../components/Highway";
-import { Bar, HelpLink, Panel, Seg } from "../components/ui";
+import { Big3Panel } from "../components/Big3";
+import { Bar, HelpLink, Modal, Panel, Seg } from "../components/ui";
 import { useFx } from "../fx";
 import { notesApi, parseDoc, reminderDue, reminderLabel } from "../notes";
 import { dailiesFor, doneOn, fmt, fmtAP, relDay, sortTodos, valueOn } from "../util";
 import { Editor } from "../components/Editor";
-import type { Quest } from "../../shared/types";
+import type { Metric, Quest } from "../../shared/types";
 
 export default function Camp() {
   const { state, logDate, setLogDate } = useGame();
@@ -73,6 +74,7 @@ export default function Camp() {
       </div>
 
       <div>
+        <Big3Panel />
         {state.editable.length > 1 && (
           <div className="row between" style={{ margin: "0 4px 10px" }}>
             <span className="small ink2">Logging for</span>
@@ -310,106 +312,217 @@ function Alerts() {
   );
 }
 
+/** One-tap logging for the trackers you picked (⚙), for today, yesterday or any older day. */
 function QuickLog() {
-  const { state, act, logDate, busy } = useGame();
-  const weight = state.metrics.find((m) => m.key === "weight");
-  const cal = state.metrics.find((m) => m.key === "calories");
-  const csd = state.metrics.find((m) => m.key === "csd" && m.active);
-  const fasting = state.metrics.find((m) => m.key === "fasting" && m.active);
-  const w = valueOn(state, "weight", logDate);
-  const c = valueOn(state, "calories", logDate);
-  const h = valueOn(state, "csd", logDate);
-  const [wv, setWv] = useState("");
-  const [cv, setCv] = useState("");
-  const [open, setOpen] = useState<null | "csd">(null);
-  useEffect(() => {
-    setWv("");
-    setCv("");
-  }, [logDate]);
-  const save = async (key: string, v: string, clear: () => void) => {
+  const { state, logDate } = useGame();
+  // a day picked here; otherwise the "Logging for" day
+  const [day, setDay] = useState<string | null>(null);
+  const [choose, setChoose] = useState(false);
+  useEffect(() => setDay(null), [logDate]);
+  const date = day ?? logDate;
+  const shown = state.metrics.filter((m) => m.quick_log > 0).sort((a, b) => a.quick_log - b.quick_log || a.sort - b.sort);
+  return (
+    <Panel
+      title={
+        <>
+          📝 Quick log <HelpLink to="trackers" />
+        </>
+      }
+      right={
+        <span className="row" style={{ gap: 4 }}>
+          <input
+            className="input day-pick"
+            type="date"
+            max={state.today}
+            value={date}
+            onChange={(e) => e.target.value && e.target.value <= state.today && setDay(e.target.value === logDate ? null : e.target.value)}
+            aria-label="Day to log for"
+          />
+          <button className="btn xs" onClick={() => setChoose(true)} aria-label="Choose what's in the Quick log" title="Choose trackers">
+            ⚙
+          </button>
+        </span>
+      }
+    >
+      {date <= state.closed && (
+        <div className="alert info small">
+          📜 {prettyDate(date)} is closed: values go into your history and charts (no quests or AP).{" "}
+          <button className="linkbtn" onClick={() => setDay(null)}>
+            Back to {logDate === state.today ? "today" : "yesterday"}
+          </button>
+        </div>
+      )}
+      <div className="col" style={{ gap: 12 }}>
+        {shown.map((m) =>
+          m.key === "fasting" ? (
+            date === state.today ? <FastTimer key={m.key} /> : null
+          ) : m.mode === "add" ? (
+            <AddRow key={m.key} m={m} date={date} />
+          ) : (
+            <SetRow key={m.key} m={m} date={date} />
+          ),
+        )}
+        {!shown.length && (
+          <div className="empty">
+            Nothing here yet.{" "}
+            <button className="linkbtn" onClick={() => setChoose(true)}>
+              Choose trackers
+            </button>
+          </div>
+        )}
+      </div>
+      {choose && <QuickLogPicker onClose={() => setChoose(false)} />}
+    </Panel>
+  );
+}
+
+/** A one-value-a-day tracker (weight, calories, BP…): type and save. */
+function SetRow({ m, date }: { m: Metric; date: string }) {
+  const { state, act, busy } = useGame();
+  const [v, setV] = useState("");
+  useEffect(() => setV(""), [date]);
+  const cur = valueOn(state, m.key, date);
+  const save = async () => {
     if (v === "" || Number.isNaN(Number(v))) return;
     try {
-      await act(`metrics/${key}/log`, { date: logDate, value: Number(v) });
-      clear();
+      await act(`metrics/${m.key}/log`, { date, value: Number(v) });
+      setV("");
     } catch {}
   };
-  const budget = cal?.target ?? 0;
+  const budget = m.key === "calories" ? (m.target ?? 0) : 0;
   return (
-    <Panel title="📝 Quick log">
-      <div className="col" style={{ gap: 12 }}>
-        {weight && (
-          <div className="row">
-            <span style={{ fontSize: 22, width: 30 }}>⚖️</span>
-            <input
-              className="input"
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              placeholder={w !== null ? `${fmt(w, 1)} kg logged` : "Weight (kg)"}
-              value={wv}
-              onChange={(e) => setWv(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && save("weight", wv, () => setWv(""))}
-              aria-label="Weight in kg"
-            />
-            <button className="btn good" onClick={() => save("weight", wv, () => setWv(""))} disabled={!wv || busy}>
-              Save
-            </button>
-          </div>
-        )}
-        {cal && (
-          <div>
-            <div className="row">
-              <span style={{ fontSize: 22, width: 30 }}>🍱</span>
-              <input
-                className="input"
-                type="number"
-                inputMode="numeric"
-                placeholder={c !== null ? `${fmt(c)} kcal logged — type to change` : "Today's calories (kcal)"}
-                value={cv}
-                onChange={(e) => setCv(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && save("calories", cv, () => setCv(""))}
-                aria-label="Calories"
-              />
-              <button className="btn good" onClick={() => save("calories", cv, () => setCv(""))} disabled={!cv || busy}>
-                Save
-              </button>
-            </div>
-            {budget > 0 && (
-              <div style={{ marginLeft: 38, marginTop: 6 }}>
-                <div className="bar-label">
-                  <span>{c === null ? "not logged yet" : c <= budget ? "within budget 🥗" : `${fmt(c - budget)} over budget`}</span>
-                  <span className="num">
-                    {fmt(c ?? 0)}/{fmt(budget)}
-                  </span>
-                </div>
-                <Bar value={c ?? 0} max={budget} kind={c !== null && c > budget ? "bad" : "good"} thin seg={false} />
-              </div>
-            )}
-          </div>
-        )}
-        {csd && (
-          <div className="row wrap">
-            <span style={{ fontSize: 22, width: 30 }}>{csd.emoji}</span>
-            <span className="grow">
-              <b>{csd.name}</b>{" "}
-              <span className="small ink2">
-                {fmt(h ?? 0, 1)}/{fmt(csd.target ?? 0, 0)} {csd.unit}
-              </span>
-            </span>
-            {(csd.quick ?? "1").split(",").map((n) => (
-              <button key={n} className="btn sm" onClick={() => act(`metrics/csd/log`, { date: logDate, value: Number(n) }).catch(() => {})}>
-                +{n}
-              </button>
-            ))}
-            <button className="btn sm" onClick={() => setOpen("csd")} aria-label="Custom amount">
-              …
-            </button>
-          </div>
-        )}
-        {fasting && <FastTimer />}
+    <div>
+      <div className="row">
+        <span style={{ fontSize: 22, width: 30 }}>{m.emoji}</span>
+        <input
+          className="input"
+          type="number"
+          inputMode={m.decimals ? "decimal" : "numeric"}
+          step="any"
+          placeholder={cur !== null ? `${fmt(cur, m.decimals)} ${m.unit} logged — type to change` : `${m.name}${m.unit ? ` (${m.unit})` : ""}`}
+          value={v}
+          onChange={(e) => setV(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && save()}
+          aria-label={`${m.name}${m.unit ? ` in ${m.unit}` : ""}`}
+        />
+        <button className="btn good" onClick={save} disabled={!v || busy}>
+          Save
+        </button>
       </div>
-      {open === "csd" && csd && <LogValue metric={csd} date={logDate} onClose={() => setOpen(null)} />}
-    </Panel>
+      {budget > 0 && (
+        <div style={{ marginLeft: 38, marginTop: 6 }}>
+          <div className="bar-label">
+            <span>{cur === null ? "not logged yet" : cur <= budget ? "within budget 🥗" : `${fmt(cur - budget)} over budget`}</span>
+            <span className="num">
+              {fmt(cur ?? 0)}/{fmt(budget)}
+            </span>
+          </div>
+          <Bar value={cur ?? 0} max={budget} kind={cur !== null && cur > budget ? "bad" : "good"} thin seg={false} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** An adds-up tracker (hours, glasses…): quick +buttons, or … for any amount. */
+function AddRow({ m, date }: { m: Metric; date: string }) {
+  const { state, act } = useGame();
+  const [custom, setCustom] = useState(false);
+  const h = valueOn(state, m.key, date);
+  return (
+    <div className="row wrap">
+      <span style={{ fontSize: 22, width: 30 }}>{m.emoji}</span>
+      <span className="grow">
+        <b>{m.name}</b>{" "}
+        <span className="small ink2">
+          {fmt(h ?? 0, m.decimals)}
+          {m.target ? `/${fmt(m.target, 0)}` : ""} {m.unit}
+        </span>
+      </span>
+      {(m.quick ?? "1").split(",").map((n) => (
+        <button key={n} className="btn sm" onClick={() => act(`metrics/${m.key}/log`, { date, value: Number(n) }).catch(() => {})}>
+          +{n}
+        </button>
+      ))}
+      <button className="btn sm" onClick={() => setCustom(true)} aria-label={`Custom ${m.name} amount`}>
+        …
+      </button>
+      {custom && <LogValue metric={m} date={date} onClose={() => setCustom(false)} />}
+    </div>
+  );
+}
+
+/** Tick the trackers to show in the Quick log and put them in order. */
+function QuickLogPicker({ onClose }: { onClose: () => void }) {
+  const { state, act, busy } = useGame();
+  const [keys, setKeys] = useState(() =>
+    state.metrics
+      .filter((m) => m.quick_log > 0)
+      .sort((a, b) => a.quick_log - b.quick_log || a.sort - b.sort)
+      .map((m) => m.key),
+  );
+  const byKey = new Map(state.metrics.map((m) => [m.key, m]));
+  const others = state.metrics.filter((m) => m.active && !keys.includes(m.key));
+  const move = (i: number, d: number) =>
+    setKeys((ks) => {
+      const j = i + d;
+      if (j < 0 || j >= ks.length) return ks;
+      const n = [...ks];
+      [n[i], n[j]] = [n[j], n[i]];
+      return n;
+    });
+  const save = async () => {
+    try {
+      await act("quick-log", { keys }, "PUT");
+      onClose();
+    } catch {}
+  };
+  const row = (m: Metric, on: boolean, i = -1) => (
+    <div className="li" key={m.key}>
+      <label className="row grow" style={{ gap: 8, cursor: "pointer" }}>
+        <input type="checkbox" checked={on} onChange={() => setKeys((ks) => (on ? ks.filter((k) => k !== m.key) : [...ks, m.key]))} />
+        <span style={{ fontSize: 20 }}>{m.emoji}</span>
+        <span>
+          {m.name}
+          {m.unit && <span className="tiny muted"> · {m.unit}</span>}
+          {!m.active && <span className="tiny muted"> · hidden tracker</span>}
+        </span>
+      </label>
+      {on && (
+        <span className="row" style={{ gap: 2 }}>
+          <button className="btn xs" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Move ${m.name} up`}>
+            ▲
+          </button>
+          <button className="btn xs" disabled={i === keys.length - 1} onClick={() => move(i, 1)} aria-label={`Move ${m.name} down`}>
+            ▼
+          </button>
+        </span>
+      )}
+    </div>
+  );
+  return (
+    <Modal
+      title="📝 What's in the Quick log?"
+      onClose={onClose}
+      actions={
+        <>
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn primary" disabled={busy} onClick={save}>
+            Save
+          </button>
+        </>
+      }
+    >
+      <p className="small ink2" style={{ marginTop: 0 }}>
+        Ticked trackers show on Camp, in this order. Make new trackers on the Body page.
+      </p>
+      <div className="list">
+        {keys.map((k, i) => (byKey.get(k) ? row(byKey.get(k)!, true, i) : null))}
+        {others.map((m) => row(m, false))}
+      </div>
+    </Modal>
   );
 }
 

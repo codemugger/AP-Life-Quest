@@ -98,12 +98,15 @@ function Frame({ W, ticks, y, xLabels, children }: { W: number; ticks: number[];
   );
 }
 
-const shortDate = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-SG", { day: "numeric", month: "short", timeZone: "UTC" });
+const shortDate = (d: string, years = false) =>
+  new Date(d + "T00:00:00Z").toLocaleDateString("en-SG", years ? { month: "short", year: "numeric", timeZone: "UTC" } : { day: "numeric", month: "short", timeZone: "UTC" });
 
 function xLabelsFor(dates: string[], xOf: (i: number) => number) {
   if (!dates.length) return [];
   const idx = dates.length <= 2 ? dates.map((_, i) => i) : [0, Math.floor((dates.length - 1) / 2), dates.length - 1];
-  return [...new Set(idx)].map((i) => ({ x: xOf(i), t: shortDate(dates[i]) }));
+  // over about a year, "Oct 2016" says more than "31 Oct"
+  const years = dayIndex(dates[0], dates[dates.length - 1]) > 300;
+  return [...new Set(idx)].map((i) => ({ x: xOf(i), t: shortDate(dates[i], years) }));
 }
 
 /** Line chart over time (gaps between dates are respected). */

@@ -1,7 +1,7 @@
 // The "juice": floating numbers, toasts, celebrations, confetti, sounds and pet reactions.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Fx, GameState } from "../shared/types";
-import { COSMETICS } from "../shared/levels";
+import { COSMETICS, evolvesAt, formName } from "../shared/levels";
 import { prettyDate } from "../shared/dates";
 import { sfx } from "./sound";
 import { Chest, lookOf, Pet, type PetLook } from "./sprites";
@@ -249,6 +249,11 @@ function ModalBody({ m, close }: { m: Modal; close: () => void }) {
           <p>
             You are now a <b>{m.title}</b>! HP fully restored and a chest dropped. 🎁
           </p>
+          {evolvesAt(m.level) !== null && (
+            <p>
+              ✨ Your pet evolved into <b>{formName(m.look.species ?? "cat", evolvesAt(m.level)!)}</b>!
+            </p>
+          )}
           {ok("Let's go!")}
         </div>
       );
@@ -354,6 +359,12 @@ function ModalBody({ m, close }: { m: Modal; close: () => void }) {
                   <span className="muted small">{d.rest ? "rest day" : `${d.done}/${d.due} dailies`}</span>
                   {d.missed.length > 0 && !d.rest && <div className="small ink2">Missed: {d.missed.join(", ")}</div>}
                   {!!d.late?.length && !d.rest && <div className="small neg">⏰ To-dos late: {d.late.join(", ")}</div>}
+                  {d.promises && (
+                    <div className={`small ${d.promises.broken.length && !d.rest ? "neg" : "pos"}`}>
+                      🎯 Promises kept {d.promises.kept}/{d.promises.kept + d.promises.broken.length}
+                      {d.promises.broken.length > 0 && `: broke ${d.promises.broken.join(", ")}`}
+                    </div>
+                  )}
                   {d.billed.length > 0 && <div className="small neg">Auto-billed: {d.billed.join(", ")}</div>}
                 </div>
                 <div className="small num" style={{ textAlign: "right" }}>

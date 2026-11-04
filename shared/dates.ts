@@ -20,6 +20,33 @@ export function hourInTz(instant: Date, tz: string): number {
   return Number(h) % 24;
 }
 
+/** Milliseconds a timezone is ahead of UTC at an instant. */
+function tzOffset(t: number, tz: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(t));
+  const get = (k: string) => Number(parts.find((p) => p.type === k)?.value ?? 0);
+  return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"), get("second")) - Math.floor(t / 1000) * 1000;
+}
+
+/** The instant a wall-clock time ("HH:MM") happens on a date in a timezone, e.g. 08:00 in Singapore. */
+export function zonedTime(date: string, hhmm: string, tz: string): number {
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, mi] = hhmm.split(":").map(Number);
+  const wall = Date.UTC(y, m - 1, d, h, mi);
+  // two passes, so a daylight-saving change between the guess and the answer is handled
+  return wall - tzOffset(wall - tzOffset(wall, tz), tz);
+}
+
+export const isClockTime = (s: unknown): s is string => typeof s === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+
 /** The "game day": before `dayStartHour` (e.g. 4am) it still counts as the previous day. */
 export function gameDate(now: Date, tz: string, dayStartHour: number): string {
   return dateInTz(new Date(now.getTime() - dayStartHour * 3600_000), tz);
@@ -38,6 +65,9 @@ export function addDays(date: string, n: number): string {
   d.setUTCDate(d.getUTCDate() + n);
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
+
+/** A real calendar date written YYYY-MM-DD (so not 2016-02-30). */
+export const isDate = (s: unknown): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && addDays(s, 0) === s;
 
 /** 0 = Monday … 6 = Sunday */
 export function weekday(date: string): number {
