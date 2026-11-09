@@ -8,6 +8,7 @@ import schema3 from "./schema/0003_notes.sql?raw";
 import schema4 from "./schema/0004_todo_priority.sql?raw";
 import schema5 from "./schema/0005_repeats.sql?raw";
 import schema6 from "./schema/0006_lockin.sql?raw";
+import schema7 from "./schema/0007_grace_clock.sql?raw";
 import { importAll, type Backup } from "./backup";
 import { all, first } from "./db";
 import { DoDb, splitSql } from "./do-db";
@@ -19,7 +20,7 @@ import type { TemplateContent } from "./seed";
 import { seedAll } from "./seeding";
 
 /** Character database schema, applied in order. Only ever append. */
-const SCHEMA = [schema1, schema2, schema3, schema4, schema5, schema6];
+const SCHEMA = [schema1, schema2, schema3, schema4, schema5, schema6, schema7];
 
 /** Config tables that "copy setup from another character" brings across (no progress). */
 const CONFIG_TABLES = ["metrics", "quests", "shop_items", "vouchers", "achievements", "goals", "milestones"] as const;

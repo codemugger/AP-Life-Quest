@@ -121,16 +121,17 @@ const CHAPTERS: Chapter[] = [
   {
     id: "big3",
     emoji: "🎯",
-    title: "Big 3: lock in your most important to-dos",
+    title: "Top promises: lock in your most important to-dos",
     body: (s) => (
       <ul>
         <li>
-          Each morning, promise up to <b>{s.promise_max}</b> to-dos you'll finish <i>today</i> (Camp → 🎯 Today's Big 3; it asks once a day). They're pinned at the top
-          of Camp, marked 🎯 on the Quest board, and counted in the top bar.
+          Each morning, promise up to <b>{s.promise_max}</b> to-dos you'll finish <i>today</i> (Camp → 🎯 Today's Top {s.promise_max}, with one slot per promise; it
+          asks once a day). They're marked 🎯 on the Quest board and counted in the top bar.
         </li>
         <li>
-          <b>Kept</b> (ticked the same day): <b>+{pct(s.promise_bonus)} AP and XP</b> on top of everything else. <b>Broken</b>: <b>−{s.promise_hp} HP</b> each when the
-          day closes, and it's in the <i>While you were away</i> report.
+          <b>Kept</b>: <b>+{pct(s.promise_bonus)} AP and XP</b> on top of everything else. A promise counts until its day closes, like dailies: the next day until{" "}
+          {Math.max(s.grace_hours, s.day_start_hour)}:00 (your grace hours). Yesterday's open promises show on Camp with the time left. <b>Broken</b>:{" "}
+          <b>−{s.promise_hp} HP</b> each when the day closes, and it's in the <i>While you were away</i> report.
         </li>
         <li>You can take a promise back for 10 minutes (for a mis-tap). After that it's locked in; deleting the to-do still counts as broken.</li>
         <li>🤝 Promise streak: days in a row with every promise kept. It drops chests at 3, 7, 14, 30, 60 and 100 days. Days without promises don't break it; rest days freeze it.</li>
@@ -179,8 +180,8 @@ const CHAPTERS: Chapter[] = [
           scenes.
         </li>
         <li>
-          <b>The day</b> starts at {s.day_start_hour}:00 and stays open {s.grace_hours} hours after it ends, so you can tick yesterday in the morning. 🏖️ Rest Day
-          Passes freeze everything for a sick day.
+          <b>The day</b> starts at {s.day_start_hour}:00. Yesterday stays open until {Math.max(s.grace_hours, s.day_start_hour)}:00 today (your grace hours: 16 = 4 pm,
+          12 = noon, 0 = closes when the day ends), so you can tick it in the morning. 🏖️ Rest Day Passes freeze everything for a sick day.
         </li>
       </ul>
     ),
@@ -301,7 +302,7 @@ const CHAPTERS: Chapter[] = [
     body: () => (
       <ul>
         <li>Tap 🛣️ in the top bar on any page (or the strip on Camp) and tap a site: it opens in a new window.</li>
-        <li>✎ Edit to add, rename, re-order or remove sites. Each icon can be the site's own logo (↻ Try another logo if it looks wrong), an emoji, or your own picture or pixel art.</li>
+        <li>✎ Edit, then <b>drag</b> a tile to move it (finger or mouse), or tap it to rename, change or remove it. Each icon can be the site's own logo (↻ Try another logo if it looks wrong), an emoji, or your own picture or pixel art.</li>
         <li>It's the same in all your characters. Logos are fetched once and kept in your app, never loaded from other websites.</li>
       </ul>
     ),

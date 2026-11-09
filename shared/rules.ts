@@ -16,7 +16,7 @@ export interface Settings {
   birthday: string | null; // "MM-DD"
   timezone: string;
   day_start_hour: number; // before this hour it is still "yesterday"
-  grace_hours: number; // hours after a day ends during which you can still tick it
+  grace_hours: number; // yesterday stays open until this hour today (16 = 4 pm; 0 = closes when the day ends)
   max_hp: number;
   crit_chance: number;
   crit_mult: number;
@@ -42,6 +42,8 @@ export interface Settings {
   theme: "auto" | "day" | "night";
   current_season: number;
   template: string;
+  /** grace_hours is a clock hour (since v2.6; older saves counted from the day start) */
+  grace_clock: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -58,7 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   birthday: null,
   timezone: "Asia/Singapore",
   day_start_hour: 4,
-  grace_hours: 12,
+  grace_hours: 16,
   max_hp: 100,
   crit_chance: 0.1,
   crit_mult: 2,
@@ -84,10 +86,11 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "auto",
   current_season: 1,
   template: "starter",
+  grace_clock: true,
 };
 
 /** Keys the user may edit through the API (everything except internal bookkeeping). */
-export const EDITABLE_SETTINGS = Object.keys(DEFAULT_SETTINGS).filter((k) => k !== "current_season" && k !== "template" && k !== "hats");
+export const EDITABLE_SETTINGS = Object.keys(DEFAULT_SETTINGS).filter((k) => k !== "current_season" && k !== "template" && k !== "hats" && k !== "grace_clock");
 
 export const DIFFICULTY: Record<string, { ap: number; xp: number; hp: number; label: string }> = {
   trivial: { ap: 3, xp: 5, hp: 2, label: "Trivial" },

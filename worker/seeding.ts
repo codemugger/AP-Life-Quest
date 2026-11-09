@@ -15,6 +15,17 @@ export const QUICK_LOG_DEFAULTS = `UPDATE metrics SET quick_log = CASE key WHEN 
     AND NOT EXISTS (SELECT 1 FROM metrics m WHERE m.quick_log > 0)`;
 
 /**
+ * Grace hours used to count from the day start (12 = 4 pm with a 4 am day start); now the number
+ * is the clock hour (16 = 4 pm). Settings from before that (old saves, backups) move over once.
+ */
+export const GRACE_TO_CLOCK = [
+  `UPDATE settings SET value = printf('%g', CAST(value AS REAL) + COALESCE((SELECT CAST(value AS REAL) FROM settings WHERE key = 'day_start_hour'), 4))
+   WHERE key = 'grace_hours' AND NOT EXISTS (SELECT 1 FROM settings WHERE key = 'grace_clock')`,
+  // (only in a set-up character: an empty settings table means "not created yet")
+  "INSERT OR IGNORE INTO settings (key, value) SELECT 'grace_clock', 'true' WHERE EXISTS (SELECT 1 FROM settings)",
+];
+
+/**
  * `keep` = profile + looks to carry over (and `template`, which picks the content).
  * `content` overrides the template (used when copying setup from another character).
  */

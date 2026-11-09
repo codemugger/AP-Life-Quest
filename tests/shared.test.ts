@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, closedThrough, daysBetween, gameDate, isDue, weekStart, weekday } from "../shared/dates";
+import { addDays, closedThrough, closesAt, daysBetween, gameDate, isDue, weekStart, weekday } from "../shared/dates";
 import { bmi, bmiBand, ema, healthyRange, sma } from "../shared/health";
 import { levelInfo, petStage, titleFor, xpToNext } from "../shared/levels";
 import { priceOf, unitPrice, voucherApplies } from "../shared/pricing";
@@ -41,10 +41,17 @@ describe("dates", () => {
     // 2026-10-19 04:30 SGT
     expect(gameDate(new Date("2026-10-18T20:30:00Z"), tz, 4)).toBe("2026-10-19");
   });
-  it("closes a day only after the grace period", () => {
-    // Day 10-18 ends 10-19 04:00 SGT; with 12h grace it closes at 10-19 16:00 SGT (08:00Z)
-    expect(closedThrough(new Date("2026-10-19T07:59:00Z"), tz, 4, 12)).toBe("2026-10-17");
-    expect(closedThrough(new Date("2026-10-19T08:01:00Z"), tz, 4, 12)).toBe("2026-10-18");
+  it("closes a day at the grace hour the next day", () => {
+    // grace 16: day 10-18 stays open until 10-19 16:00 SGT (08:00Z)
+    expect(closedThrough(new Date("2026-10-19T07:59:00Z"), tz, 4, 16)).toBe("2026-10-17");
+    expect(closedThrough(new Date("2026-10-19T08:01:00Z"), tz, 4, 16)).toBe("2026-10-18");
+    expect(new Date(closesAt("2026-10-18", tz, 4, 16)).toISOString()).toBe("2026-10-19T08:00:00.000Z");
+    // grace 12 = noon; grace 4 or 0 = as soon as the game day ends (04:00)
+    expect(closedThrough(new Date("2026-10-19T03:59:00Z"), tz, 4, 12)).toBe("2026-10-17");
+    expect(closedThrough(new Date("2026-10-19T04:00:00Z"), tz, 4, 12)).toBe("2026-10-18");
+    expect(new Date(closesAt("2026-10-18", tz, 4, 4)).toISOString()).toBe("2026-10-18T20:00:00.000Z");
+    expect(new Date(closesAt("2026-10-18", tz, 4, 0)).toISOString()).toBe("2026-10-18T20:00:00.000Z");
+    expect(new Date(closesAt("2026-10-18", tz, 0, 0)).toISOString()).toBe("2026-10-18T16:00:00.000Z");
   });
   it("does calendar maths", () => {
     expect(addDays("2026-12-31", 1)).toBe("2027-01-01");

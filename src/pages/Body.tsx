@@ -10,6 +10,7 @@ import { Editor } from "../components/Editor";
 import { ImportHistory } from "../components/ImportHistory";
 import { LogValue } from "../components/QuestRow";
 import { Empty, HelpLink, Panel, Seg } from "../components/ui";
+import { bodyTrends } from "../insights";
 import { fmt, latest, series, valueOn } from "../util";
 
 type Range = "30" | "90" | "365" | "1826" | "all";
@@ -150,6 +151,8 @@ export default function Body() {
           )}
         </Panel>
       </div>
+
+      <Trends calories={cals} weights={wSeries} budget={calM?.target ?? null} />
 
       <Panel title="📈 Trackers" right={<button className="btn sm primary" onClick={() => setEdit({})}>＋ Tracker</button>}>
         <div className="list">
@@ -297,6 +300,29 @@ function YearByYear({ data, height }: { data: Pt[]; height: number }) {
           </tbody>
         </table>
       </div>
+    </Panel>
+  );
+}
+
+/** Calories and weight in a few plain lines: what's improving, what's creeping up, and how fast. */
+function Trends({ calories, weights, budget }: { calories: Pt[]; weights: Pt[]; budget: number | null }) {
+  const { state } = useGame();
+  const { lines, take } = bodyTrends({ calories, weights, budget, today: state.today });
+  return (
+    <Panel title="📊 Trends · past week & month">
+      <ul className="trend-list">
+        {lines.map((l) => (
+          <li key={l.text} className={`tone-${l.tone}`}>
+            <span className="ico">{l.icon}</span>
+            <span>{l.text}</span>
+          </li>
+        ))}
+      </ul>
+      {take && (
+        <div className={`trend-take ${take.tone}`}>
+          {take.icon} {take.text}
+        </div>
+      )}
     </Panel>
   );
 }

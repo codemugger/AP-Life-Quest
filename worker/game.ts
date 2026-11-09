@@ -1,5 +1,5 @@
 // Core game engine: context, rewards, quests, trackers and the nightly "close the day" pass.
-import { addDays, closedThrough, daysBetween, gameDate, isDate, isDue, weekday, weekStart } from "../shared/dates";
+import { addDays, closedThrough, closesAt, daysBetween, gameDate, isDate, isDue, weekday, weekStart } from "../shared/dates";
 import { LEVEL_HATS, levelInfo, titleFor, type Rarity } from "../shared/levels";
 import { drainHp, OVERDUE_DAYS, priorityOf, todoPay } from "../shared/priority";
 import { nextOccurrence, parseRepeat, questDue } from "../shared/schedule";
@@ -328,9 +328,10 @@ export async function completeQuest(ctx: Ctx, id: number, opts: { date?: string;
       const crit = q.ap > 0 && hashFloat(`${q.id}|${date}|${count}`) < ctx.s.crit_chance;
       // to-dos: late = half pay; important ones finished early get a bonus
       const pay = q.type === "todo" ? todoPay(q.priority, q.due_date, date) : { mult: 1, tag: "" };
-      // Big 3: a to-do promised for this day pays extra
+      // Big 3: a promised to-do pays extra if it's done before its day closes (grace hours included)
       const kept =
-        q.type === "todo" && !!(await first(ctx.db, "SELECT 1 AS x FROM promises WHERE date = ? AND quest_id = ? AND season_id = ?", date, q.id, ctx.season));
+        q.type === "todo" &&
+        !!(await first(ctx.db, "SELECT 1 AS x FROM promises WHERE quest_id = ? AND season_id = ? AND date > ? AND date <= ?", q.id, ctx.season, ctx.closed, date));
       const bonus = kept ? 1 + ctx.s.promise_bonus : 1;
       if (kept) pay.tag += " · 🎯 promise kept";
       const ap = Math.round(q.ap * qty * mult * pay.mult * bonus * (crit ? ctx.s.crit_mult : 1));
@@ -775,11 +776,14 @@ async function processDay(ctx: Ctx, d: string) {
       d,
       d,
     ),
-    // Big 3: what was promised for this day, and whether it got done that day
+    // Big 3: what was promised for this day, and whether it got done before the day closed
+    // (that day, or the next morning within the grace hours)
     stmt(
       db,
-      `SELECT p.title, p.emoji, EXISTS (SELECT 1 FROM quest_log l WHERE l.quest_id = p.quest_id AND l.date = p.date) AS kept
+      `SELECT p.title, p.emoji,
+         EXISTS (SELECT 1 FROM quest_log l WHERE l.quest_id = p.quest_id AND l.date >= p.date AND l.created_at <= ?) AS kept
        FROM promises p WHERE p.date = ? AND p.season_id = ?`,
+      new Date(closesAt(d, ctx.s.timezone, ctx.s.day_start_hour, ctx.s.grace_hours)).toISOString().slice(0, 19).replace("T", " "),
       d,
       ctx.season,
     ),

@@ -63,16 +63,16 @@ It runs as a website (laptop + iPhone home-screen app). It's **invite-only**: yo
 
   **Repeating to-dos** (e.g. *pay parents by the 26th*): pick a schedule under **Repeat**. When you finish one, the next appears with its new due date, priority and penalty (🔁 on the row). Finish it early or late, and the next one still follows the schedule. Undoing the tick removes the next one again.
 
-  **🎯 Big 3 (lock in):** each morning, promise up to 3 to-dos you'll finish *today* (Camp → Today's Big 3; it asks once a day). They're pinned on Camp, marked 🎯 on the Quest board and counted in the top bar.
+  **🎯 Top N promises (lock in):** each morning, promise up to N to-dos you'll finish *today* (N = *Promises per day* in Game rules, default 3). Camp shows **Today's Top N** with one slot per promise (it asks once a day); they're also marked 🎯 on the Quest board and counted in the top bar.
 
-  - **Kept** (ticked the same day): **+50% AP and XP**.
+  - **Kept**: **+50% AP and XP**. Like dailies, a promise counts until its day closes, so yesterday's can still be kept the next morning within the grace hours. Camp shows them with the time left.
   - **Broken**: **−5 HP each** when the day closes, listed in the overnight report.
   - You can take a promise back for 10 minutes (for a mis-tap). After that it's locked in, and deleting the to-do still counts as broken.
   - 🤝 **Promise streak:** days in a row with every promise kept. It drops chests at 3, 7, 14, 30, 60 and 100 days. Days without promises don't break it; rest days freeze it.
   - The number of promises, the bonus and the HP are in Settings → Game rules.
 - **Archive:** paused quests and finished to-dos (**Archive N finished**). Each row has ↩ restore, ✎ edit and 🗑 delete forever, plus **🗑 Delete all archived**. Deleting never takes back what a quest earned: your log, stats, trophies and exports keep it (shown as *(deleted quest)*).
 
-**When does a day close?** The game day starts at **4 am**. Yesterday stays open until **4 pm** (12 h grace) so you can catch up in the morning. Closing applies missed-quest damage, the streak, perfect-day healing, Calorie Court auto-billing and sprint deadlines, then shows a "While you were away" report. Each day can only ever be scored once, even if your phone and laptop open the app at the same moment.
+**When does a day close?** The game day starts at **4 am**. Yesterday stays open until the **grace hour** the next day (Settings → Game rules → *Grace hours*, read like a clock: **16 = 4 pm** (default), 12 = noon, 0 = closes as soon as the day ends), so you can catch up dailies and promises in the morning. Closing applies missed-quest damage, the streak, perfect-day healing, Calorie Court auto-billing and sprint deadlines, then shows a "While you were away" report. Each day can only ever be scored once, even if your phone and laptop open the app at the same moment.
 
 **⚖️ Calorie Court:** a day in a waiver band (3000–3999, 4000–4999…) requires that Calorie Waiver Ticket (×3 tax). Settle it in **Shop → Court**:
 
@@ -90,10 +90,11 @@ If you ignore it, it's auto-billed at full price.
 - **Quick log:** tap ⚙ on Camp's Quick log to choose which trackers show there and in what order (or tick *Show in Camp's Quick log* on a tracker).
 - **Import history:** Body → a tracker → **import**, then choose an Excel file (.xlsx), a CSV, or paste two columns from a spreadsheet (date, value). It finds the date and value columns (e.g. DATE and MASS/KG), reads day/month dates the Singapore way, skips titles and notes, and shows a preview before anything is saved. Days you've already logged keep their value unless you choose the file's. Weight goals keep their starting weight.
 - **Body** shows weight over 30 days, 90 days, 1 year, 5 years or all of it, plus a **year-by-year** table (weigh-ins, average, lightest, heaviest, average BMI).
+- **📊 Trends** (below the calories chart): the 30-day calorie EMA against your budget, the last 3 days against that average, and how your weight moved over the past week and month (smoothed over nearby weigh-ins), each called *steady*, *minor* or *sharp*, with a one-line takeaway. Steady: under 0.3 kg a week / 0.5 kg a month; sharp: 0.7 kg a week / 2 kg a month or more.
 
 **🔔 Phone reminders** (Settings → Phone reminders): real notifications even when the app is closed.
 
-- ☀️ **Morning brief** (default 08:00): what's due, what's late, and a nudge to pick your Big 3.
+- ☀️ **Morning brief** (default 08:00): what's due, what's late, yesterday's promises still open, and a nudge to pick today's.
 - 🌙 **Evening check** (default 20:00): promises, deadlines and dailies still open. It stays quiet when everything's done.
 - ⏰ **Note reminders** at the time you set on a note.
 - Turn off *Show names* to see only counts on the lock screen. Reminders belong to the character, and go to every device you turn them on for (on iPhone: from the Home Screen app, see [section 8](#8-install-on-your-iphone)).
@@ -102,7 +103,7 @@ If you ignore it, it's auto-billed at full price.
 
 ## 2. A day in the life
 
-1. **Morning:** the ☀️ morning brief arrives on your phone. Open the app, read the overnight report and **lock in today's Big 3**. Weigh in (Camp → Quick log); the weigh-in quest ticks itself.
+1. **Morning:** the ☀️ morning brief arrives on your phone. Open the app, read the overnight report and **lock in today's top promises**. Weigh in (Camp → Quick log); the weigh-in quest ticks itself.
 2. **During the day:** tap **+0.5 / +1 / +2** for focus or CSD hours, start the **fasting timer**, and tap habits as they happen.
 3. **Evening:** the 🌙 evening check lists what's still open. Enter the day's calories (one box), tick what you did, open chests.
 4. **Treat yourself** in the Shop, and use rewards from your Bag when you enjoy them.
@@ -153,7 +154,7 @@ The first picture is the icon or cover; tap ⭐ on another to make it the cover.
 **🛣️ The Highway** is your launcher for the sites you use every day. Tap 🛣️ in the top bar on any page (or use the strip on Camp), then tap a site to open it in a new window.
 
 - It starts with ChatGPT, Claude, Gemini, DeepSeek, Facebook, Google Calendar, Udemy, LinkedIn, Outlook, Gmail and Google (owner account; invited members start empty).
-- **✎ Edit** to add a site (quick-add chips for YouTube, WhatsApp, Drive and more, or any address), rename it, change its address, move it ◀ ▶ or remove it. Up to 48 sites.
+- **✎ Edit** to add a site (quick-add chips for YouTube, WhatsApp, Drive and more, or any address), rename it, change its address or remove it. **Drag** a tile to move it (finger or mouse; ◀ ▶ in a site's settings works too). Up to 48 sites.
 - **Icons:** 🌐 the site's own logo (if it looks wrong, **↻ Try another logo** cycles between three logo services), 😀 an emoji, or 🖼️ your own picture or pixel art.
 - It belongs to your **account**, so every character sees the same Highway. Logos are fetched once by the server and stored with your account, so the app never loads pictures from other websites.
 
@@ -415,7 +416,7 @@ npm run dev                       # http://localhost:5173 (UI + API + character 
 | Command | What it does |
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and unit tests |
-| `npm run test:api` | 179 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
+| `npm run test:api` | 183 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
 | `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
 | `npm run versions` / `npm run rollback` | Deployments |
 | `npm run backup` | SQL dump of the account database |
@@ -439,7 +440,8 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── accounts.ts        users, invites, character registry
 │   ├── character.ts       the per-character Durable Object (own SQLite, self-migrating)
 │   ├── schema/            character database migrations (0002 = pictures & links, 0003 = notebook,
-│   │                      0004–0005 = to-do priorities & repeats, 0006 = Quick log, Big 3, reminders)
+│   │                      0004–0005 = to-do priorities & repeats, 0006 = Quick log, promises, reminders,
+│   │                      0007 = grace hours as a clock time)
 │   ├── do-db.ts           D1-style adapter over Durable Object SQL
 │   ├── game/api.ts        the game API for one character (+ pictures)
 │   ├── game.ts            engine: rewards, crits, quests, trackers, closing days, fainting
@@ -450,7 +452,7 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── crud.ts            whitelisted create/update/delete for everything editable
 │   ├── backup.ts          save points (built inside SQLite), export/import, resets
 │   ├── notes.ts           notebook: notes, binders, labels, reminders, journal → game
-│   ├── promises.ts        Big 3: promise / take back (rewards in game.ts)
+│   ├── promises.ts        top-N promises: promise / take back (rewards in game.ts)
 │   ├── push.ts            phone reminders: what to send and when (run from the character's alarm)
 │   ├── webpush.ts         Web Push: VAPID signing + aes128gcm encryption (WebCrypto only)
 │   └── seed.ts            templates: Healthy-life starter, Anson's original, Blank
@@ -462,6 +464,7 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── components/Highway.tsx  🛣️ launcher, Camp strip, site editor
 │   ├── export.ts          Excel / CSV export (built in the browser)
 │   ├── importer.ts        tracker history import: .xlsx / CSV / pasted cells → dates + values
+│   ├── insights.ts        Body trends: calorie EMA / 3-day average, weight steady / minor / sharp
 │   ├── components/Big3.tsx, Reminders.tsx, ImportHistory.tsx
 │   ├── pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
 │   └── components/notes/  editor (TipTap, loaded on demand), sketch pad, voice recorder
