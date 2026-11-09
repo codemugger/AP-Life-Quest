@@ -156,7 +156,7 @@ export function PhoneReminders() {
       )}
       {err && <div className="alert">{err}</div>}
       <div className="list">
-        {time("push_morning", "☀️ Morning brief", "what's due, what's late, pick your Big 3", "08:00")}
+        {time("push_morning", "☀️ Morning brief", "what's due, what's late, yesterday's open promises, pick today's", "08:00")}
         {time("push_evening", "🌙 Evening check", "promises and deadlines still open (only if there are any)", "20:00")}
         <div className="li">
           <label className="check grow">

@@ -62,8 +62,22 @@ function SiteIcon({ l, size = 44 }: { l: Pick<HighwayLink, "id" | "name" | "emoj
   );
 }
 
-/** A site: opens in a new window (or, while editing, opens its settings). */
-function Tile({ l, editing, onEdit, small }: { l: HighwayLink; editing?: boolean; onEdit?: () => void; small?: boolean }) {
+/** A site: opens in a new window (or, while editing, opens its settings and can be dragged). */
+function Tile({
+  l,
+  editing,
+  onEdit,
+  onGrab,
+  dragging,
+  small,
+}: {
+  l: HighwayLink;
+  editing?: boolean;
+  onEdit?: () => void;
+  onGrab?: (e: React.PointerEvent<HTMLElement>) => void;
+  dragging?: boolean;
+  small?: boolean;
+}) {
   const body = (
     <>
       <SiteIcon l={l} size={small ? 34 : 44} />
@@ -72,7 +86,14 @@ function Tile({ l, editing, onEdit, small }: { l: HighwayLink; editing?: boolean
     </>
   );
   return editing ? (
-    <button type="button" className={`hw-tile editing ${small ? "small" : ""}`} onClick={onEdit} aria-label={`Edit ${l.name}`}>
+    <button
+      type="button"
+      className={`hw-tile editing ${small ? "small" : ""} ${dragging ? "dragging" : ""}`}
+      data-hw-id={l.id}
+      onPointerDown={onGrab}
+      onClick={onEdit}
+      aria-label={`Edit ${l.name} (or drag to move it)`}
+    >
       {body}
     </button>
   ) : (
@@ -123,8 +144,73 @@ export function HighwayStrip() {
 
 function Launcher({ startEdit, onClose }: { startEdit: boolean; onClose: () => void }) {
   const { links, refresh } = useHighway();
+  const fx = useFx();
   const [editing, setEditing] = useState(startEdit);
   const [edit, setEdit] = useState<HighwayLink | "new" | null>(null);
+  // drag to reorder (edit mode): the list re-sorts live under a floating copy of the tile
+  const [order, setOrder] = useState<HighwayLink[]>(links ?? []);
+  const orderRef = useRef(order);
+  orderRef.current = order;
+  const [ghost, setGhost] = useState<{ l: HighwayLink; x: number; y: number; offX: number; offY: number; w: number } | null>(null);
+  const drag = useRef<{ id: number; x0: number; y0: number; offX: number; offY: number; w: number; on: boolean } | null>(null);
+  const justDragged = useRef(false);
+  useEffect(() => {
+    if (!drag.current?.on) setOrder(links ?? []);
+  }, [links]);
+
+  const grab = (e: React.PointerEvent<HTMLElement>, l: HighwayLink) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    drag.current = { id: l.id, x0: e.clientX, y0: e.clientY, offX: e.clientX - r.left, offY: e.clientY - r.top, w: r.width, on: false };
+  };
+  useEffect(() => {
+    if (!editing) return;
+    const move = (e: PointerEvent) => {
+      const d = drag.current;
+      if (!d) return;
+      if (!d.on && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 8) return; // still a tap
+      d.on = true;
+      e.preventDefault();
+      const l = orderRef.current.find((x) => x.id === d.id);
+      if (l) setGhost({ l, x: e.clientX, y: e.clientY, offX: d.offX, offY: d.offY, w: d.w });
+      const over = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-hw-id], .hw-tile.add");
+      if (!over) return;
+      setOrder((cur) => {
+        const from = cur.findIndex((x) => x.id === d.id);
+        const to = over.dataset.hwId ? cur.findIndex((x) => x.id === Number(over.dataset.hwId)) : cur.length - 1;
+        if (from < 0 || to < 0 || from === to) return cur;
+        const next = [...cur];
+        next.splice(to, 0, ...next.splice(from, 1));
+        return next;
+      });
+    };
+    const drop = async () => {
+      const d = drag.current;
+      drag.current = null;
+      if (!d?.on) return;
+      setGhost(null);
+      justDragged.current = true; // the click that follows a drag isn't a tap
+      setTimeout(() => (justDragged.current = false), 80);
+      const ids = orderRef.current.map((x) => x.id);
+      if (ids.join() === (links ?? []).map((x) => x.id).join()) return;
+      try {
+        await api("highway/order", { method: "PUT", body: { ids } });
+        await refresh();
+      } catch (e) {
+        fx.error(e instanceof ApiError ? e.message : "Couldn't save the new order");
+        setOrder(links ?? []);
+      }
+    };
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", drop);
+    window.addEventListener("pointercancel", drop);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", drop);
+      window.removeEventListener("pointercancel", drop);
+    };
+  }, [editing, links, refresh, fx]);
+
   return (
     <Modal
       title={<>🛣️ Highway</>}
@@ -133,7 +219,7 @@ function Launcher({ startEdit, onClose }: { startEdit: boolean; onClose: () => v
       actions={
         <>
           <span className="tiny muted" style={{ marginRight: "auto" }}>
-            {editing ? "Tap a site to change it." : "Same in all your characters."}
+            {editing ? "Drag to move · tap to change" : "Same in all your characters."}
           </span>
           <button className={`btn ${editing ? "good" : ""}`} onClick={() => setEditing(!editing)}>
             {editing ? "✓ Done" : "✎ Edit"}
@@ -141,9 +227,16 @@ function Launcher({ startEdit, onClose }: { startEdit: boolean; onClose: () => v
         </>
       }
     >
-      <div className="hw-grid">
-        {(links ?? []).map((l) => (
-          <Tile key={l.id} l={l} editing={editing} onEdit={() => setEdit(l)} />
+      <div className={`hw-grid ${ghost ? "sorting" : ""}`}>
+        {(editing ? order : (links ?? [])).map((l) => (
+          <Tile
+            key={l.id}
+            l={l}
+            editing={editing}
+            dragging={ghost?.l.id === l.id}
+            onGrab={(e) => grab(e, l)}
+            onEdit={() => !justDragged.current && setEdit(l)}
+          />
         ))}
         {editing && (
           <button type="button" className="hw-tile add" onClick={() => setEdit("new")}>
@@ -154,6 +247,12 @@ function Launcher({ startEdit, onClose }: { startEdit: boolean; onClose: () => v
           </button>
         )}
       </div>
+      {ghost && (
+        <div className="hw-tile hw-ghost" style={{ left: ghost.x - ghost.offX, top: ghost.y - ghost.offY, width: ghost.w }} aria-hidden="true">
+          <SiteIcon l={ghost.l} size={44} />
+          <span className="hw-name">{ghost.l.name}</span>
+        </div>
+      )}
       {!links?.length && !editing && (
         <p className="small ink2 center">
           No sites yet.{" "}

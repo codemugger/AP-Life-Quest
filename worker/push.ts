@@ -1,7 +1,7 @@
 // Phone reminders: what to send and when. Each character's Durable Object runs these from an
 // alarm set for the next reminder, so nothing polls. Every reminder is recorded in push_sent,
 // so it goes out once even if the alarm fires twice.
-import { addDays, dateInTz, isClockTime, zonedTime } from "../shared/dates";
+import { addDays, clockLabel, closesAt, dateInTz, isClockTime, zonedTime } from "../shared/dates";
 import { questDue } from "../shared/schedule";
 import { all, bad, first, notFound, rows, stmt } from "./db";
 import type { Ctx } from "./game";
@@ -77,24 +77,30 @@ async function today(ctx: Ctx) {
   const [qR, lR, pR] = await ctx.db.batch([
     ctx.db.prepare("SELECT id, type, title, days, repeat_rule, due_date, priority, created_at FROM quests WHERE active = 1 AND type IN ('daily', 'todo')"),
     stmt(ctx.db, "SELECT l.quest_id, l.date FROM quest_log l JOIN quests q ON q.id = l.quest_id WHERE l.date = ? OR q.type = 'todo'", d),
-    stmt(ctx.db, "SELECT quest_id, title FROM promises WHERE date = ?", d),
+    // promises whose day is still open (today's, and yesterday's during the grace hours)
+    stmt(ctx.db, "SELECT quest_id, title, date FROM promises WHERE date > ? AND season_id = ?", ctx.closed, ctx.season),
   ]);
   const qs = rows<QuestBit>(qR);
   const logs = rows<{ quest_id: number; date: string }>(lR);
   const doneToday = new Set(logs.filter((l) => l.date === d).map((l) => l.quest_id));
   const doneEver = new Set(logs.map((l) => l.quest_id));
   const todos = qs.filter((q) => q.type === "todo" && !doneEver.has(q.id));
+  const proms = rows<{ quest_id: number; title: string; date: string }>(pR);
+  // kept = ticked on its day or later (an open day can only be ticked before it closes)
+  const kept = (p: { quest_id: number; date: string }) => logs.some((l) => l.quest_id === p.quest_id && l.date >= p.date);
   return {
     dailiesLeft: qs.filter((q) => q.type === "daily" && q.created_at <= d && questDue(q, d) && !doneToday.has(q.id)).length,
     open: todos.length,
     dueToday: todos.filter((q) => q.due_date === d).map((q) => q.title),
     late: todos.filter((q) => q.due_date && q.due_date < d && q.priority && q.priority !== "later").map((q) => q.title),
-    promised: rows<{ quest_id: number; title: string }>(pR),
-    promisesLeft: rows<{ quest_id: number; title: string }>(pR)
-      .filter((p) => !doneToday.has(p.quest_id))
-      .map((p) => p.title),
+    promised: proms.filter((p) => p.date === d),
+    promisesLeft: proms.filter((p) => p.date === d && !kept(p)).map((p) => p.title),
+    yesterdayLeft: proms.filter((p) => p.date < d && !kept(p)).map((p) => p.title),
   };
 }
+
+/** When yesterday finally closes, e.g. "4 pm". */
+const closeTime = (ctx: Ctx) => clockLabel(closesAt(addDays(ctx.today, -1), ctx.s.timezone, ctx.s.day_start_hour, ctx.s.grace_hours), ctx.s.timezone);
 
 const list = (names: string[], max = 3) => (names.length > max ? `${names.slice(0, max).join(", ")} +${names.length - max}` : names.join(", "));
 const many = (n: number, one: string, more = `${one}s`) => `${n} ${n === 1 ? one : more}`;
@@ -103,7 +109,9 @@ async function morning(ctx: Ctx): Promise<Omit<Reminder, "kind" | "ref"> | null>
   const t = await today(ctx);
   const show = ctx.s.push_details;
   const lines: string[] = [];
-  if (!t.promised.length && t.open) lines.push("🎯 Pick today's Big 3 and lock in");
+  if (t.yesterdayLeft.length)
+    lines.push(show ? `⏳ Yesterday's promises, until ${closeTime(ctx)}: ${list(t.yesterdayLeft)}` : `⏳ ${many(t.yesterdayLeft.length, "promise")} from yesterday, until ${closeTime(ctx)}`);
+  if (!t.promised.length && t.open) lines.push(`🎯 Pick today's top ${ctx.s.promise_max} and lock in`);
   else if (t.promisesLeft.length) lines.push(show ? `🎯 Promised: ${list(t.promisesLeft)}` : `🎯 ${many(t.promisesLeft.length, "promise")} today`);
   if (t.dueToday.length) lines.push(show ? `⏰ Due today: ${list(t.dueToday)}` : `⏰ ${many(t.dueToday.length, "to-do")} due today`);
   if (t.late.length) lines.push(show ? `🔥 Late: ${list(t.late)}` : `🔥 ${many(t.late.length, "late to-do")}`);

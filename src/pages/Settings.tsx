@@ -19,7 +19,7 @@ interface Snap {
 
 const RULES: { k: keyof S; label: string; help: string; step?: string }[] = [
   { k: "day_start_hour", label: "Day starts at (hour)", help: "Before this hour it still counts as yesterday (night owls: 4)" },
-  { k: "grace_hours", label: "Grace hours", help: "Hours after a day ends that you can still tick it (default 12 → until 4pm next day)" },
+  { k: "grace_hours", label: "Grace hours", help: "Yesterday stays open until this hour today, for dailies and promises (16 = 4 pm, 12 = noon, 0 = closes when the day ends)" },
   { k: "max_hp", label: "Max HP", help: "" },
   { k: "crit_chance", label: "Critical-hit chance", help: "0.1 = 10% of quests pay double", step: "0.01" },
   { k: "crit_mult", label: "Critical multiplier", help: "", step: "0.1" },
@@ -34,9 +34,9 @@ const RULES: { k: keyof S; label: string; help: string; step?: string }[] = [
   { k: "revive_quests", label: "Quests needed to revive", help: "" },
   { k: "revive_hp", label: "HP after reviving", help: "" },
   { k: "fainted_earn_mult", label: "Earnings while fainted", help: "0.5 = half AP", step: "0.05" },
-  { k: "promise_max", label: "Big 3: promises per day", help: "To-dos you can promise each day (1–5)" },
-  { k: "promise_bonus", label: "Big 3: bonus for a kept promise", help: "0.5 = +50% AP and XP", step: "0.05" },
-  { k: "promise_hp", label: "Big 3: HP per broken promise", help: "Lost when the day closes" },
+  { k: "promise_max", label: "Promises per day (top N)", help: "To-dos you can promise each day (1–5); Camp shows this many slots" },
+  { k: "promise_bonus", label: "Bonus for a kept promise", help: "0.5 = +50% AP and XP", step: "0.05" },
+  { k: "promise_hp", label: "HP per broken promise", help: "Lost when the day closes (after the grace hours)" },
 ];
 
 export default function Settings() {

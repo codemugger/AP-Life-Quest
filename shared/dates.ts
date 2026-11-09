@@ -53,11 +53,27 @@ export function gameDate(now: Date, tz: string, dayStartHour: number): string {
 }
 
 /**
- * Latest date that is "closed" (penalties applied, no more quest ticking).
- * Day D closes `graceHours` after it ends, so you can still log yesterday in the morning.
+ * Grace hours read like a clock: day D stays open until that hour the next day (16 = 4 pm,
+ * 12 = noon), but never closes before the game day itself ends at `dayStartHour` (so 0 = closes
+ * as soon as the day ends).
  */
+const closeOffset = (dayStartHour: number, graceHours: number) => Math.max(dayStartHour, graceHours) * 3600_000;
+
+/** Latest date that is "closed" (penalties applied, no more quest ticking). */
 export function closedThrough(now: Date, tz: string, dayStartHour: number, graceHours: number): string {
-  return addDays(gameDate(new Date(now.getTime() - graceHours * 3600_000), tz, dayStartHour), -1);
+  return addDays(dateInTz(new Date(now.getTime() - closeOffset(dayStartHour, graceHours)), tz), -1);
+}
+
+/** An instant as a short clock time in a timezone: "4 pm", "12:30 am". */
+export function clockLabel(t: number, tz: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit", hourCycle: "h12" }).formatToParts(new Date(t));
+  const get = (k: string) => parts.find((p) => p.type === k)?.value ?? "";
+  return `${get("hour")}${get("minute") === "00" ? "" : `:${get("minute")}`} ${get("dayPeriod").toLowerCase()}`;
+}
+
+/** The moment day D closes (ms). */
+export function closesAt(date: string, tz: string, dayStartHour: number, graceHours: number): number {
+  return zonedTime(addDays(date, 1), "00:00", tz) + closeOffset(dayStartHour, graceHours);
 }
 
 export function addDays(date: string, n: number): string {

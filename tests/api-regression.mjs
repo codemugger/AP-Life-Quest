@@ -305,18 +305,30 @@ await post(`/quests/${pa}/complete`, {});
 s = await state();
 const keptL = s.ledger.find((l) => l.description.includes("Promise A") && !l.voided);
 ok(!!keptL && keptL.description.includes("promise kept") && keptL.xp === 30, `a kept promise pays +50% (${keptL?.xp} XP for a 20 XP to-do)`);
-// close two days with promises in them: day -1 all kept, day 0 one broken
+// close two days with promises in them (grace hours 16 = a day closes at 4 pm SGT = 08:00Z the next day):
+// day -1: D done that day, E done the next morning within grace → all kept;
+// day 0: A kept, B never done, F done after 4 pm the next day (too late) → two broken
+const pe = await todo("Promise E", "schedule", dayOf(9));
+const pf = await todo("Promise F", "schedule", dayOf(9));
 const exp5 = (await owner.get(g("/export"))).data;
 exp5.tables.player[0].last_processed = dayOf(-2);
 exp5.tables.day_closures = exp5.tables.day_closures.filter((x) => x.date <= dayOf(-2));
 exp5.tables.seasons[0].started_at = dayOf(-40);
 const logA = exp5.tables.quest_log.find((l) => l.quest_id === pa);
 logA.date = dayOf(0);
-exp5.tables.quest_log.push({ quest_id: pd, date: dayOf(-1), qty: 1, auto: 0, season_id: logA.season_id });
+logA.created_at = `${dayOf(0)} 10:00:00`;
+const sid = logA.season_id;
+exp5.tables.quest_log.push(
+  { quest_id: pd, date: dayOf(-1), qty: 1, auto: 0, season_id: sid, created_at: `${dayOf(-1)} 10:00:00` },
+  { quest_id: pe, date: dayOf(0), qty: 1, auto: 0, season_id: sid, created_at: `${dayOf(0)} 03:00:00` }, // 11 am SGT, inside grace
+  { quest_id: pf, date: dayOf(1), qty: 1, auto: 0, season_id: sid, created_at: `${dayOf(1)} 09:00:00` }, // 5 pm SGT, too late
+);
 exp5.tables.promises = [
-  { date: dayOf(-1), quest_id: pd, title: "Promise D", emoji: "📌", made_at: 0, season_id: logA.season_id },
-  { date: dayOf(0), quest_id: pa, title: "Promise A", emoji: "📌", made_at: 0, season_id: logA.season_id },
-  { date: dayOf(0), quest_id: pb, title: "Promise B", emoji: "📌", made_at: 0, season_id: logA.season_id },
+  { date: dayOf(-1), quest_id: pd, title: "Promise D", emoji: "📌", made_at: 0, season_id: sid },
+  { date: dayOf(-1), quest_id: pe, title: "Promise E", emoji: "📌", made_at: 0, season_id: sid },
+  { date: dayOf(0), quest_id: pa, title: "Promise A", emoji: "📌", made_at: 0, season_id: sid },
+  { date: dayOf(0), quest_id: pb, title: "Promise B", emoji: "📌", made_at: 0, season_id: sid },
+  { date: dayOf(0), quest_id: pf, title: "Promise F", emoji: "📌", made_at: 0, season_id: sid },
 ];
 ok((await post("/import", exp5)).status === 200, "backups carry promises");
 const proc5 = [];
@@ -327,10 +339,31 @@ for (let i = 0; i < 5; i++) {
 }
 s = await state();
 const rep5 = (d) => proc5.find((f) => f.t === "report" && f.date === d)?.promises;
-ok(rep5(dayOf(-1))?.kept === 1 && rep5(dayOf(-1))?.broken.length === 0, "the report counts kept promises");
-ok(rep5(dayOf(0))?.kept === 1 && rep5(dayOf(0))?.broken.join() === "📌 Promise B", `…and broken ones (${JSON.stringify(rep5(dayOf(0)))})`);
+ok(rep5(dayOf(-1))?.kept === 2 && rep5(dayOf(-1))?.broken.length === 0, `a promise ticked the next morning within the grace hours still counts (${JSON.stringify(rep5(dayOf(-1)))})`);
+ok(rep5(dayOf(0))?.kept === 1 && [...(rep5(dayOf(0))?.broken ?? [])].sort().join() === "📌 Promise B,📌 Promise F", `…but not after the day closed (${JSON.stringify(rep5(dayOf(0)))})`);
 const broke = s.ledger.find((l) => l.source === "promise" && l.date === dayOf(0) && !l.voided);
-ok(!!broke && broke.description.includes("Promise B") && !broke.description.includes("Promise A"), "a broken promise costs HP when the day closes");
+ok(!!broke && broke.description.includes("Promise B") && broke.description.includes("Promise F") && !broke.description.includes("Promise A"), "broken promises cost HP when the day closes");
+// grace hours read like a clock: an old backup's 12 (counted from the 4 am day start) becomes 16 (4 pm)
+ok(s.settings.grace_hours === 16, `new characters keep yesterday open until 4 pm (grace ${s.settings.grace_hours})`);
+const exp6 = (await owner.get(g("/export"))).data;
+exp6.tables.settings = exp6.tables.settings.filter((r) => r.key !== "grace_clock").map((r) => (r.key === "grace_hours" ? { ...r, value: "12" } : r));
+await post("/import", exp6);
+ok((await state()).settings.grace_hours === 16, "an old backup's grace hours keep closing at the same time (12 → 16)");
+await post("/import", (await owner.get(g("/export"))).data);
+ok((await state()).settings.grace_hours === 16, "…and only move once");
+await owner.put(g("/settings"), { grace_hours: 24 }); // keep yesterday open all day, whatever the time now
+s = await state();
+const yday = s.editable.find((d) => d < s.today);
+if (yday) {
+  // yesterday is still open: a to-do promised yesterday and finished today keeps the promise
+  const pg = await todo("Promise G", "schedule", dayOf(9));
+  const exp7 = (await owner.get(g("/export"))).data;
+  exp7.tables.promises.push({ date: yday, quest_id: pg, title: "Promise G", emoji: "📌", made_at: 0, season_id: sid });
+  await post("/import", exp7);
+  await post(`/quests/${pg}/complete`, {});
+  ok((await state()).ledger.some((l) => l.description.includes("Promise G") && l.description.includes("promise kept")), "yesterday's promise pays its bonus when finished in the grace hours");
+} else ok(false, "with 24 grace hours, yesterday should still be open");
+await owner.put(g("/settings"), { grace_hours: 16 });
 ok(s.player.promise_streak === 0 && s.player.best_promise_streak === 1, `the promise streak grows on all-kept days and resets on a broken one (${s.player.promise_streak}/${s.player.best_promise_streak})`);
 await post("/metrics/calories/log", { date: dayOf(-3), value: 3500 });
 ok((await state()).obligations.some((o) => o.date === dayOf(-3)), "calories logged a few days late still go to the Calorie Court");
