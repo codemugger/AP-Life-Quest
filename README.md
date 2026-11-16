@@ -140,6 +140,19 @@ If you ignore it, it's auto-billed at full price.
 
 Chests can drop locked items early.
 
+**🎨 Seasonal and festive looks** (Settings → 🎨 Look & sound → *Season & festival theme*), each with its own light and dark palette:
+
+| Look | Singapore flavour on Camp |
+|---|---|
+| 🏕️ **Original** | the cosy cream-and-lavender look; choose its colours: **Classic, Sakura, Matcha, Ocean, Sunset, Kopi**, or **your own colour** (its shades are worked out so text stays readable) |
+| 🌸 **Spring** | Gardens by the Bay orchids and drifting petals |
+| 🏖️ **Summer** | Sentosa sand and sea, National Day red-and-white bunting, fireworks at night |
+| 🏮 **Autumn** | Mid-Autumn lanterns floating up, a mooncake, the full moon at night |
+| ❄️ **Winter** | Orchard Road Christmas lights and gentle snow |
+| 🧧 **Lunar New Year** | red and gold, hanging lanterns, falling ang baos and gold, mandarin oranges |
+
+📅 **Auto** follows the calendar: Lunar New Year from about 10 days before CNY until Chap Goh Mei, otherwise Spring (Mar–May), Summer (Jun–Aug), Autumn (Sep–Nov) and Winter (Dec–Feb). *Light or dark* in the same panel picks the mode (Auto follows your phone). Looks belong to the character, like the rest of Settings. Turning down motion on your phone stills the decorations.
+
 **🖼️ Pictures:** you can add pictures to quests, events, goals, shop items, vouchers, achievements and sprint bosses. When adding one you choose:
 
 - **📷 Photo**: resized on your phone to keep it small, or
@@ -416,7 +429,7 @@ npm run dev                       # http://localhost:5173 (UI + API + character 
 | Command | What it does |
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and unit tests |
-| `npm run test:api` | 183 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
+| `npm run test:api` | 195 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
 | `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
 | `npm run versions` / `npm run rollback` | Deployments |
 | `npm run backup` | SQL dump of the account database |
@@ -458,7 +471,8 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   └── seed.ts            templates: Healthy-life starter, Anson's original, Blank
 ├── shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules,
 │                          notedoc (what a rich note may contain + previews/word counts)
-│                          priority (to-do matrix), schedule (repeats), highway (starter sites, URL rules)
+│                          priority (to-do matrix), schedule (repeats), highway (starter sites, URL rules),
+│                          themes (seasonal looks + palettes for light/dark, Auto calendar, contrast maths)
 ├── src/                   React UI (pages/, components/, account flow, pictures, effects)
 │   ├── pages/Guide.tsx    the in-game guide (? buttons link to its chapters)
 │   ├── components/Highway.tsx  🛣️ launcher, Camp strip, site editor
@@ -466,6 +480,8 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── importer.ts        tracker history import: .xlsx / CSV / pasted cells → dates + values
 │   ├── insights.ts        Body trends: calorie EMA / 3-day average, weight steady / minor / sharp
 │   ├── components/Big3.tsx, Reminders.tsx, ImportHistory.tsx
+│   ├── look.ts            applies the seasonal look (colour tokens, status bar); LookPicker.tsx = Settings
+│   ├── components/SeasonDeco.tsx + seasons.css  festive touches on the Camp stage
 │   ├── pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
 │   └── components/notes/  editor (TipTap, loaded on demand), sketch pad, voice recorder
 ├── public/                icons, manifest, security headers, sw.js (keeps the app on the device, shows notifications)

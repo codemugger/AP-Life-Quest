@@ -40,6 +40,8 @@ export interface Settings {
   push_details: boolean; // show to-do and note names in notifications
   sound: boolean;
   theme: "auto" | "day" | "night";
+  look: string; // seasonal look: "original", "auto" (follows the calendar) or a theme id (shared/themes.ts)
+  palette: string; // Original's colours: a palette id or "#rrggbb"
   current_season: number;
   template: string;
   /** grace_hours is a clock hour (since v2.6; older saves counted from the day start) */
@@ -84,6 +86,8 @@ export const DEFAULT_SETTINGS: Settings = {
   push_details: true,
   sound: true,
   theme: "auto",
+  look: "original",
+  palette: "classic",
   current_season: 1,
   template: "starter",
   grace_clock: true,

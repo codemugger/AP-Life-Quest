@@ -9,6 +9,7 @@ import { GameProvider, useGame } from "./store";
 import { Pet } from "./sprites";
 import { Hud } from "./components/Hud";
 import { HighwayButton, HighwayProvider } from "./components/Highway";
+import { useLook } from "./look";
 import Camp from "./pages/Camp";
 import { Join, Login, Setup } from "./pages/Login";
 import Quests from "./pages/Quests";
@@ -145,6 +146,7 @@ function GameShell() {
     if (theme === "auto") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
   }, [theme]);
+  useLook(state.settings, state.today);
 
   const now = useReminders();
   const badges: Record<string, number> = {

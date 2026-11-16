@@ -9,6 +9,8 @@ import { fmtAP, isNight, petLine, petMood } from "../util";
 import { Bar, Modal, Tabs } from "./ui";
 import { HighwayButton } from "./Highway";
 import { Big3Chip } from "./Big3";
+import { SeasonDeco } from "./SeasonDeco";
+import { resolveTheme } from "../../shared/themes";
 
 function usePetAnim() {
   const [anim, setAnim] = useState("");
@@ -96,11 +98,12 @@ export function PetStage() {
   const anim = usePetAnim();
   const scene = s.scene || "meadow";
   const night = isNight(state) || scene === "space" || scene === "city";
+  const look = resolveTheme(s.look ?? "original", state.today);
   const [wardrobe, setWardrobe] = useState(false);
   const stars = useMemo(() => Array.from({ length: 18 }, (_, i) => ({ l: (i * 53) % 100, t: (i * 37) % 55, d: (i % 5) * 0.6 })), []);
   return (
     <>
-      <div className={`stage scene-${scene} ${night ? "night" : ""}`}>
+      <div className={`stage scene-${scene} look-${look} ${night ? "night" : ""}`}>
         <div className="stars">
           {stars.map((st, i) => (
             <i key={i} style={{ left: `${st.l}%`, top: `${st.t}%`, animationDelay: `${st.d}s` }} />
@@ -114,6 +117,7 @@ export function PetStage() {
           </>
         )}
         <SceneDeco scene={scene} />
+        <SeasonDeco look={look} night={night} />
         <div className="speech">{petLine(state)}</div>
         <div className="ground" />
         <div className="shadow" />

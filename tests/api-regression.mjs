@@ -351,7 +351,7 @@ await post("/import", exp6);
 ok((await state()).settings.grace_hours === 16, "an old backup's grace hours keep closing at the same time (12 → 16)");
 await post("/import", (await owner.get(g("/export"))).data);
 ok((await state()).settings.grace_hours === 16, "…and only move once");
-await owner.put(g("/settings"), { grace_hours: 24 }); // keep yesterday open all day, whatever the time now
+await owner.put(g("/settings"), { grace_hours: 40 }); // keep yesterday open whatever the time now (even before the 4 am day start)
 s = await state();
 const yday = s.editable.find((d) => d < s.today);
 if (yday) {
@@ -362,7 +362,7 @@ if (yday) {
   await post("/import", exp7);
   await post(`/quests/${pg}/complete`, {});
   ok((await state()).ledger.some((l) => l.description.includes("Promise G") && l.description.includes("promise kept")), "yesterday's promise pays its bonus when finished in the grace hours");
-} else ok(false, "with 24 grace hours, yesterday should still be open");
+} else ok(false, "with 40 grace hours, yesterday should still be open");
 await owner.put(g("/settings"), { grace_hours: 16 });
 ok(s.player.promise_streak === 0 && s.player.best_promise_streak === 1, `the promise streak grows on all-kept days and resets on a broken one (${s.player.promise_streak}/${s.player.best_promise_streak})`);
 await post("/metrics/calories/log", { date: dayOf(-3), value: 3500 });
@@ -401,6 +401,14 @@ const put = (b) => owner.put(g("/settings"), b);
 ok((await put({ pet_species: "dino", pet_eyes: "sparkle", pet_color: "#123456" })).status === 200, "species/eyes/custom colour save");
 ok((await put({ pet_species: "dragon" })).status === 400, "unknown species rejected");
 ok((await put({ pet_color: "red" })).status === 400, "bad colour rejected");
+// seasonal looks (Settings → Look)
+ok((await state()).settings.look === "original" && (await state()).settings.palette === "classic", "characters start with the original look");
+for (const look of ["auto", "spring", "summer", "autumn", "winter", "cny", "original"]) ok((await put({ look })).status === 200, `the ${look} look can be chosen`);
+ok((await put({ look: "halloween" })).status === 400, "unknown looks are rejected");
+ok((await put({ palette: "kopi" })).status === 200 && (await put({ palette: "#5fb3a1" })).status === 200, "Original takes a palette or your own colour");
+ok((await put({ palette: "red" })).status === 400 && (await put({ palette: "#fff" })).status === 400, "…but not just any text");
+ok((await put({ theme: "purple" })).status === 400 && (await put({ theme: "auto" })).status === 200, "light/dark must be auto, day or night");
+await put({ palette: "classic" });
 ok((await put({ hat: "beanie", face: "glasses", scene: "beach" })).status === 200, "free hat/face/scene work");
 // (chests can drop locked items early, so pick ones this character hasn't won)
 const owned = (await state()).settings.hats;

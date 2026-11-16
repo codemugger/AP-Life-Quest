@@ -308,6 +308,23 @@ const CHAPTERS: Chapter[] = [
     ),
   },
   {
+    id: "looks",
+    emoji: "🎨",
+    title: "Seasonal and festive looks",
+    body: () => (
+      <ul>
+        <li>
+          Settings → 🎨 Look & sound → <b>Season & festival theme</b>: 🏕️ Original, 🌸 Spring (Gardens by the Bay orchids), 🏖️ Summer (Sentosa sand, National Day
+          bunting and fireworks at night), 🏮 Autumn (Mid-Autumn lanterns and mooncakes), ❄️ Winter (Orchard Road lights and snow) or 🧧 Lunar New Year (red and gold,
+          lanterns, ang baos and mandarin oranges).
+        </li>
+        <li>📅 <b>Auto</b> follows the calendar: Lunar New Year from about 10 days before CNY until Chap Goh Mei, otherwise the season of the month.</li>
+        <li>Original's colours: Classic, Sakura, Matcha, Ocean, Sunset or Kopi, or pick your own colour (its shades are worked out so text stays readable).</li>
+        <li>Every look has a light and a dark version: <b>Light or dark</b> in the same panel (Auto follows your phone). Turning down motion on your phone stills the decorations.</li>
+      </ul>
+    ),
+  },
+  {
     id: "log",
     emoji: "📜",
     title: "The log (undo anything)",
