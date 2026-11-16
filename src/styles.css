@@ -59,6 +59,15 @@
   --ground: #7ad37a;
   --ground-d: #4fae5a;
 
+  /* seasonal looks (shared/themes.ts) set these; the defaults are the original design */
+  --on-violet: #fff;
+  --trim-a: transparent;
+  --trim-b: transparent;
+  --night-top: #1a1745;
+  --night-bottom: #4a3a7a;
+  --night-ground: #2f6a4f;
+  --night-ground-d: #1f4a38;
+
   color-scheme: light;
 }
 
@@ -247,7 +256,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
 .btn.primary { --b: var(--pink); --bi: #2d2142; }
 .btn.good { --b: var(--mint); --bi: #10301f; }
 .btn.gold { --b: var(--lemon); --bi: #3b2a00; }
-.btn.violet { --b: var(--violet); --bi: #fff; }
+.btn.violet { --b: var(--violet); --bi: var(--on-violet); }
 .btn.danger { --b: var(--coral); --bi: #2d0d0d; }
 .btn.sm { padding: 4px 10px; min-height: 32px; font-size: 14px; }
 .btn.xs { padding: 2px 8px; min-height: 26px; font-size: 13px; margin: 2px; }
@@ -374,6 +383,8 @@ label.field .help { font-size: 12px; color: var(--muted); }
   box-shadow: 0 4px 0 0 var(--line), 0 8px 0 0 var(--shadow);
   margin-bottom: 14px;
 }
+/* a festive trim under the top bar (invisible in the original look) */
+.hud::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: repeating-linear-gradient(90deg, var(--trim-a) 0 10px, var(--trim-b) 10px 20px); pointer-events: none; }
 .hud-inner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
 .hud .pet-mini { flex: none; width: 48px; height: 48px; }
 .hud-bars { flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: center; }
@@ -384,7 +395,7 @@ label.field .help { font-size: 12px; color: var(--muted); }
   font-size: 10px;
   padding: 3px 6px;
   background: var(--violet);
-  color: #fff;
+  color: var(--on-violet);
   box-shadow: 0 0 0 2px var(--line);
   white-space: nowrap;
 }
@@ -579,9 +590,9 @@ label.field .help { font-size: 12px; color: var(--muted); }
   background: var(--lemon);
   box-shadow: 0 0 0 4px #ffeaa0, 0 0 0 8px rgba(255, 234, 160, 0.4);
 }
-.stage.night { background: linear-gradient(#1a1745, #4a3a7a); }
-.stage.night .ground { background: #2f6a4f; box-shadow: inset 0 6px 0 0 #1f4a38; }
-.stage.night .ground::before { background: repeating-linear-gradient(90deg, #1f4a38 0 6px, transparent 6px 18px, #1f4a38 18px 24px, transparent 24px 30px); }
+.stage.night { background: linear-gradient(var(--night-top), var(--night-bottom)); }
+.stage.night .ground { background: var(--night-ground); box-shadow: inset 0 6px 0 0 var(--night-ground-d); }
+.stage.night .ground::before { background: repeating-linear-gradient(90deg, var(--night-ground-d) 0 6px, transparent 6px 18px, var(--night-ground-d) 18px 24px, transparent 24px 30px); }
 .stage.night .sun { background: #f4f0d8; box-shadow: inset -10px -4px 0 0 #d8d2b0, 0 0 0 6px rgba(255, 255, 255, 0.08); }
 .stage .cloud {
   position: absolute;

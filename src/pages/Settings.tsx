@@ -7,6 +7,7 @@ import { useFx } from "../fx";
 import { useGame } from "../store";
 import { Bar, Field, HelpLink, Modal, Panel } from "../components/ui";
 import { PhoneReminders } from "../components/Reminders";
+import { LookPicker } from "../components/LookPicker";
 import { fmt } from "../util";
 
 interface Snap {
@@ -74,7 +75,8 @@ export default function Settings() {
         </Panel>
 
         <Panel title="🎨 Look & sound">
-          <Field label="Theme">
+          <LookPicker />
+          <Field label="Light or dark">
             <select className="input" value={s.theme} onChange={(e) => act("settings", { theme: e.target.value }, "PUT").catch(() => {})}>
               <option value="auto">Auto (follow phone)</option>
               <option value="day">☀️ Day</option>

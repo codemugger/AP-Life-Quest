@@ -50,9 +50,10 @@ import { dropPromise, makePromise } from "../promises";
 import { addDevice, deliver, devices, removeDevice } from "../push";
 import type { Vapid } from "../webpush";
 import { isClockTime } from "../../shared/dates";
+import { isPalette, THEME_CHOICES, type ThemeChoice } from "../../shared/themes";
 import { buildState } from "../state";
 
-export const VERSION = "2.6.0";
+export const VERSION = "2.7.0";
 
 type GameEnv = { Bindings: { DB: D1Database; VAPID?: Vapid | null; CHAR_ID?: string | null } };
 type C = Context<GameEnv>;
@@ -257,6 +258,9 @@ gameApp.put("/api/settings", (c) =>
       if (k === "pet_eyes" && !EYES.some((s) => s.id === val)) throw bad("Unknown eye style");
       if (k === "pet_color" && !isPetColor(String(val))) throw bad("Colour must be a preset or #rrggbb");
       if ((k === "push_morning" || k === "push_evening") && val !== "" && !isClockTime(val)) throw bad("Reminder times look like 08:00");
+      if (k === "look" && !THEME_CHOICES.includes(val as ThemeChoice)) throw bad("Unknown theme");
+      if (k === "palette" && !isPalette(val)) throw bad("Colours must be a palette or #rrggbb");
+      if (k === "theme" && !["auto", "day", "night"].includes(String(val))) throw bad("Light or dark must be auto, day or night");
       if (SLOT_OF[k]) {
         if (k === "scene" && !val) val = "meadow";
         if (val) {
