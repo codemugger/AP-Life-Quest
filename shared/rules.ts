@@ -39,7 +39,9 @@ export interface Settings {
   push_notes: boolean; // note reminders on the phone
   push_details: boolean; // show to-do and note names in notifications
   sound: boolean;
-  theme: "auto" | "day" | "night";
+  theme: "auto" | "day" | "night" | "schedule";
+  dark_from: string; // theme "schedule": dark from this time…
+  dark_until: string; // …until this time (light from then on)
   look: string; // seasonal look: "original", "auto" (follows the calendar) or a theme id (shared/themes.ts)
   palette: string; // Original's colours: a palette id or "#rrggbb"
   current_season: number;
@@ -86,6 +88,8 @@ export const DEFAULT_SETTINGS: Settings = {
   push_details: true,
   sound: true,
   theme: "auto",
+  dark_from: "20:00",
+  dark_until: "07:00",
   look: "original",
   palette: "classic",
   current_season: 1,

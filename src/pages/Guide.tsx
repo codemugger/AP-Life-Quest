@@ -54,7 +54,7 @@ const CHAPTERS: Chapter[] = [
           perfect day heals {s.perfect_day_heal}.
         </li>
         <li>
-          <b>Your pet</b> hatches at level 3 and evolves into a new, bigger form at levels 10, 20 and 35 (e.g. Mewbit → Neko → Tora → Nekomata). Choose the animal in 🎀 Wardrobe (tap your pet), where the evolution line shows forms you haven't reached as silhouettes. Its mood follows your HP and today's effort.
+          <b>Your pet</b> hatches at level 3 and evolves into a new, bigger form at levels 10, 20 and 35 (e.g. Mewbit → Neko → Tora → Nekomata). Choose the animal in 🎀 Wardrobe (the button on the Camp scene), where the evolution line shows forms you haven't reached as silhouettes. Its mood follows your HP and today's effort.
         </li>
         <li>
           <b>Difficulty</b> sets a quest's rewards: {Object.values(DIFFICULTY).map((d) => `${d.label} ${d.ap} AP`).join(" · ")}.
@@ -217,6 +217,18 @@ const CHAPTERS: Chapter[] = [
     body: () => (
       <ul>
         <li>Body shows each tracker's chart, your BMI (Singapore cut-offs) and the 30-day moving average, which is steadier than daily weigh-ins.</li>
+        <li>
+          <b>30-day EMA of calories</b> (exponential moving average): each day's number counts most, and older days fade away gradually instead of dropping off a
+          cliff.
+          <div className="formula">
+            EMA<sub>today</sub> = α × calories<sub>today</sub> + (1 − α) × EMA<sub>previous</sub>
+            <br />
+            α = 2 ÷ (30 + 1) ≈ 0.065
+          </div>
+          So today weighs about 6.5%, yesterday's EMA carries the other 93.5%. It starts from your first logged day and moves one step per day you log calories
+          (days without a log are skipped, not counted as 0). Example: EMA 1,800 and today 2,400 → 0.065 × 2,400 + 0.935 × 1,800 ≈ <b>1,839</b>. The{" "}
+          <b>3DMA</b> is simpler: the plain average of your last 3 logged days, so it reacts fast while the EMA shows the trend.
+        </li>
         <li>"Add" trackers (water, CSD hours) sum up during the day; "set" trackers (weight, calories) keep one value per day.</li>
         <li>Make your own trackers with ＋ Tracker; then link quests, trophies and vouchers to them.</li>
         <li>
@@ -320,7 +332,16 @@ const CHAPTERS: Chapter[] = [
         </li>
         <li>📅 <b>Auto</b> follows the calendar: Lunar New Year from about 10 days before CNY until Chap Goh Mei, otherwise the season of the month.</li>
         <li>Original's colours: Classic, Sakura, Matcha, Ocean, Sunset or Kopi, or pick your own colour (its shades are worked out so text stays readable).</li>
-        <li>Every look has a light and a dark version: <b>Light or dark</b> in the same panel (Auto follows your phone). Turning down motion on your phone stills the decorations.</li>
+        <li>
+          Every look has a light and a dark version: <b>Light or dark</b> in the same panel. Auto follows your phone; <b>🕗 On a schedule</b> switches by the clock
+          (e.g. dark from 20:00, light from 07:00). Each look also gives the page its own faint wallpaper.
+        </li>
+        <li>
+          <b>Camp scenes</b> (🎀 Wardrobe → Scene): Meadow is your campsite with the Singapore skyline behind it, Beach is Sentosa, City Lights is Marina Bay at
+          night, Sakura Park is Gardens by the Bay and Moon Base is up in space. Each changes with day and night. Your pet potters about now and then, naps by
+          the campfire late at night, and hops with a 💗 when you tap it.
+        </li>
+        <li>Turning down motion on your phone stills the decorations and the wandering.</li>
       </ul>
     ),
   },

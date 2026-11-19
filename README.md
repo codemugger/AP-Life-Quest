@@ -127,7 +127,7 @@ If you ignore it, it's auto-billed at full price.
 
 ## 4. Make it yours: looks, pictures, notes, links and the Highway
 
-**🎀 Wardrobe** (tap your pet on the Camp page):
+**🎀 Wardrobe** (the button on the Camp scene; tapping your pet pats it):
 
 | | Options | How to get them |
 |---|---|---|
@@ -140,6 +140,18 @@ If you ignore it, it's auto-billed at full price.
 
 Chests can drop locked items early.
 
+**🏕️ Camp scenes** are pixel-art backdrops that change with day and night (and take each look's sky and grass colours):
+
+| Scene | What's there |
+|---|---|
+| Meadow | your campsite (tent, campfire and log seat, a signpost with your pet's name, an otter in the pond) with Marina Bay Sands, the Flyer, Supertrees and HDB flats behind; lit windows, glowing Supertrees and fireflies at night |
+| Beach | Sentosa: the cable car, ships on the horizon, palms, a sandcastle, a crab |
+| City Lights | Marina Bay at night: the skyline, Marina Bay Sands' light show, the Esplanade, the Merlion |
+| Sakura Park | Gardens by the Bay: the Flower Dome, Supertrees and the skyway, cherry blossoms (the Supertrees glow at night) |
+| Moon Base | a dome habitat, a rocket and a rover, with Earth (and a tiny Singapore light) in the sky |
+
+Your pet now and then wanders a few steps and turns, naps by the campfire late at night, and hops with a 💗 when you tap it (🎀 Wardrobe opens the wardrobe). Its sprite and size are unchanged.
+
 **🎨 Seasonal and festive looks** (Settings → 🎨 Look & sound → *Season & festival theme*), each with its own light and dark palette:
 
 | Look | Singapore flavour on Camp |
@@ -151,7 +163,7 @@ Chests can drop locked items early.
 | ❄️ **Winter** | Orchard Road Christmas lights and gentle snow |
 | 🧧 **Lunar New Year** | red and gold, hanging lanterns, falling ang baos and gold, mandarin oranges |
 
-📅 **Auto** follows the calendar: Lunar New Year from about 10 days before CNY until Chap Goh Mei, otherwise Spring (Mar–May), Summer (Jun–Aug), Autumn (Sep–Nov) and Winter (Dec–Feb). *Light or dark* in the same panel picks the mode (Auto follows your phone). Looks belong to the character, like the rest of Settings. Turning down motion on your phone stills the decorations.
+📅 **Auto** follows the calendar: Lunar New Year from about 10 days before CNY until Chap Goh Mei, otherwise Spring (Mar–May), Summer (Jun–Aug), Autumn (Sep–Nov) and Winter (Dec–Feb). *Light or dark* in the same panel picks the mode: Auto follows your phone, Day or Night stay put, and **🕗 On a schedule** switches by the clock in your timezone (e.g. dark from 20:00, light from 07:00). Each look also gives the page a faint **wallpaper** (pixel clouds, orchids, waves, lanterns, snowflakes, lucky clouds and coins) instead of plain dots. Looks belong to the character, like the rest of Settings. Turning down motion on your phone stills the decorations and the pet's wandering.
 
 **🖼️ Pictures:** you can add pictures to quests, events, goals, shop items, vouchers, achievements and sprint bosses. When adding one you choose:
 
@@ -429,7 +441,7 @@ npm run dev                       # http://localhost:5173 (UI + API + character 
 | Command | What it does |
 |---|---|
 | `npm run check` | Type-check (UI + Worker) and unit tests |
-| `npm run test:api` | 195 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
+| `npm run test:api` | 198 end-to-end API checks (needs a **fresh** local server; see the top of `tests/api-regression.mjs`). Set `APLQ_STATE=.wrangler/e2e-state` for both the server and the tests to use a scratch database and keep your own local data |
 | `npm run build` / `npm run deploy` | Production build / check → build → migrate → deploy |
 | `npm run versions` / `npm run rollback` | Deployments |
 | `npm run backup` | SQL dump of the account database |
@@ -480,8 +492,9 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── importer.ts        tracker history import: .xlsx / CSV / pasted cells → dates + values
 │   ├── insights.ts        Body trends: calorie EMA / 3-day average, weight steady / minor / sharp
 │   ├── components/Big3.tsx, Reminders.tsx, ImportHistory.tsx
-│   ├── look.ts            applies the seasonal look (colour tokens, status bar); LookPicker.tsx = Settings
+│   ├── look.ts            applies the seasonal look (colour tokens, wallpaper, light/dark incl. schedule, status bar); LookPicker.tsx = Settings
 │   ├── components/SeasonDeco.tsx + seasons.css  festive touches on the Camp stage
+│   ├── components/SceneArt.tsx + scenes.css  the 5 Camp backdrops (pixel-art SVG, day/night) and the pet's idle moments
 │   ├── pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
 │   └── components/notes/  editor (TipTap, loaded on demand), sketch pad, voice recorder
 ├── public/                icons, manifest, security headers, sw.js (keeps the app on the device, shows notifications)

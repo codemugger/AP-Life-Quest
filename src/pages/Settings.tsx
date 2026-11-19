@@ -8,6 +8,7 @@ import { useGame } from "../store";
 import { Bar, Field, HelpLink, Modal, Panel } from "../components/ui";
 import { PhoneReminders } from "../components/Reminders";
 import { LookPicker } from "../components/LookPicker";
+import { darkScheduled } from "../../shared/themes";
 import { fmt } from "../util";
 
 interface Snap {
@@ -81,13 +82,15 @@ export default function Settings() {
               <option value="auto">Auto (follow phone)</option>
               <option value="day">☀️ Day</option>
               <option value="night">🌙 Night</option>
+              <option value="schedule">🕗 On a schedule</option>
             </select>
           </Field>
+          {s.theme === "schedule" && <DarkSchedule />}
           <label className="check">
             <input type="checkbox" checked={s.sound} onChange={(e) => act("settings", { sound: e.target.checked }, "PUT").catch(() => {})} />
             8-bit sound effects
           </label>
-          <p className="small ink2">Tip: tap your pet on the Camp page to change hats and colours.</p>
+          <p className="small ink2">Tip: 🎀 Wardrobe on the Camp scene changes hats, colours and scenes.</p>
         </Panel>
 
         <PhoneReminders />
@@ -479,5 +482,32 @@ function Security() {
         </div>
       </div>
     </Panel>
+  );
+}
+
+/** Light or dark by the clock, e.g. dark from 20:00 until 07:00. */
+function DarkSchedule() {
+  const { state, act, busy } = useGame();
+  const s = state.settings;
+  const set = (patch: Record<string, string>) => act("settings", patch, "PUT").catch(() => {});
+  const dark = darkScheduled(s.dark_from, s.dark_until, new Date(), s.timezone);
+  return (
+    <div className="inset" style={{ marginBottom: 10 }}>
+      <div className="row wrap" style={{ gap: 8 }}>
+        <label className="row small" style={{ gap: 6 }}>
+          🌙 Dark from
+          <input className="input day-pick" type="time" value={s.dark_from} disabled={busy} onChange={(e) => e.target.value && set({ dark_from: e.target.value })} aria-label="Dark mode from" />
+        </label>
+        <label className="row small" style={{ gap: 6 }}>
+          ☀️ Light from
+          <input className="input day-pick" type="time" value={s.dark_until} disabled={busy} onChange={(e) => e.target.value && set({ dark_until: e.target.value })} aria-label="Light mode from" />
+        </label>
+      </div>
+      <div className="tiny muted" style={{ marginTop: 6 }}>
+        {s.dark_from === s.dark_until
+          ? "Pick two different times."
+          : `Dark ${s.dark_from}–${s.dark_until}, light the rest of the day (${s.timezone} time). Right now: ${dark ? "🌙 dark" : "☀️ light"}.`}
+      </div>
+    </div>
   );
 }

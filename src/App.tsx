@@ -141,11 +141,6 @@ function GameShell() {
   const { state } = useGame();
   const { account } = useAccount();
   const { page, sub } = useRoute();
-  const theme = state.settings.theme;
-  useEffect(() => {
-    if (theme === "auto") delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = theme;
-  }, [theme]);
   useLook(state.settings, state.today);
 
   const now = useReminders();

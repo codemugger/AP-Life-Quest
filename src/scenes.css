@@ -1,0 +1,61 @@
+/* Camp backdrops (SceneArt.tsx) and the pet's idle moments. Units inside the SVG are scene units. */
+
+.stage .scene-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.scene-art * { transform-box: fill-box; }
+
+.sa-drift { animation: sa-drift linear infinite; }
+@keyframes sa-drift { from { transform: translateX(-30px); } to { transform: translateX(290px); } }
+.sa-twinkle { animation: twinkle 3s steps(2) infinite; }
+.sa-glow { animation: sa-glow 3.5s ease-in-out infinite alternate; }
+@keyframes sa-glow { from { opacity: 0.65; } to { opacity: 1; } }
+.sa-fire { transform-origin: 50% 100%; animation: sa-flicker 0.7s steps(2) infinite; }
+@keyframes sa-flicker { 50% { transform: scale(1.08, 1.18); } }
+.sa-spark { animation: sa-spark 1.8s linear infinite; }
+@keyframes sa-spark { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-9px); opacity: 0; } }
+.sa-smoke { animation: sa-smoke 3.6s linear infinite; }
+@keyframes sa-smoke { from { transform: translateY(0); opacity: 0.75; } to { transform: translate(2px, -12px); opacity: 0; } }
+.sa-wave { animation: sa-wave 4s steps(4) infinite; }
+@keyframes sa-wave { 50% { transform: translateX(3px); } }
+.sa-bob { animation: sa-bob 2.4s steps(2) infinite; }
+@keyframes sa-bob { 50% { transform: translateY(-0.8px); } }
+.sa-cable { animation: sa-cable 26s ease-in-out infinite alternate; }
+@keyframes sa-cable { from { transform: translate(-40px, -2.7px); } to { transform: translate(60px, 4.1px); } }
+.sa-crab { animation: sa-crab 7s steps(10) infinite alternate; }
+@keyframes sa-crab { to { transform: translateX(10px); } }
+.sa-laser { animation: sa-glow 1.6s ease-in-out infinite alternate; }
+.sa-spout { animation: sa-glow 0.8s steps(2) infinite alternate; }
+.sa-petal { animation: sa-petal linear infinite; }
+@keyframes sa-petal { from { transform: translate(0, 0) rotate(0deg); } to { transform: translate(14px, 92px) rotate(360deg); } }
+.sa-shoot { animation: sa-shoot 9s linear infinite; }
+@keyframes sa-shoot { 0%, 80% { transform: translate(0, 0); opacity: 0; } 82% { opacity: 1; } 92% { transform: translate(70px, 22px); opacity: 0; } 100% { opacity: 0; } }
+.sa-rover { animation: sa-rover 16s ease-in-out infinite alternate; }
+@keyframes sa-rover { to { transform: translateX(14px); } }
+
+/* ---- the pet's idle moments: wanders a few steps, turns, rests by the fire, hops when tapped ---- */
+.pet-walk { display: inline-block; }
+.stage.alive .pet-walk { animation: pet-wander 32s ease-in-out infinite; }
+.stage.alive .shadow { animation: pet-wander-shadow 32s ease-in-out infinite; }
+.stage .pet-walk.by-fire { transform: translateX(10px); }
+.stage .shadow.by-fire { transform: translateX(10px); }
+@keyframes pet-wander {
+  0%, 22% { transform: none; }
+  23% { transform: scaleX(-1); }
+  31% { transform: translateX(-38px) scaleX(-1); }
+  32%, 50% { transform: translateX(-38px); }
+  60% { transform: translateX(40px); }
+  61%, 80% { transform: translateX(40px) scaleX(-1); }
+  89% { transform: scaleX(-1); }
+  90%, 100% { transform: none; }
+}
+@keyframes pet-wander-shadow {
+  0%, 23% { transform: none; }
+  31%, 50% { transform: translateX(-38px); }
+  60%, 80% { transform: translateX(40px); }
+  89%, 100% { transform: none; }
+}
+.pet-heart { position: absolute; left: 50%; bottom: calc(var(--stage-h) * 0.09 + 110px); font-size: 18px; pointer-events: none; animation: floatup 1s ease-out forwards; z-index: 3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-art *, .stage.alive .pet-walk, .stage.alive .shadow { animation: none !important; }
+  .sa-shoot, .sa-petal, .sa-smoke, .sa-spark { display: none; }
+}

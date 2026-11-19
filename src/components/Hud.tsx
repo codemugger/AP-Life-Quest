@@ -10,6 +10,7 @@ import { Bar, Modal, Tabs } from "./ui";
 import { HighwayButton } from "./Highway";
 import { Big3Chip } from "./Big3";
 import { SeasonDeco } from "./SeasonDeco";
+import { SceneArt } from "./SceneArt";
 import { resolveTheme } from "../../shared/themes";
 
 function usePetAnim() {
@@ -66,30 +67,6 @@ export function Hud() {
   );
 }
 
-/** Background decorations for each camp scene. */
-function SceneDeco({ scene }: { scene: string }) {
-  if (scene === "beach")
-    return (
-      <>
-        <div className="sea" />
-        <div className="palm" />
-      </>
-    );
-  if (scene === "city") return <div className="skyline" />;
-  if (scene === "sakura")
-    return (
-      <>
-        <div className="tree t1" />
-        <div className="tree t2" />
-        {[8, 22, 37, 55, 71, 86].map((l, i) => (
-          <i key={i} className="petal" style={{ left: `${l}%`, animationDelay: `${i * 1.3}s` }} />
-        ))}
-      </>
-    );
-  if (scene === "space") return <div className="planet" />;
-  return null;
-}
-
 export function PetStage() {
   const { state } = useGame();
   const p = state.player;
@@ -100,32 +77,36 @@ export function PetStage() {
   const night = isNight(state) || scene === "space" || scene === "city";
   const look = resolveTheme(s.look ?? "original", state.today);
   const [wardrobe, setWardrobe] = useState(false);
-  const stars = useMemo(() => Array.from({ length: 18 }, (_, i) => ({ l: (i * 53) % 100, t: (i * 37) % 55, d: (i % 5) * 0.6 })), []);
+  const [hearts, setHearts] = useState<number[]>([]);
+  const asleep = mood === "sleep";
+  // at night it naps by the campfire; otherwise it potters about now and then
+  const byFire = asleep && scene === "meadow";
+  const alive = !asleep && mood !== "fainted";
+  const pat = () => {
+    petBus.dispatchEvent(new CustomEvent("anim", { detail: "jump" }));
+    const id = Date.now();
+    setHearts((h) => [...h.slice(-3), id]);
+    setTimeout(() => setHearts((h) => h.filter((x) => x !== id)), 1000);
+  };
   return (
     <>
-      <div className={`stage scene-${scene} look-${look} ${night ? "night" : ""}`}>
-        <div className="stars">
-          {stars.map((st, i) => (
-            <i key={i} style={{ left: `${st.l}%`, top: `${st.t}%`, animationDelay: `${st.d}s` }} />
-          ))}
-        </div>
-        {scene !== "space" && <div className="sun" />}
-        {scene !== "space" && scene !== "city" && (
-          <>
-            <div className="cloud" style={{ top: 40, animationDuration: "55s" }} />
-            <div className="cloud" style={{ top: 86, animationDuration: "75s", animationDelay: "-30s" }} />
-          </>
-        )}
-        <SceneDeco scene={scene} />
+      <div className={`stage scene-${scene} look-${look} ${night ? "night" : ""} ${alive ? "alive" : ""}`}>
+        <SceneArt scene={scene} night={night} name={s.pet_name} hideSun={look === "cny"} />
         <SeasonDeco look={look} night={night} />
         <div className="speech">{petLine(state)}</div>
-        <div className="ground" />
-        <div className="shadow" />
-        <button className="pet-wrap" onClick={() => setWardrobe(true)} aria-label="Open wardrobe" style={{ background: "none", border: 0, padding: 0 }}>
-          <Pet stage={p.stage} mood={mood} {...lookOf(s)} scale={6} maxH={140} className={`pet-sprite ${anim} ${mood === "sleep" ? "sleeping" : ""} ${mood === "fainted" ? "fainted" : ""}`} />
+        <div className={`shadow ${byFire ? "by-fire" : ""}`} />
+        <button className="pet-wrap" onClick={pat} aria-label={`Pat ${s.pet_name}`} style={{ background: "none", border: 0, padding: 0 }}>
+          <span className={`pet-walk ${byFire ? "by-fire" : ""}`}>
+            <Pet stage={p.stage} mood={mood} {...lookOf(s)} scale={6} maxH={140} className={`pet-sprite ${anim} ${asleep ? "sleeping" : ""} ${mood === "fainted" ? "fainted" : ""}`} />
+          </span>
         </button>
-        {mood === "sleep" && (
-          <span className="zzz" style={{ left: "58%", bottom: 150 }}>
+        {hearts.map((id) => (
+          <span key={id} className="pet-heart" aria-hidden="true">
+            💗
+          </span>
+        ))}
+        {asleep && (
+          <span className="zzz" style={{ left: byFire ? "calc(50% + 46px)" : "calc(50% + 34px)", bottom: "calc(var(--stage-h) * 0.09 + 104px)" }}>
             z
           </span>
         )}
@@ -177,8 +158,7 @@ function Wardrobe({ onClose }: { onClose: () => void }) {
     <Modal title="🎀 Wardrobe" onClose={onClose} wide>
       <div className="center" style={{ marginBottom: 6 }}>
         <div className={`stage mini scene-${s.scene || "meadow"}`}>
-          <SceneDeco scene={s.scene || "meadow"} />
-          <div className="ground" />
+          <SceneArt scene={s.scene || "meadow"} night={isNight(state) || s.scene === "space" || s.scene === "city"} name={s.pet_name} />
           <div className="pet-wrap">
             <Pet stage={p.stage} mood="happy" {...look} scale={5} maxH={108} className="pet-sprite" />
           </div>
@@ -230,8 +210,7 @@ function Wardrobe({ onClose }: { onClose: () => void }) {
               () => set({ [tab]: c.id }),
               tab === "scene" ? (
                 <div className={`stage swatch scene-${c.id}`}>
-                  <SceneDeco scene={c.id} />
-                  <div className="ground" />
+                  <SceneArt scene={c.id} night={c.id === "space" || c.id === "city"} name={s.pet_name} />
                 </div>
               ) : (
                 <Pet stage={stage} mood="content" {...look} {...{ [tab]: c.id }} scale={3} maxW={76} />

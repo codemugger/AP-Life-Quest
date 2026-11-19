@@ -18,7 +18,7 @@ function Swatches({ colors }: { colors: string[] }) {
 export function LookPicker() {
   const { state, act, busy } = useGame();
   const s = state.settings;
-  const dark = useDark(s.theme);
+  const dark = useDark(s);
   const choice = s.look ?? "original";
   const palette = s.palette ?? "classic";
   const current = resolveTheme(choice, state.today);

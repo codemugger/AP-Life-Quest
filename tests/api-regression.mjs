@@ -408,6 +408,9 @@ ok((await put({ look: "halloween" })).status === 400, "unknown looks are rejecte
 ok((await put({ palette: "kopi" })).status === 200 && (await put({ palette: "#5fb3a1" })).status === 200, "Original takes a palette or your own colour");
 ok((await put({ palette: "red" })).status === 400 && (await put({ palette: "#fff" })).status === 400, "…but not just any text");
 ok((await put({ theme: "purple" })).status === 400 && (await put({ theme: "auto" })).status === 200, "light/dark must be auto, day or night");
+ok((await put({ theme: "schedule", dark_from: "20:00", dark_until: "07:00" })).status === 200, "light/dark can follow a schedule");
+ok((await put({ dark_from: "8pm" })).status === 400 && (await put({ dark_until: "25:00" })).status === 400, "…with real clock times");
+ok((await state()).settings.dark_from === "20:00" && (await put({ theme: "auto" })).status === 200, "…which are kept");
 await put({ palette: "classic" });
 ok((await put({ hat: "beanie", face: "glasses", scene: "beach" })).status === 200, "free hat/face/scene work");
 // (chests can drop locked items early, so pick ones this character hasn't won)
