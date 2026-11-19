@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contrast, isPalette, PALETTES, resolveTheme, seasonFor, THEMED_TOKENS, themeTokens, THEMES, type ThemeId } from "../shared/themes";
+import { contrast, darkScheduled, isPalette, lightMode, PALETTES, resolveTheme, seasonFor, THEMED_TOKENS, themeTokens, THEMES, type ThemeId } from "../shared/themes";
 
 // the base design (styles.css) the themes are laid over
 const BASE = {
@@ -70,6 +70,48 @@ describe("themes", () => {
     expect(isPalette("#a1b2c3")).toBe(true);
     expect(isPalette("red")).toBe(false);
     expect(isPalette("#abc")).toBe(false);
-    expect(Object.keys(themeTokens("original", "classic", false))).toEqual([]);
+    // Classic only adds its wallpaper; colours stay the base design's
+    expect(Object.keys(themeTokens("original", "classic", false)).sort()).toEqual(["--wallpaper", "--wallpaper-size"]);
+  });
+});
+
+describe("light or dark on a schedule", () => {
+  const sgt = (hhmm: string) => new Date(`2026-11-20T${hhmm}:00+08:00`);
+  it("is dark from 20:00 until 07:00, across midnight (Singapore time)", () => {
+    expect(darkScheduled("20:00", "07:00", sgt("19:59"), "Asia/Singapore")).toBe(false);
+    expect(darkScheduled("20:00", "07:00", sgt("20:00"), "Asia/Singapore")).toBe(true);
+    expect(darkScheduled("20:00", "07:00", sgt("23:30"), "Asia/Singapore")).toBe(true);
+    expect(darkScheduled("20:00", "07:00", sgt("06:59"), "Asia/Singapore")).toBe(true);
+    expect(darkScheduled("20:00", "07:00", sgt("07:00"), "Asia/Singapore")).toBe(false);
+    expect(darkScheduled("20:00", "07:00", sgt("12:00"), "Asia/Singapore")).toBe(false);
+  });
+  it("handles a window within one day, and a zero-length one", () => {
+    expect(darkScheduled("13:00", "15:00", sgt("14:00"), "Asia/Singapore")).toBe(true);
+    expect(darkScheduled("13:00", "15:00", sgt("16:00"), "Asia/Singapore")).toBe(false);
+    expect(darkScheduled("08:00", "08:00", sgt("08:00"), "Asia/Singapore")).toBe(false);
+  });
+  it("resolves the setting to day / night / auto", () => {
+    const s = { theme: "schedule", dark_from: "20:00", dark_until: "07:00", timezone: "Asia/Singapore" };
+    expect(lightMode(s, sgt("21:00"))).toBe("night");
+    expect(lightMode(s, sgt("09:00"))).toBe("day");
+    expect(lightMode({ ...s, theme: "auto" }, sgt("21:00"))).toBe("auto");
+    expect(lightMode({ ...s, theme: "night" }, sgt("09:00"))).toBe("night");
+  });
+});
+
+describe("page wallpaper", () => {
+  it("gives every look a pattern in light and dark, as a safe data URL", () => {
+    for (const t of THEMES)
+      for (const dark of [false, true]) {
+        const wp = themeTokens(t.id, "classic", dark)["--wallpaper"];
+        const prefix = 'url("data:image/svg+xml,';
+        expect(wp.startsWith(prefix) && wp.endsWith('")')).toBe(true);
+        const body = wp.slice(prefix.length, -2);
+        expect(body).not.toMatch(/[#<>"]/); // colours and tags are URL-encoded
+        expect(decodeURIComponent(body)).toMatch(/^<svg .*<rect .*<\/svg>$/);
+      }
+    // Original's palettes and your own colour tint it too
+    expect(themeTokens("original", "kopi", false)["--wallpaper"]).not.toBe(themeTokens("original", "classic", false)["--wallpaper"]);
+    expect(themeTokens("original", "#5fb3a1", true)["--wallpaper"]).toContain("svg");
   });
 });

@@ -143,8 +143,9 @@ body {
   line-height: 1.35;
   color: var(--ink);
   background-color: var(--bg);
-  background-image: radial-gradient(var(--bg-dot) 1.5px, transparent 1.5px);
-  background-size: 18px 18px;
+  /* the look's wallpaper (shared/themes.ts), else the original dots */
+  background-image: var(--wallpaper, radial-gradient(var(--bg-dot) 1.5px, transparent 1.5px));
+  background-size: var(--wallpaper-size, 18px 18px);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
@@ -555,68 +556,26 @@ label.field .help { font-size: 12px; color: var(--muted); }
 .qcheck.auto { background: var(--sky-l); cursor: default; }
 .qcheck.busy { animation: blink 0.5s steps(2) infinite; }
 
-/* ---------- pet stage ---------- */
+/* ---------- pet stage (backdrops: SceneArt.tsx + scenes.css) ---------- */
 .stage {
+  --stage-h: 258px;
   position: relative;
-  height: 230px;
+  height: var(--stage-h);
   overflow: hidden;
   margin: -14px -14px 12px;
-  background: linear-gradient(var(--sky-top), var(--sky-bottom));
+  background: var(--sky-top);
 }
-.stage .ground {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 46px;
-  background: var(--ground);
-  box-shadow: inset 0 6px 0 0 var(--ground-d);
-}
-.stage .ground::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -6px;
-  height: 6px;
-  background: repeating-linear-gradient(90deg, var(--ground-d) 0 6px, transparent 6px 18px, var(--ground-d) 18px 24px, transparent 24px 30px);
-}
-.stage .sun {
-  position: absolute;
-  top: 18px;
-  right: 26px;
-  width: 36px;
-  height: 36px;
-  background: var(--lemon);
-  box-shadow: 0 0 0 4px #ffeaa0, 0 0 0 8px rgba(255, 234, 160, 0.4);
-}
-.stage.night { background: linear-gradient(var(--night-top), var(--night-bottom)); }
-.stage.night .ground { background: var(--night-ground); box-shadow: inset 0 6px 0 0 var(--night-ground-d); }
-.stage.night .ground::before { background: repeating-linear-gradient(90deg, var(--night-ground-d) 0 6px, transparent 6px 18px, var(--night-ground-d) 18px 24px, transparent 24px 30px); }
-.stage.night .sun { background: #f4f0d8; box-shadow: inset -10px -4px 0 0 #d8d2b0, 0 0 0 6px rgba(255, 255, 255, 0.08); }
-.stage .cloud {
-  position: absolute;
-  height: 14px;
-  background: #fff;
-  box-shadow: 8px -8px 0 0 #fff, 22px -8px 0 0 #fff, 30px 0 0 0 #fff;
-  width: 30px;
-  opacity: 0.9;
-  animation: drift 40s linear infinite;
-}
-.stage.night .cloud { background: #6d5fa8; box-shadow: 8px -8px 0 0 #6d5fa8, 22px -8px 0 0 #6d5fa8, 30px 0 0 0 #6d5fa8; opacity: 0.5; }
-.stage .stars { position: absolute; inset: 0; display: none; }
-.stage.night .stars { display: block; }
-.stage .stars i { position: absolute; width: 3px; height: 3px; background: #fff; animation: twinkle 3s steps(2) infinite; }
+.stage.night { background: var(--night-top); }
 .stage .pet-wrap {
   position: absolute;
   left: 50%;
-  bottom: 30px;
+  bottom: calc(var(--stage-h) * 0.09); /* on the path in the foreground, so the backdrop shows around it */
   transform: translateX(-50%);
   cursor: pointer;
 }
 .stage .shadow {
   position: absolute;
-  bottom: 26px;
+  bottom: calc(var(--stage-h) * 0.075);
   left: 50%;
   width: 84px;
   height: 10px;
@@ -850,55 +809,8 @@ pre.code { font-size: 12px; background: var(--panel-2); padding: 10px; overflow-
 
 /* --- camp scenes --- */
 .stage .wardrobe-btn { position: absolute; right: 8px; bottom: 8px; z-index: 2; }
-.stage.mini { height: 150px; margin: 0 auto 6px; max-width: 320px; }
-.stage.mini .pet-wrap { bottom: 22px; }
-.stage.mini .ground { height: 30px; }
-.stage.swatch { height: 56px; width: 100%; margin: 0; }
-.stage.swatch .ground { height: 16px; }
-.stage.swatch .sea { bottom: 16px; height: 8px; }
-.stage.swatch .skyline, .stage.swatch .tree, .stage.swatch .planet, .stage.swatch .palm { transform: scale(0.35); transform-origin: bottom left; }
-.stage.swatch .petal { display: none; }
-
-.stage.scene-beach { background: linear-gradient(#8fd3ff, #fff3d6); }
-.stage.scene-beach .ground { background: #f6d58e; box-shadow: inset 0 6px 0 0 #e9bf6b; }
-.stage.scene-beach .ground::before { background: repeating-linear-gradient(90deg, #e9bf6b 0 4px, transparent 4px 22px); }
-.stage .sea { position: absolute; left: 0; right: 0; bottom: 46px; height: 22px; background: #5ab8ff; box-shadow: inset 0 3px 0 0 #ffffff, inset 0 -4px 0 0 #3d97dd; }
-.stage .palm { position: absolute; left: 14%; bottom: 46px; width: 8px; height: 70px; background: #a8743f; box-shadow: inset -3px 0 0 #7f532a; }
-.stage .palm::before { content: ""; position: absolute; top: -12px; left: -22px; width: 52px; height: 14px; background: #3fbf8a; box-shadow: 0 -8px 0 -2px #2aa87e, 10px 6px 0 -3px #2aa87e, -10px 6px 0 -3px #2aa87e; }
-.stage.scene-beach.night { background: linear-gradient(#1a1745, #5a4a8a); }
-.stage.scene-beach.night .sea { background: #2f4f8a; box-shadow: inset 0 3px 0 0 #8fb7ff, inset 0 -4px 0 0 #213a6b; }
-
-.stage.scene-city { background: linear-gradient(#2a2160, #7a4a8a 70%, #f08fa0); }
-.stage.scene-city .ground { background: #3b3554; box-shadow: inset 0 6px 0 0 #2a2540; }
-.stage.scene-city .ground::before { background: repeating-linear-gradient(90deg, #ffd84d 0 14px, transparent 14px 34px); top: 20px; height: 3px; }
-.stage .skyline {
-  position: absolute; left: 0; right: 0; bottom: 46px; height: 110px;
-  background:
-    radial-gradient(#ffe58a 1.5px, transparent 2px) 0 0 / 12px 14px,
-    #2b2350;
-  clip-path: polygon(0 100%, 0 40%, 8% 40%, 8% 15%, 16% 15%, 16% 50%, 22% 50%, 22% 28%, 31% 28%, 31% 60%, 38% 60%, 38% 5%, 46% 5%, 46% 45%, 54% 45%, 54% 25%, 63% 25%, 63% 55%, 70% 55%, 70% 10%, 79% 10%, 79% 42%, 86% 42%, 86% 22%, 94% 22%, 94% 50%, 100% 50%, 100% 100%);
-  opacity: 0.95;
-}
-
-.stage.scene-sakura { background: linear-gradient(#ffd6ea, #fff4f9); }
-.stage.scene-sakura .ground { background: #9be39b; box-shadow: inset 0 6px 0 0 #6fcf7a; }
-.stage .tree { position: absolute; bottom: 46px; width: 10px; height: 60px; background: #8a5a3c; }
-.stage .tree::before { content: ""; position: absolute; bottom: 40px; left: -34px; width: 78px; height: 54px; background: #ffb3d1; box-shadow: 0 0 0 3px #f07aa9, -14px 14px 0 -6px #ffc6dd, 18px 10px 0 -8px #ffc6dd; border-radius: 40% 40% 30% 30%; }
-.stage .tree.t1 { left: 12%; }
-.stage .tree.t2 { right: 14%; height: 46px; }
-.stage .petal { position: absolute; top: -10px; width: 6px; height: 6px; background: #ff9cc6; animation: petal 9s linear infinite; }
-@keyframes petal { to { transform: translate(-60px, 260px) rotate(360deg); } }
-.stage.scene-sakura.night { background: linear-gradient(#2a2058, #6a4a8a); }
-
-.stage.scene-space { background: radial-gradient(circle at 70% 20%, #3a2f7a, #0f0c22 70%); }
-.stage.scene-space .stars { display: block; }
-.stage.scene-space .ground { background: #c9c6d8; box-shadow: inset 0 6px 0 0 #a9a5bf; }
-.stage.scene-space .ground::before {
-  background: radial-gradient(circle, #a9a5bf 45%, transparent 47%) 10px 14px / 60px 30px, radial-gradient(circle, #b8b4cc 40%, transparent 42%) 38px 24px / 90px 30px;
-  top: 6px; height: 40px;
-}
-.stage .planet { position: absolute; top: 26px; right: 30px; width: 46px; height: 46px; background: #ffb08a; box-shadow: inset -10px -6px 0 0 #f0956a; border-radius: 50%; }
-.stage .planet::after { content: ""; position: absolute; left: -16px; top: 18px; width: 78px; height: 8px; background: #ffd84d; transform: rotate(-18deg); opacity: 0.85; }
+.stage.mini { --stage-h: 150px; margin: 0 auto 6px; max-width: 320px; }
+.stage.swatch { --stage-h: 56px; width: 100%; margin: 0; }
 
 /* --- wardrobe & selection tiles --- */
 .trophy.selected { box-shadow: 0 -4px 0 0 var(--violet), 0 4px 0 0 var(--violet), -4px 0 0 0 var(--violet), 4px 0 0 0 var(--violet); }
@@ -1057,3 +969,6 @@ img.media.px-art { image-rendering: pixelated; }
 .trend-take.good { background: var(--mint-l); }
 .trend-take.bad { background: #ffd9d9; color: #5b1010; }
 .trend-take.warn { background: #ffe7c7; color: #4a2c00; }
+
+/* Guide: a formula line */
+.formula { margin: 6px 0; padding: 6px 10px; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 14px; background: var(--panel-2); box-shadow: 0 0 0 2px var(--line); overflow-wrap: anywhere; line-height: 1.6; }

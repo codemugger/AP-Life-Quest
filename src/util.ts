@@ -1,6 +1,7 @@
 // UI helpers: formatting, lookups and pet mood/speech.
 import { daysBetween, hourInTz, weekStart } from "../shared/dates";
 import { questDue } from "../shared/schedule";
+import { lightMode } from "../shared/themes";
 import type { GameState, Quest } from "../shared/types";
 import type { Mood } from "./sprites";
 
@@ -60,8 +61,9 @@ export function localHour(s: GameState) {
 }
 
 export function isNight(s: GameState) {
-  if (s.settings.theme === "night") return true;
-  if (s.settings.theme === "day") return false;
+  const mode = lightMode(s.settings, new Date());
+  if (mode === "night") return true;
+  if (mode === "day") return false;
   const h = localHour(s);
   return h >= 19 || h < 7;
 }

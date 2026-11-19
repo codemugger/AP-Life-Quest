@@ -46,6 +46,33 @@ export function seasonFor(date: string): ThemeId {
   return m >= 3 && m <= 5 ? "spring" : m >= 6 && m <= 8 ? "summer" : m >= 9 && m <= 11 ? "autumn" : "winter";
 }
 
+// ---------------------------------------------------------------------------
+// Light or dark on a schedule (e.g. dark from 20:00 until 07:00, across midnight).
+// ---------------------------------------------------------------------------
+const toMinutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
+/** Minutes past midnight of an instant in a timezone. */
+export function minutesIn(now: Date, tz: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
+  const get = (k: string) => Number(parts.find((p) => p.type === k)?.value ?? 0);
+  return (get("hour") % 24) * 60 + get("minute");
+}
+
+/** Whether the scheduled dark window covers this moment (until is exclusive: 07:00 means light from 7:00). */
+export function darkScheduled(from: string, until: string, now: Date, tz: string) {
+  const f = toMinutes(from);
+  const u = toMinutes(until);
+  const m = minutesIn(now, tz);
+  if (f === u) return false;
+  return f < u ? m >= f && m < u : m >= f || m < u;
+}
+
+/** "day" / "night" / "auto" (follow the phone) for a moment, resolving a schedule. */
+export function lightMode(s: { theme: string; dark_from?: string; dark_until?: string; timezone: string }, now: Date): "day" | "night" | "auto" {
+  if (s.theme === "schedule") return darkScheduled(s.dark_from ?? "20:00", s.dark_until ?? "07:00", now, s.timezone) ? "night" : "day";
+  return s.theme === "day" || s.theme === "night" ? s.theme : "auto";
+}
+
 export const resolveTheme = (choice: string, today: string): ThemeId =>
   choice === "auto" ? seasonFor(today) : THEMES.some((t) => t.id === choice) ? (choice as ThemeId) : "original";
 
@@ -310,6 +337,78 @@ export function customPalette(hex: string): { light: Tokens; dark: Tokens } {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Page wallpaper: a faint pixel pattern per look, drawn in the look's own pale colours.
+// ---------------------------------------------------------------------------
+/** The base design's colours, for looks that don't set them. */
+const BASE_TOKENS = {
+  light: { "--bg": "#fbf1de", "--bg-dot": "#efdcbc", "--pink-l": "#ffd2e6", "--violet-l": "#e1d9ff", "--xp-track": "#e1d9ff" },
+  dark: { "--bg": "#17142b", "--bg-dot": "#2a2550", "--pink-l": "#4b2443", "--violet-l": "#352c70", "--xp-track": "#2f2763" },
+};
+
+function mix(a: string, b: string, t: number) {
+  const [x, y] = [rgb(a), rgb(b)];
+  return `#${x.map((v, i) => Math.round((v + (y[i] - v) * t) * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
+type Motif = [number, number, number, number, string][];
+
+/** Each motif on a 32 × 32 tile (drawn at 64 px, so 2 px pixels). */
+function motif(theme: ThemeId, c: Tokens, dark: boolean): Motif {
+  const bg = c["--bg"];
+  const dot = c["--bg-dot"];
+  const pink = c["--pink-l"];
+  const violet = c["--violet-l"];
+  const track = c["--xp-track"];
+  switch (theme) {
+    case "spring": {
+      const leaf = mix(bg, "#3f9a52", dark ? 0.3 : 0.22);
+      return [
+        [7, 7, 2, 2, violet], [5, 7, 2, 2, pink], [9, 7, 2, 2, pink], [7, 5, 2, 2, pink], [7, 9, 2, 2, pink], [8, 11, 1, 3, leaf],
+        [22, 21, 1, 1, violet], [21, 21, 1, 1, pink], [23, 21, 1, 1, pink], [22, 20, 1, 1, pink], [22, 22, 1, 1, pink], [26, 6, 1, 1, dot], [12, 26, 1, 1, dot],
+      ];
+    }
+    case "summer":
+      return [
+        [2, 8, 3, 1, track], [5, 7, 3, 1, track], [8, 8, 3, 1, track], [11, 7, 2, 1, track],
+        [17, 22, 3, 1, track], [20, 21, 3, 1, track], [23, 22, 3, 1, track],
+        [24, 8, 2, 2, pink], [25, 7, 1, 1, pink], [8, 25, 1, 1, dot], [28, 28, 1, 1, dot],
+      ];
+    case "autumn":
+      return [
+        [6, 5, 4, 1, track], [5, 6, 6, 4, pink], [6, 10, 4, 1, track], [7, 11, 2, 2, track],
+        [22, 20, 3, 2, violet], [21, 22, 2, 1, violet], [24, 19, 1, 1, violet], [26, 6, 1, 1, dot], [12, 26, 1, 1, dot],
+      ];
+    case "winter":
+      return [
+        [7, 8, 3, 1, track], [8, 7, 1, 3, track], [6, 6, 1, 1, track], [10, 6, 1, 1, track], [6, 10, 1, 1, track], [10, 10, 1, 1, track],
+        [21, 22, 3, 1, track], [22, 21, 1, 3, track], [26, 8, 1, 1, dot], [12, 26, 1, 1, dot], [28, 16, 1, 1, dot],
+      ];
+    case "cny":
+      return [
+        [4, 8, 6, 1, pink], [3, 9, 1, 2, pink], [4, 11, 4, 1, pink], [10, 9, 1, 1, pink], [8, 10, 1, 1, pink],
+        [20, 20, 5, 5, track], [22, 22, 1, 1, bg], [26, 6, 1, 1, dot], [10, 26, 1, 1, dot],
+      ];
+    default: {
+      const cloud = dark ? mix(bg, "#ffffff", 0.06) : mix(bg, "#ffffff", 0.75);
+      return [
+        [3, 6, 8, 2, cloud], [5, 4, 4, 2, cloud], [18, 21, 7, 2, cloud], [20, 19, 3, 2, cloud],
+        [24, 6, 1, 1, dot], [8, 26, 1, 1, dot], [14, 14, 1, 1, dot], [28, 28, 1, 1, dot],
+      ];
+    }
+  }
+}
+
+/** The look's wallpaper as a CSS background image. */
+export function wallpaper(theme: ThemeId, tokens: Tokens, dark: boolean) {
+  const c = { ...BASE_TOKENS[dark ? "dark" : "light"], ...tokens };
+  const body = motif(theme, c, dark)
+    .map(([x, y, w, h, f]) => `<rect x='${x}' y='${y}' width='${w}' height='${h}' fill='${f}'/>`)
+    .join("");
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 32 32' shape-rendering='crispEdges'>${body}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
 /** White or dark ink, whichever reads better on a colour (e.g. the level badge on --violet). */
 export const textOn = (bg: string) => (contrast("#ffffff", bg) >= contrast("#1b1530", bg) ? "#ffffff" : "#1b1530");
 
@@ -322,7 +421,12 @@ export function themeTokens(theme: ThemeId, palette: string, dark: boolean): Tok
       : /^#[0-9a-f]{6}$/i.test(palette)
         ? customPalette(palette)[mode]
         : (PALETTES.find((p) => p.id === palette)?.[mode] ?? {});
-  return t["--violet"] ? { ...t, "--on-violet": textOn(t["--violet"]) } : t;
+  return {
+    ...t,
+    ...(t["--violet"] ? { "--on-violet": textOn(t["--violet"]) } : {}),
+    "--wallpaper": wallpaper(theme, t, dark),
+    "--wallpaper-size": "64px 64px",
+  };
 }
 
 /** Every token any theme may set (so switching themes can clear the previous one's). */
@@ -332,6 +436,8 @@ export const THEMED_TOKENS = [
     ...PALETTES.flatMap((p) => Object.keys(p.light)),
     "--bg-dot",
     "--on-violet",
+    "--wallpaper",
+    "--wallpaper-size",
   ]),
 ];
 
