@@ -1,6 +1,6 @@
 // Festive touches on the Camp stage for the seasonal looks (pure CSS pixel art, see seasons.css).
 // Singapore flavour: Gardens by the Bay orchids, National Day bunting and fireworks, Mid-Autumn
-// lanterns and mooncakes, Orchard Road lights, Lunar New Year lanterns, oranges and ang baos.
+// lanterns, Orchard Road lights, Lunar New Year lanterns, oranges and ang baos.
 import type { ThemeId } from "../../shared/themes";
 import "../seasons.css";
 
@@ -26,9 +26,8 @@ export function SeasonDeco({ look, night }: { look: ThemeId; night: boolean }) {
       {look === "spring" && (
         <>
           {scatter(9, "sd-fall sd-petal", [7, 12])}
-          <i className="sd-orchid" style={{ left: "9%" }} />
-          <i className="sd-orchid tall" style={{ left: "13%" }} />
-          <i className="sd-orchid" style={{ right: "12%" }} />
+          <i className="sd-orchid" style={{ left: "22%" }} />
+          <i className="sd-orchid tall" style={{ left: "26%" }} />
         </>
       )}
       {look === "summer" && (
@@ -44,15 +43,9 @@ export function SeasonDeco({ look, night }: { look: ThemeId; night: boolean }) {
               { left: "62%", top: "20%", c: "#ffffff", d: "-0.8s" },
               { left: "80%", top: "36%", c: "#ffd166", d: "-1.6s" },
             ].map((f) => <i key={f.left} className="sd-firework" style={{ left: f.left, top: f.top, color: f.c, animationDelay: f.d }} />)}
-          <i className="sd-ball" />
         </>
       )}
-      {look === "autumn" && (
-        <>
-          {scatter(4, "sd-lantern", [16, 22])}
-          <i className="sd-mooncake" />
-        </>
-      )}
+      {look === "autumn" && <>{scatter(4, "sd-lantern", [16, 22])}</>}
       {look === "winter" && (
         <>
           <div className="sd-lights">

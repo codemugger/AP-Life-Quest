@@ -91,15 +91,15 @@ function AccountShell({ page }: { page: string }) {
     <div className="app">
       <header className="hud">
         <div className="hud-inner">
-          <span className="px-font" style={{ fontSize: 12 }}>
+          {/* the title wraps first so the buttons keep one row; they only wrap on the narrowest phones */}
+          <span className="px-font" style={{ fontSize: 12, flex: "1 1 0" }}>
             AP LIFE QUEST
           </span>
-          <span className="grow" />
-          <nav className="row" aria-label="Account">
+          <nav className="row wrap" aria-label="Account" style={{ justifyContent: "flex-end", gap: 2, minWidth: 0 }}>
             <HighwayButton />
             {hasChar && (
-              <button className="btn xs" onClick={() => go("camp")}>
-                ◀ Back to game
+              <button className="btn xs" onClick={() => go("camp")} aria-label="Back to game">
+                ◀ <span className="hide-sm">Back to&nbsp;</span>game
               </button>
             )}
             {accountNav(account.user.role === "owner").map((n) => (

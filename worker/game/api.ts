@@ -53,7 +53,7 @@ import { isClockTime } from "../../shared/dates";
 import { isPalette, THEME_CHOICES, type ThemeChoice } from "../../shared/themes";
 import { buildState } from "../state";
 
-export const VERSION = "2.8.0";
+export const VERSION = "2.8.1";
 
 type GameEnv = { Bindings: { DB: D1Database; VAPID?: Vapid | null; CHAR_ID?: string | null } };
 type C = Context<GameEnv>;
