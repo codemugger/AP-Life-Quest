@@ -327,7 +327,7 @@ const CHAPTERS: Chapter[] = [
       <ul>
         <li>
           Settings → 🎨 Look & sound → <b>Season & festival theme</b>: 🏕️ Original, 🌸 Spring (Gardens by the Bay orchids), 🏖️ Summer (Sentosa sand, National Day
-          bunting and fireworks at night), 🏮 Autumn (Mid-Autumn lanterns and mooncakes), ❄️ Winter (Orchard Road lights and snow) or 🧧 Lunar New Year (red and gold,
+          bunting and fireworks at night), 🏮 Autumn (Mid-Autumn lanterns and the full moon), ❄️ Winter (Orchard Road lights and snow) or 🧧 Lunar New Year (red and gold,
           lanterns, ang baos and mandarin oranges).
         </li>
         <li>📅 <b>Auto</b> follows the calendar: Lunar New Year from about 10 days before CNY until Chap Goh Mei, otherwise the season of the month.</li>

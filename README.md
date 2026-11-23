@@ -159,7 +159,7 @@ Your pet now and then wanders a few steps and turns, naps by the campfire late a
 | 🏕️ **Original** | the cosy cream-and-lavender look; choose its colours: **Classic, Sakura, Matcha, Ocean, Sunset, Kopi**, or **your own colour** (its shades are worked out so text stays readable) |
 | 🌸 **Spring** | Gardens by the Bay orchids and drifting petals |
 | 🏖️ **Summer** | Sentosa sand and sea, National Day red-and-white bunting, fireworks at night |
-| 🏮 **Autumn** | Mid-Autumn lanterns floating up, a mooncake, the full moon at night |
+| 🏮 **Autumn** | Mid-Autumn lanterns floating up, the full moon at night |
 | ❄️ **Winter** | Orchard Road Christmas lights and gentle snow |
 | 🧧 **Lunar New Year** | red and gold, hanging lanterns, falling ang baos and gold, mandarin oranges |
 

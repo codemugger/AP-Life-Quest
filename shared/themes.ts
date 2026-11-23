@@ -11,7 +11,7 @@ export const THEMES: { id: ThemeId; name: string; emoji: string; blurb: string }
   { id: "original", name: "Original", emoji: "🏕️", blurb: "Cosy cream and lavender (choose its colours below)" },
   { id: "spring", name: "Spring", emoji: "🌸", blurb: "Orchids of Gardens by the Bay: soft pink and orchid purple" },
   { id: "summer", name: "Summer", emoji: "🏖️", blurb: "Sentosa sand and sea, with National Day red-and-white bunting and fireworks" },
-  { id: "autumn", name: "Autumn", emoji: "🏮", blurb: "Mid-Autumn lanterns, mooncakes and a big full moon" },
+  { id: "autumn", name: "Autumn", emoji: "🏮", blurb: "Mid-Autumn lanterns floating up and a big full moon" },
   { id: "winter", name: "Winter", emoji: "❄️", blurb: "Orchard Road Christmas lights and gentle snow" },
   { id: "cny", name: "Lunar New Year", emoji: "🧧", blurb: "Red and gold: lanterns, mandarin oranges and ang baos" },
 ];
