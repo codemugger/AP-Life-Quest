@@ -7,6 +7,7 @@ import { useFx } from "../fx";
 import { useGame } from "../store";
 import { Bar, Field, HelpLink, Modal, Panel } from "../components/ui";
 import { PhoneReminders } from "../components/Reminders";
+import { FontPicker } from "../components/FontPicker";
 import { LookPicker } from "../components/LookPicker";
 import { darkScheduled } from "../../shared/themes";
 import { fmt } from "../util";
@@ -77,6 +78,7 @@ export default function Settings() {
 
         <Panel title="🎨 Look & sound">
           <LookPicker />
+          <FontPicker />
           <Field label="Light or dark">
             <select className="input" value={s.theme} onChange={(e) => act("settings", { theme: e.target.value }, "PUT").catch(() => {})}>
               <option value="auto">Auto (follow phone)</option>

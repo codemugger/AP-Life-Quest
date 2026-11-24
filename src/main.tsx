@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/press-start-2p/400.css";
 import "./styles.css";
+import "./fonts.css";
 import App from "./App";
 
 // Keep the app shell on the device so it opens fast (game data is never cached by it).

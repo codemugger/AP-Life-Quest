@@ -322,7 +322,7 @@ const CHAPTERS: Chapter[] = [
   {
     id: "looks",
     emoji: "🎨",
-    title: "Seasonal and festive looks",
+    title: "Seasonal looks and fonts",
     body: () => (
       <ul>
         <li>
@@ -342,6 +342,11 @@ const CHAPTERS: Chapter[] = [
           the campfire late at night, and hops with a 💗 when you tap it.
         </li>
         <li>Turning down motion on your phone stills the decorations and the wandering.</li>
+        <li>
+          <b>Font</b> (same panel): 👾 Classic (the original pixel font), 🕹️ Pixel Smooth (Classic drawn finer), 🍡 Rounded, 🔍 Hyperlegible (0/O, 1/l/I and 5/S never look alike), 📱
+          Phone's own or ✍️ Handwritten. <b>Titles and labels</b> can stay chunky pixel or use the same font, which is easier to read on small labels. Notes
+          follow the app font unless you give a note its own (🔤).
+        </li>
       </ul>
     ),
   },

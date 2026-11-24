@@ -4,6 +4,7 @@
 import { Hono, type Context } from "hono";
 import { COSMETICS, EYES, isUnlocked, levelInfo, SPECIES, type Slot } from "../../shared/levels";
 import { isPetColor } from "../../shared/petgrid";
+import { FONT_IDS, TITLE_FONTS, type TitleFont } from "../../shared/fonts";
 import { DEFAULT_SETTINGS, EDITABLE_SETTINGS } from "../../shared/rules";
 import { claimAchievement } from "../achievements";
 import { createSnapshot, exportJson, factoryReset, importAll, maybeAutoSnapshot, restoreSnapshot, seasonReset, snapshotJson } from "../backup";
@@ -53,7 +54,7 @@ import { isClockTime } from "../../shared/dates";
 import { isPalette, THEME_CHOICES, type ThemeChoice } from "../../shared/themes";
 import { buildState } from "../state";
 
-export const VERSION = "2.8.1";
+export const VERSION = "2.9.0";
 
 type GameEnv = { Bindings: { DB: D1Database; VAPID?: Vapid | null; CHAR_ID?: string | null } };
 type C = Context<GameEnv>;
@@ -260,6 +261,8 @@ gameApp.put("/api/settings", (c) =>
       if ((k === "push_morning" || k === "push_evening") && val !== "" && !isClockTime(val)) throw bad("Reminder times look like 08:00");
       if (k === "look" && !THEME_CHOICES.includes(val as ThemeChoice)) throw bad("Unknown theme");
       if (k === "palette" && !isPalette(val)) throw bad("Colours must be a palette or #rrggbb");
+      if (k === "font" && !FONT_IDS.includes(String(val))) throw bad("Unknown font");
+      if (k === "title_font" && !TITLE_FONTS.includes(val as TitleFont)) throw bad("Titles must be pixel or text");
       if (k === "theme" && !["auto", "day", "night", "schedule"].includes(String(val))) throw bad("Light or dark must be auto, day, night or schedule");
       if ((k === "dark_from" || k === "dark_until") && !isClockTime(val)) throw bad("Dark-mode times look like 20:00");
       if (SLOT_OF[k]) {

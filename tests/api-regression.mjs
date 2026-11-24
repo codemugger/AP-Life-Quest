@@ -412,6 +412,14 @@ ok((await put({ theme: "schedule", dark_from: "20:00", dark_until: "07:00" })).s
 ok((await put({ dark_from: "8pm" })).status === 400 && (await put({ dark_until: "25:00" })).status === 400, "…with real clock times");
 ok((await state()).settings.dark_from === "20:00" && (await put({ theme: "auto" })).status === 200, "…which are kept");
 await put({ palette: "classic" });
+// app fonts (Settings → Font)
+ok((await state()).settings.font === "classic" && (await state()).settings.title_font === "pixel", "characters start with the Classic font and pixel titles");
+for (const font of ["pixel", "rounded", "legible", "phone", "hand", "classic"]) ok((await put({ font })).status === 200, `the ${font} font can be chosen`);
+ok((await put({ font: "comic-sans" })).status === 400 && (await put({ font: "" })).status === 400, "unknown fonts are rejected");
+ok((await put({ title_font: "text" })).status === 200 && (await state()).settings.title_font === "text", "titles can use the text font");
+ok((await put({ title_font: "fancy" })).status === 400 && (await put({ title_font: "pixel" })).status === 200, "…or stay pixel, nothing else");
+ok((await put({ font: "rounded", title_font: "text" })).status === 200 && (await state()).settings.font === "rounded", "font and titles save together");
+await put({ font: "classic", title_font: "pixel" });
 ok((await put({ hat: "beanie", face: "glasses", scene: "beach" })).status === 200, "free hat/face/scene work");
 // (chests can drop locked items early, so pick ones this character hasn't won)
 const owned = (await state()).settings.hats;
