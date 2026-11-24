@@ -44,6 +44,8 @@ export interface Settings {
   dark_until: string; // …until this time (light from then on)
   look: string; // seasonal look: "original", "auto" (follows the calendar) or a theme id (shared/themes.ts)
   palette: string; // Original's colours: a palette id or "#rrggbb"
+  font: string; // app font (shared/fonts.ts); "classic" is the original pixel font
+  title_font: string; // titles and labels: "pixel" (Press Start 2P) or "text" (the app font)
   current_season: number;
   template: string;
   /** grace_hours is a clock hour (since v2.6; older saves counted from the day start) */
@@ -92,6 +94,8 @@ export const DEFAULT_SETTINGS: Settings = {
   dark_until: "07:00",
   look: "original",
   palette: "classic",
+  font: "classic",
+  title_font: "pixel",
   current_season: 1,
   template: "starter",
   grace_clock: true,

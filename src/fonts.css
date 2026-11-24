@@ -1,0 +1,41 @@
+/* App fonts you can choose in Settings → Look & sound (shared/fonts.ts). All SIL OFL, self-hosted,
+   latin only; a browser downloads a file only when text uses it. Classic ("Quest") is in styles.css.
+   Text faces are sized to stand about as tall as Classic. Each "… Title" twin is the same file scaled
+   to stand as tall as the Press Start 2P titles, for "Titles: same as text". */
+
+/* ---- text ---- */
+@font-face { font-family: "Quest Pixel"; src: url("./fonts/jersey-20-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; size-adjust: 115%; }
+@font-face { font-family: "Quest Rounded"; src: url("./fonts/nunito-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; size-adjust: 96%; }
+@font-face { font-family: "Quest Rounded"; src: url("./fonts/nunito-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; size-adjust: 96%; }
+@font-face { font-family: "Quest Legible"; src: url("./fonts/atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; size-adjust: 102%; }
+@font-face { font-family: "Quest Legible"; src: url("./fonts/atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; size-adjust: 102%; }
+@font-face { font-family: "Quest Hand"; src: url("./fonts/patrick-hand-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; size-adjust: 105%; }
+
+/* ---- titles (same files, scaled up) ---- */
+@font-face { font-family: "Quest Title"; src: url("./fonts/jersey-10-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; size-adjust: 167%; }
+@font-face { font-family: "Quest Pixel Title"; src: url("./fonts/jersey-20-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; size-adjust: 153%; }
+@font-face { font-family: "Quest Rounded Title"; src: url("./fonts/nunito-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; size-adjust: 125%; }
+@font-face { font-family: "Quest Rounded Title"; src: url("./fonts/nunito-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; size-adjust: 125%; }
+@font-face { font-family: "Quest Legible Title"; src: url("./fonts/atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; size-adjust: 134%; }
+@font-face { font-family: "Quest Legible Title"; src: url("./fonts/atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; size-adjust: 134%; }
+@font-face { font-family: "Quest Hand Title"; src: url("./fonts/patrick-hand-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; size-adjust: 136%; }
+/* the phone's own font, scaled the same way (falls back to plain system-ui where none of these exist) */
+@font-face {
+  font-family: "Quest Phone Title"; font-weight: 400; size-adjust: 129%;
+  src: local("SF Pro Text"), local("SFProText-Regular"), local("Helvetica Neue"), local("HelveticaNeue"), local("Segoe UI"), local("SegoeUI"), local("Roboto"), local("Roboto-Regular"), local("Arial"), local("ArialMT");
+}
+@font-face {
+  font-family: "Quest Phone Title"; font-weight: 700; size-adjust: 129%;
+  src: local("SF Pro Text Bold"), local("SFProText-Bold"), local("Helvetica Neue Bold"), local("HelveticaNeue-Bold"), local("Segoe UI Bold"), local("SegoeUI-Bold"), local("Roboto Bold"), local("Roboto-Bold"), local("Arial Bold"), local("Arial-BoldMT");
+}
+
+/* ---- Settings → Font picker ---- */
+.font-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.font-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border: 0; cursor: pointer; text-align: left;
+  background: var(--panel); color: var(--ink); box-shadow: 0 0 0 2px var(--line);
+}
+.font-tile.on { background: var(--violet-l); box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--violet); }
+.font-tile:disabled { cursor: default; }
+.font-tile .ft-name { font-size: 17px; font-weight: 700; line-height: 1.2; }
+.font-tile .ft-sample { font-size: 15px; line-height: 1.3; color: var(--ink-2); }

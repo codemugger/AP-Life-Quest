@@ -931,8 +931,9 @@ export default function NoteEditor({
               <div className="col" style={{ gap: 2 }}>
                 <span className="tiny muted">Font for the whole note</span>
                 {NOTE_FONTS.map((f) => (
-                  <button key={f.id} type="button" className={`pop-item ${meta.font === f.id ? "on" : ""}`} style={{ fontFamily: f.css, fontSize: f.id === "arcade" ? 11 : 17 }} onClick={() => (change({ font: f.id }), closeP())}>
-                    {f.label}
+                  // a whole note in "quest" follows the app font (Settings → Font)
+                  <button key={f.id} type="button" className={`pop-item ${meta.font === f.id ? "on" : ""}`} style={{ fontFamily: f.id === "quest" ? "var(--font)" : f.css, fontSize: f.id === "arcade" ? 11 : 17 }} onClick={() => (change({ font: f.id }), closeP())}>
+                    {f.id === "quest" ? "App font" : f.label}
                   </button>
                 ))}
               </div>

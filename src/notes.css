@@ -34,8 +34,8 @@
 .nc-pink { --nc-bg: var(--nc-pink); } .nc-sand { --nc-bg: var(--nc-sand); } .nc-slate { --nc-bg: var(--nc-slate); }
 
 /* fonts you can pick for a note */
-.font-quest { font-family: var(--font); }
-.font-arcade { font-family: var(--font-px); }
+.font-quest { font-family: var(--font); } /* the default: follows the app font (Settings → Font) */
+.font-arcade { font-family: "Press Start 2P", monospace; }
 .font-sans { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 .font-serif { font-family: Georgia, "Times New Roman", serif; }
 .font-mono { font-family: ui-monospace, Consolas, monospace; }
@@ -72,6 +72,8 @@
 }
 .chip-btn { border: 0; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; padding: 3px 10px; margin: 3px; background: var(--nc-bg, var(--panel)); color: var(--ink); box-shadow: 0 0 0 2px var(--line); white-space: nowrap; }
 .chip-btn.on { background: var(--lemon); color: #2d2142; box-shadow: 0 0 0 3px var(--line); }
+/* chapter links (Guide): a long title wraps rather than running off a phone */
+a.chip-btn { display: inline-block; max-width: calc(100% - 6px); white-space: normal; }
 .badge-inline { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 4px; font-size: 11px; background: var(--coral); color: #fff; box-shadow: 0 0 0 2px var(--line); }
 .note-search { flex: 1; max-width: 360px; min-width: 180px; }
 

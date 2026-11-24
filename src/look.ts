@@ -1,7 +1,8 @@
 // Applies the seasonal look (Settings → Look) over the base design: colour tokens on <html>, a
-// data-look attribute for festive decorations, light or dark (also on a schedule), and the
-// phone's status-bar colour.
+// data-look attribute for festive decorations, light or dark (also on a schedule), the app font,
+// and the phone's status-bar colour.
 import { useEffect, useState } from "react";
+import { FONT_VARS, fontVars } from "../shared/fonts";
 import { lightMode, resolveTheme, THEMED_TOKENS, themeTokens, type ThemeId } from "../shared/themes";
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
@@ -33,11 +34,25 @@ export function useDark(s: ModeSettings) {
   return mode === "night" || (mode === "auto" && system);
 }
 
-export function useLook(s: ModeSettings & { look: string; palette: string }, today: string): ThemeId {
+/** The app font (Settings → Look & sound) as --font / --font-px on <html>. */
+export function useFont(font: string | undefined, titles: string | undefined) {
+  useEffect(() => {
+    const root = document.documentElement;
+    for (const [k, v] of Object.entries(fontVars(font, titles))) root.style.setProperty(k, v);
+    root.dataset.font = font ?? "classic";
+    return () => {
+      for (const k of FONT_VARS) root.style.removeProperty(k);
+      delete root.dataset.font;
+    };
+  }, [font, titles]);
+}
+
+export function useLook(s: ModeSettings & { look: string; palette: string; font?: string; title_font?: string }, today: string): ThemeId {
   const mode = useMode(s);
   const dark = useDark(s);
   const id = resolveTheme(s.look ?? "original", today);
   const palette = s.palette ?? "classic";
+  useFont(s.font, s.title_font);
   // the stylesheet's own light/dark switch
   useEffect(() => {
     if (mode === "auto") delete document.documentElement.dataset.theme;

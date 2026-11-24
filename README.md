@@ -165,6 +165,8 @@ Your pet now and then wanders a few steps and turns, naps by the campfire late a
 
 📅 **Auto** follows the calendar: Lunar New Year from about 10 days before CNY until Chap Goh Mei, otherwise Spring (Mar–May), Summer (Jun–Aug), Autumn (Sep–Nov) and Winter (Dec–Feb). *Light or dark* in the same panel picks the mode: Auto follows your phone, Day or Night stay put, and **🕗 On a schedule** switches by the clock in your timezone (e.g. dark from 20:00, light from 07:00). Each look also gives the page a faint **wallpaper** (pixel clouds, orchids, waves, lanterns, snowflakes, lucky clouds and coins) instead of plain dots. Looks belong to the character, like the rest of Settings. Turning down motion on your phone stills the decorations and the pet's wandering.
 
+**🔤 Fonts** (Settings → 🎨 Look & sound → *Font*): 👾 **Classic** (the original Jersey 10 pixel font, the default), 🕹️ **Pixel Smooth** (Jersey 20: the Classic look drawn finer), 🍡 **Rounded** (Nunito), 🔍 **Hyperlegible** (Atkinson Hyperlegible Next: 0/O, 1/l/I and 5/S never look alike), 📱 **Phone's own** (the system font, nothing to download) and ✍️ **Handwritten** (Patrick Hand). *Titles and labels* stay chunky pixel (Press Start 2P) or switch to the same font, which reads better on small labels. Each font is sized to sit like Classic, so layouts don't shift. Notes follow the app font unless a note picks its own (🔤). Fonts are self-hosted (SIL Open Font License, `src/fonts/`) and only downloaded when shown.
+
 **🖼️ Pictures:** you can add pictures to quests, events, goals, shop items, vouchers, achievements and sprint bosses. When adding one you choose:
 
 - **📷 Photo**: resized on your phone to keep it small, or
@@ -484,7 +486,8 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 ├── shared/                levels & cosmetics, pixel pet, dates, pricing, BMI/EMA, rules,
 │                          notedoc (what a rich note may contain + previews/word counts)
 │                          priority (to-do matrix), schedule (repeats), highway (starter sites, URL rules),
-│                          themes (seasonal looks + palettes for light/dark, Auto calendar, contrast maths)
+│                          themes (seasonal looks + palettes for light/dark, Auto calendar, contrast maths),
+│                          fonts (the app fonts and title choice)
 ├── src/                   React UI (pages/, components/, account flow, pictures, effects)
 │   ├── pages/Guide.tsx    the in-game guide (? buttons link to its chapters)
 │   ├── components/Highway.tsx  🛣️ launcher, Camp strip, site editor
@@ -492,7 +495,8 @@ Local data lives in `.wrangler/state` (git-ignored). Delete it and re-run `npm r
 │   ├── importer.ts        tracker history import: .xlsx / CSV / pasted cells → dates + values
 │   ├── insights.ts        Body trends: calorie EMA / 3-day average, weight steady / minor / sharp
 │   ├── components/Big3.tsx, Reminders.tsx, ImportHistory.tsx
-│   ├── look.ts            applies the seasonal look (colour tokens, wallpaper, light/dark incl. schedule, status bar); LookPicker.tsx = Settings
+│   ├── look.ts            applies the seasonal look (colour tokens, wallpaper, light/dark incl. schedule, app font, status bar); LookPicker.tsx, FontPicker.tsx = Settings
+│   ├── fonts.css + fonts/ the choosable fonts (@font-face, sized to match Classic) and their OFL licences
 │   ├── components/SeasonDeco.tsx + seasons.css  festive touches on the Camp stage
 │   ├── components/SceneArt.tsx + scenes.css  the 5 Camp backdrops (pixel-art SVG, day/night) and the pet's idle moments
 │   ├── pages/Notes.tsx    binder tabs, board, journal, labels/notebook managers
